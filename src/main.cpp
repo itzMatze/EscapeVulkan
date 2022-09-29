@@ -7,6 +7,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
+#include "ve_log.h"
 #include "Window.h"
 #include "vk/Instance.h"
 
@@ -21,8 +22,9 @@ struct RenderingInfo
 class MainContext
 {
 public:
-    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(&(this->window), std::vector<const char*>(), std::vector<const char*>({ "Test", "Test1" }))
+    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(&(this->window), std::vector<const char*>(), std::vector<const char*>({ "Test", "Test1" }), std::vector<const char*>({ "VK_LAYER_KHRONOS_validation" }))
     {
+        VE_LOG_CONSOLE("Creating MainContext\n");
     }
 
 private:

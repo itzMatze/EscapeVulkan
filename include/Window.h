@@ -19,8 +19,9 @@ public:
         SDL_Quit();
     }
 
-    bool get_required_extensions(uint32_t& extension_count, std::vector<const char*>& extensions)
+    bool get_required_extensions(std::vector<const char*>& extensions)
     {
+        uint32_t extension_count;
         bool success = true;
         SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr);
         extensions.resize(extension_count);

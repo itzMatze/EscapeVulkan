@@ -4,14 +4,16 @@
 #include <unordered_set>
 
 #include "Window.h"
+#include "ve_log.h"
 
 namespace ve
 {
     class Instance
     {
     public:
-        Instance(Window* window, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions)
+        Instance(Window* window, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions, const std::vector<const char*>& validation_layers)
         {
+            VE_LOG_CONSOLE("Creating instance\n");
             vk::ApplicationInfo ai{};
             ai.sType = vk::StructureType::eApplicationInfo;
             ai.pApplicationName = "Vulkan Engine";
@@ -20,28 +22,31 @@ namespace ve
             ai.engineVersion = VK_MAKE_VERSION(1, 0, 0);
             ai.apiVersion = VK_API_VERSION_1_3;
 
-            uint32_t extension_count = 0;
-            uint32_t tmp_extension_count = 0;
             std::vector<const char*> extensions;
             std::vector<const char*> tmp_extensions;
-            if (!window->get_required_extensions(tmp_extension_count, tmp_extensions)) throw std::runtime_error("Could not load required extensions for window!");
+            if (!window->get_required_extensions(tmp_extensions)) throw std::runtime_error("Could not load required extensions for window!");
             extensions.insert(extensions.end(), tmp_extensions.begin(), tmp_extensions.end());
-            extension_count += tmp_extension_count;
-            add_extensions(tmp_extension_count, tmp_extensions, required_extensions, optional_extensions);
+            tmp_extensions.clear();
+            add_extensions(tmp_extensions, required_extensions, optional_extensions);
+            extensions.insert(extensions.end(), tmp_extensions.begin(), tmp_extensions.end());
+
+            std::vector<const char*> enabled_validation_layers;
+            if (!get_available_validation_layers(validation_layers, enabled_validation_layers)) std::cout << "No validation layers added!\n";
 
             vk::InstanceCreateInfo ici{};
             ici.sType = vk::StructureType::eInstanceCreateInfo;
             ici.pApplicationInfo = &ai;
-            ici.enabledExtensionCount = extension_count;
+            ici.enabledExtensionCount = extensions.size();
             ici.ppEnabledExtensionNames = extensions.data();
-            ici.enabledLayerCount = 0;
+            ici.enabledLayerCount = enabled_validation_layers.size();
+            ici.ppEnabledLayerNames = enabled_validation_layers.data();
 
-            vk::resultCheck(vk::createInstance(&ici, nullptr, &instance), "Instance creation failed!");
+            VE_CHECK(vk::createInstance(&ici, nullptr, &instance), "Instance creation failed!");
         }
 
         ~Instance()
         {
-        	instance.destroy();
+            instance.destroy();
         }
 
         std::vector<const char*> get_missing_extensions()
@@ -50,34 +55,62 @@ namespace ve
         }
 
     private:
-        std::vector<const char*> add_extensions(uint32_t& extension_count, std::vector<const char*>& extensions, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions)
+        void add_extensions(std::vector<const char*>& extensions, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions)
         {
             uint32_t available_extension_count = 0;
-            vk::resultCheck(vk::enumerateInstanceExtensionProperties(nullptr, &available_extension_count, nullptr), "Could not get available extensions count!");
+            VE_CHECK(vk::enumerateInstanceExtensionProperties(nullptr, &available_extension_count, nullptr), "Could not get available extensions count!");
 
             std::vector<vk::ExtensionProperties> available_extensions(available_extension_count);
-            vk::resultCheck(vk::enumerateInstanceExtensionProperties(nullptr, &available_extension_count, available_extensions.data()), "Could not get available extensions!");
+            VE_CHECK(vk::enumerateInstanceExtensionProperties(nullptr, &available_extension_count, available_extensions.data()), "Could not get available extensions!");
 
-            std::unordered_set<const char*> available_extensions_set;
-            for (auto& extension: available_extensions)
+            for (const auto& requested_extension: required_extensions)
             {
-                available_extensions_set.insert(extension.extensionName);
-            }
-
-            for (auto& extension: required_extensions)
-            {
-                if (!available_extensions_set.contains(extension)) throw std::runtime_error("Required extension unavailable!");
-            }
-
-            for (auto& extension: optional_extensions)
-            {
-                if (!available_extensions_set.contains(extension))
+                for (const auto& avail_extension: available_extensions)
                 {
-                    std::cout << "Optional extension " << extension << " unavailable!" << std::endl;
-                    missing_extensions.push_back(extension);
+                    if (strcmp(requested_extension, avail_extension.extensionName) == 0)
+                    {
+                        extensions.push_back(requested_extension);
+                        break;
+                    }
+                }
+                throw std::runtime_error("Required extension unavailable!");
+            }
+
+            for (const auto& requested_extension: optional_extensions)
+            {
+                for (const auto& avail_extension: available_extensions)
+                {
+                    if (strcmp(requested_extension, avail_extension.extensionName) == 0)
+                    {
+                        extensions.push_back(requested_extension);
+                        break;
+                    }
+                }
+                VE_WARN_CONSOLE("Optional extension " << requested_extension << " unavailable!\n");
+                missing_extensions.push_back(requested_extension);
+            }
+        }
+
+        bool get_available_validation_layers(const std::vector<const char*>& requested_validation_layers, std::vector<const char*>& validation_layers)
+        {
+            uint32_t layer_count;
+            VE_CHECK(vk::enumerateInstanceLayerProperties(&layer_count, nullptr), "Could not get available layers count!");
+
+            std::vector<vk::LayerProperties> available_layers(layer_count);
+            VE_CHECK(vk::enumerateInstanceLayerProperties(&layer_count, available_layers.data()), "Could not get available layers!");
+
+            for (const auto& req_layer: requested_validation_layers)
+            {
+                for (const auto& avail_layer: available_layers)
+                {
+                    if (strcmp(req_layer, avail_layer.layerName) == 0)
+                    {
+                        validation_layers.push_back(req_layer);
+                        break;
+                    }
                 }
             }
-            return missing_extensions;
+            return validation_layers.size() > 0;
         }
 
         vk::Instance instance;
