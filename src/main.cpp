@@ -10,6 +10,7 @@
 #include "ve_log.h"
 #include "Window.h"
 #include "vk/Instance.h"
+#include "vk/PhysicalDevice.h"
 
 struct RenderingInfo
 {
@@ -22,14 +23,18 @@ struct RenderingInfo
 class MainContext
 {
 public:
-    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(&(this->window), std::vector<const char*>(), std::vector<const char*>({ "Test", "Test1" }), std::vector<const char*>({ "VK_LAYER_KHRONOS_validation" }))
+    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(&(this->window), required_extensions, optional_extensions, validation_layers), physical_device(this->instance)
     {
-        VE_LOG_CONSOLE("Creating MainContext\n");
+        VE_LOG_CONSOLE("Creating MainContext");
     }
 
 private:
+    const std::vector<const char*> required_extensions;
+    const std::vector<const char*> optional_extensions{ "Test", "Test1" };
+    const std::vector<const char*> validation_layers{ "VK_LAYER_KHRONOS_validation" };
     Window window;
     ve::Instance instance;
+    ve::PhysicalDevice physical_device;
 };
 
 int main(int argc, char** argv)
