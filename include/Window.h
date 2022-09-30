@@ -9,6 +9,7 @@ class Window
 public:
     Window(const uint32_t width, const uint32_t height)
     {
+        VE_LOG_CONSOLE("Creating window");
         SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
         window = SDL_CreateWindow("Vulkan Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI);
     }
@@ -23,7 +24,7 @@ public:
     {
         uint32_t extension_count;
         bool success = true;
-        SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr);
+        success &= SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr);
         extensions.resize(extension_count);
         success &= SDL_Vulkan_GetInstanceExtensions(window, &extension_count, extensions.data());
         return success;

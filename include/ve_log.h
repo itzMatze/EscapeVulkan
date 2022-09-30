@@ -22,15 +22,38 @@ auto get_time()
 }
 
 #if defined(VE_LOGGING)
-    #define VE_LOG_CONSOLE(X) std::cout << get_time() << X
-    #define VE_OK_CONSOLE(X) std::cout << get_time() << GREEN << X << WHITE
-    #define VE_WARN_CONSOLE(X) std::cout << get_time() << YELLOW << X << WHITE
-    #define VE_ERR_CONSOLE(X) std::cerr << get_time() << RED << X << WHITE
+    #define VE_LOG_CONSOLE_START(X) std::cout << get_time() << X
+    #define VE_OK_CONSOLE_START(X) std::cout << get_time() << GREEN << X
+    #define VE_WARN_CONSOLE_START(X) std::cout << get_time() << YELLOW << X
+    #define VE_ERR_CONSOLE_START(X) std::cerr << get_time() << RED << X
+
+    #define VE_CONSOLE_ADD(X) std::cout << X
+    #define VE_ERR_CONSOLE_ADD(X) std::cerr << X
+
+    #define VE_CONSOLE_END(X) std::cout << X << WHITE
+    #define VE_ERR_CONSOLE_END(X) std::cerr << WHITE
+
+    #define VE_LOG_CONSOLE(X) std::cout << get_time() << X << "\n"
+    #define VE_OK_CONSOLE(X) std::cout << get_time() << GREEN << X << WHITE << "\n"
+    #define VE_WARN_CONSOLE(X) std::cout << get_time() << YELLOW << X << WHITE << "\n"
+    #define VE_ERR_CONSOLE(X) std::cerr << get_time() << RED << X << WHITE << "\n"
+
+    #define VE_THROW(X) { VE_ERR_CONSOLE(X); throw std::runtime_error(X); }
 #else
+    #define VE_LOG_CONSOLE_START(X)
+    #define VE_OK_CONSOLE_START(X)
+    #define VE_WARN_CONSOLE_START(X)
+    #define VE_ERR_CONSOLE_START(X)
+
+    #define VE_CONSOLE_ADD(X)
+    #define VE_ERR_CONSOLE_ADD(X)
+
     #define VE_LOG_CONSOLE(X)
     #define VE_OK_CONSOLE(X)
     #define VE_WARN_CONSOLE(X)
     #define VE_ERR_CONSOLE(X)
+
+    #define VE_THROW(X) throw std::runtime_error(X);
 #endif
 
 #if defined(VE_CHECKING)

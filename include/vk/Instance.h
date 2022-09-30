@@ -13,7 +13,7 @@ namespace ve
     public:
         Instance(Window* window, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions, const std::vector<const char*>& validation_layers)
         {
-            VE_LOG_CONSOLE("Creating instance\n");
+            VE_LOG_CONSOLE("Creating instance");
             vk::ApplicationInfo ai{};
             ai.sType = vk::StructureType::eApplicationInfo;
             ai.pApplicationName = "Vulkan Engine";
@@ -24,14 +24,14 @@ namespace ve
 
             std::vector<const char*> extensions;
             std::vector<const char*> tmp_extensions;
-            if (!window->get_required_extensions(tmp_extensions)) throw std::runtime_error("Could not load required extensions for window!");
+            if (!window->get_required_extensions(tmp_extensions)) VE_THROW("Could not load required extensions for window!");
             extensions.insert(extensions.end(), tmp_extensions.begin(), tmp_extensions.end());
             tmp_extensions.clear();
             add_extensions(tmp_extensions, required_extensions, optional_extensions);
             extensions.insert(extensions.end(), tmp_extensions.begin(), tmp_extensions.end());
 
             std::vector<const char*> enabled_validation_layers;
-            if (!get_available_validation_layers(validation_layers, enabled_validation_layers)) std::cout << "No validation layers added!\n";
+            if (!get_available_validation_layers(validation_layers, enabled_validation_layers)) VE_WARN_CONSOLE("No validation layers added!");
 
             vk::InstanceCreateInfo ici{};
             ici.sType = vk::StructureType::eInstanceCreateInfo;
@@ -54,6 +54,16 @@ namespace ve
             return missing_extensions;
         }
 
+        std::vector<vk::PhysicalDevice> get_physical_devices() const
+        {
+            uint32_t device_count = 0;
+            VE_CHECK(instance.enumeratePhysicalDevices(&device_count, nullptr), "Getting physical device count failed!");
+            if (device_count == 0) VE_THROW("Failed to find GPUs with Vulkan support!");
+            std::vector<vk::PhysicalDevice> physical_devices(device_count);
+            VE_CHECK(instance.enumeratePhysicalDevices(&device_count, physical_devices.data()), "Physical device enumeration failed!");
+            return physical_devices;
+        }
+
     private:
         void add_extensions(std::vector<const char*>& extensions, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions)
         {
@@ -73,7 +83,7 @@ namespace ve
                         break;
                     }
                 }
-                throw std::runtime_error("Required extension unavailable!");
+                VE_THROW("Required extension unavailable!");
             }
 
             for (const auto& requested_extension: optional_extensions)
@@ -86,7 +96,7 @@ namespace ve
                         break;
                     }
                 }
-                VE_WARN_CONSOLE("Optional extension " << requested_extension << " unavailable!\n");
+                VE_WARN_CONSOLE("Optional extension " << requested_extension << " unavailable!");
                 missing_extensions.push_back(requested_extension);
             }
         }
