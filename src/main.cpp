@@ -11,6 +11,7 @@
 #include "Window.h"
 #include "vk/Instance.h"
 #include "vk/PhysicalDevice.h"
+#include "vk/LogicalDevice.h"
 
 struct RenderingInfo
 {
@@ -23,7 +24,7 @@ struct RenderingInfo
 class MainContext
 {
 public:
-    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(&(this->window), required_extensions, optional_extensions, validation_layers), physical_device(this->instance)
+    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(&(this->window), required_extensions, optional_extensions, validation_layers), physical_device(this->instance), logical_device(physical_device)
     {
         VE_LOG_CONSOLE("Creating MainContext");
     }
@@ -35,6 +36,7 @@ private:
     Window window;
     ve::Instance instance;
     ve::PhysicalDevice physical_device;
+    ve::LogicalDevice logical_device;
 };
 
 int main(int argc, char** argv)

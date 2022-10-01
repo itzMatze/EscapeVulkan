@@ -24,7 +24,7 @@ namespace ve
 
             std::vector<const char*> extensions;
             std::vector<const char*> tmp_extensions;
-            if (!window->get_required_extensions(tmp_extensions)) VE_THROW("Could not load required extensions for window!");
+            if (!window->get_required_extensions(tmp_extensions)) VE_THROW("Failed to load required extensions for window!");
             extensions.insert(extensions.end(), tmp_extensions.begin(), tmp_extensions.end());
             tmp_extensions.clear();
             add_extensions(tmp_extensions, required_extensions, optional_extensions);

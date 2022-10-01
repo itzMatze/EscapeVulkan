@@ -57,7 +57,9 @@ auto get_time()
 #endif
 
 #if defined(VE_CHECKING)
+    #define VE_ASSERT(X,M) if (!(X)) VE_THROW(M); 
     #define VE_CHECK(X,M) vk::resultCheck(X,M)
 #else
+    #define VE_ASSERT(X,M) void(X)
     #define VE_CHECK(X,M) void(X)
 #endif
