@@ -21,13 +21,13 @@ namespace ve
     public:
         PhysicalDevice(const Instance& instance, const std::vector<const char*>& required_extensions, const std::vector<const char*> optional_extensions)
         {
-            VE_LOG_CONSOLE("Creating physical device");
+            VE_LOG_CONSOLE(PINK << "Creating physical device");
             std::vector<vk::PhysicalDevice> physical_devices = instance.get_physical_devices();
             std::unordered_set<uint32_t> suitable_p_devices;
             VE_LOG_CONSOLE_START("Found physical devices: \n");
             for (uint32_t i = 0; i < physical_devices.size(); ++i)
             {
-                if (is_device_suitable(i, physical_devices[i], required_extensions, optional_extensions))
+                if (is_device_suitable(i, physical_devices[i], instance.get_surface(), required_extensions, optional_extensions))
                 {
                     suitable_p_devices.insert(i);
                 }
@@ -55,6 +55,7 @@ namespace ve
             extensions_handler.add_extensions(physical_device.enumerateDeviceExtensionProperties(), required_extensions, true);
             extensions_handler.add_extensions(physical_device.enumerateDeviceExtensionProperties(), optional_extensions, false);
             find_queue_families(instance.get_surface());
+            VE_LOG_CONSOLE("Queue family indices: \n    Graphics: " << queue_family_indices.graphics << "\n    Compute:  " << queue_family_indices.compute << "\n    Transfer: " << queue_family_indices.transfer << "\n    Present:  " << queue_family_indices.present);
         }
 
         vk::PhysicalDevice get() const
@@ -86,12 +87,19 @@ namespace ve
             {
                 vk::Bool32 present_support = false;
                 present_support = physical_device.getSurfaceSupportKHR(i, surface);
-                if (present_support)
+                // take what we get for present queue, but ideally present and graphics queue are the same
+                if (present_support && scores.present < 0)
                 {
+                    scores.present = 0;
                     queue_family_indices.present = i;
                 }
                 if (scores.graphics < get_queue_score(queue_families[i], vk::QueueFlagBits::eGraphics))
                 {
+                    if (present_support && scores.present < 1)
+                    {
+                        scores.present = 1;
+                        queue_family_indices.present = i;
+                    }
                     scores.graphics = get_queue_score(queue_families[i], vk::QueueFlagBits::eGraphics);
                     queue_family_indices.graphics = i;
                 }
@@ -109,14 +117,13 @@ namespace ve
             VE_ASSERT(queue_family_indices.graphics > -1 && queue_family_indices.compute > -1 && queue_family_indices.transfer > -1, "One queue family could not be satisfied!");
         }
 
-        bool is_device_suitable(uint32_t idx, const vk::PhysicalDevice p_device, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions) const
+        bool is_device_suitable(uint32_t idx, const vk::PhysicalDevice p_device, const vk::SurfaceKHR surface, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions) const
         {
             vk::PhysicalDeviceProperties pdp;
             p_device.getProperties(&pdp);
             vk::PhysicalDeviceFeatures p_device_features;
             p_device.getFeatures(&p_device_features);
             std::vector<vk::ExtensionProperties> available_extensions = p_device.enumerateDeviceExtensionProperties();
-
             VE_CONSOLE_ADD("    " << idx << " " << pdp.deviceName << " ");
             for (const auto& requested_extension: required_extensions)
             {
@@ -124,6 +131,10 @@ namespace ve
                 {
                     VE_CONSOLE_ADD("(not suitable)\n");
                     return false;
+                }
+                if (requested_extension == VK_KHR_SWAPCHAIN_EXTENSION_NAME)
+                {
+                    if (!is_swapchain_supported(p_device, surface)) return false;
                 }
             }
 
@@ -135,6 +146,13 @@ namespace ve
 
             VE_CONSOLE_ADD("(suitable, " << missing_optional_extensions << " missing optional extensions)\n");
             return pdp.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
+        }
+
+        bool is_swapchain_supported(const vk::PhysicalDevice p_device, const vk::SurfaceKHR surface) const
+        {
+            std::vector<vk::SurfaceFormatKHR> f = p_device.getSurfaceFormatsKHR(surface);
+            std::vector<vk::PresentModeKHR> pm = p_device.getSurfacePresentModesKHR(surface);
+            return !f.empty() && !pm.empty();
         }
 
         int32_t get_queue_score(vk::QueueFamilyProperties queue_family, vk::QueueFlagBits target) const

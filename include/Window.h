@@ -11,7 +11,7 @@ class Window
 public:
     Window(const uint32_t width, const uint32_t height)
     {
-        VE_LOG_CONSOLE("Creating window");
+        VE_LOG_CONSOLE(PINK << "Creating window");
         SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
         window = SDL_CreateWindow("Vulkan Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI);
     }

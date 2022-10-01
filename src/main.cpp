@@ -25,7 +25,13 @@ class MainContext
 public:
     MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(this->window, required_extensions, optional_extensions, validation_layers), physical_device(this->instance, required_device_extensions, optional_device_extensions), logical_device(physical_device)
     {
-        VE_LOG_CONSOLE("Creating MainContext");
+        logical_device.create_swapchain(instance.get_surface(), window.get());
+        VE_LOG_CONSOLE(PINK << "Created MainContext");
+    }
+
+    ~MainContext()
+    {
+
     }
 
 private:

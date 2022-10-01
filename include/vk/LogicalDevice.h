@@ -1,19 +1,21 @@
 #pragma once
 
 #include <set>
+#include <optional>
 #include <vulkan/vulkan.hpp>
 
 #include "ve_log.h"
 #include "vk/PhysicalDevice.h"
+#include "vk/Swapchain.h"
 
 namespace ve
 {
     class LogicalDevice
     {
     public:
-        LogicalDevice(const PhysicalDevice& physical_device)
+        LogicalDevice(const PhysicalDevice& p_device) : physical_device(p_device)
         {
-            VE_LOG_CONSOLE("Creating logical device");
+            VE_LOG_CONSOLE(PINK << "Creating logical device");
             QueueFamilyIndices indices = physical_device.get_queue_families();
 
             std::vector<vk::DeviceQueueCreateInfo> qci_s;
@@ -51,7 +53,13 @@ namespace ve
 
         ~LogicalDevice()
         {
+            if (swapchain.has_value()) device.destroySwapchainKHR(swapchain.value().get());
             device.destroy();
+        }
+
+        vk::Device get() const
+        {
+            return device;
         }
 
         vk::Queue get_graphics_queue() const
@@ -74,9 +82,16 @@ namespace ve
             return queues[queues_indices.present];
         }
 
+        void create_swapchain(const vk::SurfaceKHR surface, SDL_Window* window)
+        {
+            swapchain = std::make_optional<Swapchain>(physical_device, device, surface, window);
+        }
+
     private:
+        const PhysicalDevice physical_device;
         QueueFamilyIndices queues_indices;
         std::vector<vk::Queue> queues;
         vk::Device device;
+        std::optional<Swapchain> swapchain;
     };
 }// namespace ve

@@ -14,7 +14,7 @@ namespace ve
     public:
         Instance(const Window& window, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions, const std::vector<const char*>& validation_layers) : extensions_handler()
         {
-            VE_LOG_CONSOLE("Creating instance");
+            VE_LOG_CONSOLE(PINK << "Creating instance");
             vk::ApplicationInfo ai{};
             ai.sType = vk::StructureType::eApplicationInfo;
             ai.pApplicationName = "Vulkan Engine";
@@ -71,7 +71,7 @@ namespace ve
         std::vector<vk::PhysicalDevice> get_physical_devices() const
         {
             std::vector<vk::PhysicalDevice>physical_devices = instance.enumeratePhysicalDevices();
-            if (physical_devices.size() == 0) VE_THROW("Failed to find GPUs with Vulkan support!");
+            if (physical_devices.empty()) VE_THROW("Failed to find GPUs with Vulkan support!");
             return physical_devices;
         }
 
