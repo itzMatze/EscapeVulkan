@@ -23,11 +23,7 @@ namespace ve
             ai.engineVersion = VK_MAKE_VERSION(1, 0, 0);
             ai.apiVersion = VK_API_VERSION_1_3;
 
-            uint32_t available_extension_count = 0;
-            VE_CHECK(vk::enumerateInstanceExtensionProperties(nullptr, &available_extension_count, nullptr), "Failed to get available extensions count!");
-
-            std::vector<vk::ExtensionProperties> available_extensions(available_extension_count);
-            VE_CHECK(vk::enumerateInstanceExtensionProperties(nullptr, &available_extension_count, available_extensions.data()), "Failed to get available extensions!");
+            std::vector<vk::ExtensionProperties> available_extensions = vk::enumerateInstanceExtensionProperties();
 
             std::vector<const char*> tmp_extensions;
             window.get_required_extensions(tmp_extensions);
@@ -46,7 +42,7 @@ namespace ve
             ici.enabledLayerCount = enabled_validation_layers.size();
             ici.ppEnabledLayerNames = enabled_validation_layers.data();
 
-            VE_CHECK(vk::createInstance(&ici, nullptr, &instance), "Instance creation failed!");
+            instance = vk::createInstance(ici);
 
             VE_ASSERT(SDL_Vulkan_CreateSurface(window.get(), instance, reinterpret_cast<VkSurfaceKHR*>(&surface)), "Failed to create surface!");
         }
@@ -74,22 +70,15 @@ namespace ve
 
         std::vector<vk::PhysicalDevice> get_physical_devices() const
         {
-            uint32_t device_count = 0;
-            VE_CHECK(instance.enumeratePhysicalDevices(&device_count, nullptr), "Getting physical device count failed!");
-            if (device_count == 0) VE_THROW("Failed to find GPUs with Vulkan support!");
-            std::vector<vk::PhysicalDevice> physical_devices(device_count);
-            VE_CHECK(instance.enumeratePhysicalDevices(&device_count, physical_devices.data()), "Physical device enumeration failed!");
+            std::vector<vk::PhysicalDevice>physical_devices = instance.enumeratePhysicalDevices();
+            if (physical_devices.size() == 0) VE_THROW("Failed to find GPUs with Vulkan support!");
             return physical_devices;
         }
 
     private:
         bool get_available_validation_layers(const std::vector<const char*>& requested_validation_layers, std::vector<const char*>& validation_layers) const
         {
-            uint32_t layer_count;
-            VE_CHECK(vk::enumerateInstanceLayerProperties(&layer_count, nullptr), "Could not get available layers count!");
-
-            std::vector<vk::LayerProperties> available_layers(layer_count);
-            VE_CHECK(vk::enumerateInstanceLayerProperties(&layer_count, available_layers.data()), "Could not get available layers!");
+            std::vector<vk::LayerProperties> available_layers = vk::enumerateInstanceLayerProperties();
 
             for (const auto& req_layer: requested_validation_layers)
             {

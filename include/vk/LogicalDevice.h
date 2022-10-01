@@ -37,7 +37,7 @@ namespace ve
             dci.enabledExtensionCount = physical_device.get_extensions().size();
             dci.ppEnabledExtensionNames = physical_device.get_extensions().data();
 
-            VE_CHECK(physical_device.get().createDevice(&dci, nullptr, &device), "Failed to create logical device!");
+            device = physical_device.get().createDevice(dci);
             queues.resize(4);
             queues_indices.graphics = 0;
             queues[queues_indices.graphics] = device.getQueue(indices.graphics, 0);

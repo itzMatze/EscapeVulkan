@@ -52,8 +52,8 @@ namespace ve
                 VE_CONSOLE_END("");
                 VE_THROW("No suitable GPUs found!");
             }
-            extensions_handler.add_extensions(get_device_extensions(physical_device), required_extensions, true);
-            extensions_handler.add_extensions(get_device_extensions(physical_device), optional_extensions, false);
+            extensions_handler.add_extensions(physical_device.enumerateDeviceExtensionProperties(), required_extensions, true);
+            extensions_handler.add_extensions(physical_device.enumerateDeviceExtensionProperties(), optional_extensions, false);
             find_queue_families(instance.get_surface());
         }
 
@@ -80,15 +80,12 @@ namespace ve
     private:
         void find_queue_families(const vk::SurfaceKHR surface)
         {
-            uint32_t queue_family_count = 0;
-            physical_device.getQueueFamilyProperties(&queue_family_count, nullptr);
-            std::vector<vk::QueueFamilyProperties> queue_families(queue_family_count);
-            physical_device.getQueueFamilyProperties(&queue_family_count, queue_families.data());
+            std::vector<vk::QueueFamilyProperties> queue_families = physical_device.getQueueFamilyProperties();
             QueueFamilyIndices scores;
             for (uint32_t i = 0; i < queue_families.size(); ++i)
             {
                 vk::Bool32 present_support = false;
-                VE_CHECK(physical_device.getSurfaceSupportKHR(i, surface, &present_support), "Failed to check surface support!");
+                present_support = physical_device.getSurfaceSupportKHR(i, surface);
                 if (present_support)
                 {
                     queue_family_indices.present = i;
@@ -118,7 +115,7 @@ namespace ve
             p_device.getProperties(&pdp);
             vk::PhysicalDeviceFeatures p_device_features;
             p_device.getFeatures(&p_device_features);
-            std::vector<vk::ExtensionProperties> available_extensions = get_device_extensions(p_device);
+            std::vector<vk::ExtensionProperties> available_extensions = p_device.enumerateDeviceExtensionProperties();
 
             VE_CONSOLE_ADD("    " << idx << " " << pdp.deviceName << " ");
             for (const auto& requested_extension: required_extensions)
@@ -152,15 +149,6 @@ namespace ve
             if (!(queue_family.queueFlags & vk::QueueFlagBits::eTransfer)) ++score;
             if (!(queue_family.queueFlags & vk::QueueFlagBits::eSparseBinding)) ++score;
             return score;
-        }
-
-        std::vector<vk::ExtensionProperties> get_device_extensions(vk::PhysicalDevice p_device) const
-        {
-            uint32_t extension_count;
-            VE_CHECK(p_device.enumerateDeviceExtensionProperties(nullptr, &extension_count, nullptr), "Failed to get physical device extension count!");
-            std::vector<vk::ExtensionProperties> available_extensions(extension_count);
-            VE_CHECK(p_device.enumerateDeviceExtensionProperties(nullptr, &extension_count, available_extensions.data()), "Failed to get physical device extensions!");
-            return available_extensions;
         }
 
         vk::PhysicalDevice physical_device;
