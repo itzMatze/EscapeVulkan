@@ -4,6 +4,8 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
 
+#include "ve_log.h"
+
 class Window
 {
 public:
@@ -20,16 +22,19 @@ public:
         SDL_Quit();
     }
 
-    bool get_required_extensions(std::vector<const char*>& extensions)
+    SDL_Window* get() const
     {
-        uint32_t extension_count;
-        bool success = true;
-        success &= SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr);
-        extensions.resize(extension_count);
-        success &= SDL_Vulkan_GetInstanceExtensions(window, &extension_count, extensions.data());
-        return success;
+        return window;
     }
 
-    SDL_Window* window;
+    void get_required_extensions(std::vector<const char*>& extensions) const
+    {
+        uint32_t extension_count;
+        VE_ASSERT(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, nullptr), "Failed to load extension count for window!");
+        extensions.resize(extension_count);
+        VE_ASSERT(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, extensions.data()), "Failed to load required extensions for window!");
+    }
+
 private:
+    SDL_Window* window;
 };

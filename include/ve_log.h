@@ -38,7 +38,7 @@ auto get_time()
     #define VE_WARN_CONSOLE(X) std::cout << get_time() << YELLOW << X << WHITE << "\n"
     #define VE_ERR_CONSOLE(X) std::cerr << get_time() << RED << X << WHITE << "\n"
 
-    #define VE_THROW(X) { VE_ERR_CONSOLE(X); throw std::runtime_error(X); }
+    #define VE_THROW(X) { VE_ERR_CONSOLE(X); std::stringstream ss; ss << X; throw std::runtime_error(ss.str()); }
 #else
     #define VE_LOG_CONSOLE_START(X)
     #define VE_OK_CONSOLE_START(X)
