@@ -53,7 +53,7 @@ namespace ve
 
         ~LogicalDevice()
         {
-            if (swapchain.has_value()) device.destroySwapchainKHR(swapchain.value().get());
+            if (swapchain.has_value()) swapchain.value().self_destruct(device);
             device.destroy();
         }
 

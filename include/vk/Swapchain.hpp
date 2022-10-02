@@ -49,7 +49,37 @@ namespace ve
                 sci.imageSharingMode = vk::SharingMode::eExclusive;
             }
             swapchain = device.createSwapchainKHR(sci);
-            swapchain_images = device.getSwapchainImagesKHR(swapchain);
+            VE_LOG_CONSOLE("Getting swapchain images");
+            images = device.getSwapchainImagesKHR(swapchain);
+
+            VE_LOG_CONSOLE("Creating image views");
+            for (const auto& image: images)
+            {
+                vk::ImageViewCreateInfo ivci{};
+                ivci.sType = vk::StructureType::eImageViewCreateInfo;
+                ivci.image = image;
+                ivci.viewType = vk::ImageViewType::e2D;
+                ivci.format = format;
+                ivci.components.r = vk::ComponentSwizzle::eIdentity;
+                ivci.components.g = vk::ComponentSwizzle::eIdentity;
+                ivci.components.b = vk::ComponentSwizzle::eIdentity;
+                ivci.components.a = vk::ComponentSwizzle::eIdentity;
+                ivci.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+                ivci.subresourceRange.baseMipLevel = 0;
+                ivci.subresourceRange.levelCount = 1;
+                ivci.subresourceRange.baseArrayLayer = 0;
+                ivci.subresourceRange.layerCount = 1;
+                image_views.push_back(device.createImageView(ivci));
+            }
+        }
+
+        void self_destruct(const vk::Device device)
+        {
+            for (auto& image_view: image_views)
+            {
+                device.destroyImageView(image_view);
+            }
+            device.destroySwapchainKHR(swapchain);
         }
 
         vk::SwapchainKHR get()
@@ -95,7 +125,8 @@ namespace ve
             }
         }
         vk::SwapchainKHR swapchain;
-        std::vector<vk::Image> swapchain_images;
+        std::vector<vk::Image> images;
+        std::vector<vk::ImageView> image_views;
         vk::Format format;
         vk::Extent2D extent;
     };
