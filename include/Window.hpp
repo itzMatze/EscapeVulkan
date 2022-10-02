@@ -4,7 +4,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
 
-#include "ve_log.h"
+#include "ve_log.hpp"
 
 class Window
 {

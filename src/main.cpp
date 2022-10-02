@@ -7,11 +7,11 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
-#include "Window.h"
-#include "ve_log.h"
-#include "vk/Instance.h"
-#include "vk/LogicalDevice.h"
-#include "vk/PhysicalDevice.h"
+#include "Window.hpp"
+#include "ve_log.hpp"
+#include "vk/Instance.hpp"
+#include "vk/LogicalDevice.hpp"
+#include "vk/PhysicalDevice.hpp"
 
 struct RenderingInfo {
     RenderingInfo(uint32_t width, uint32_t height) : width(width), height(height)

@@ -3,9 +3,9 @@
 #include "vulkan/vulkan.hpp"
 #include <unordered_set>
 
-#include "Window.h"
-#include "ve_log.h"
-#include "vk/ExtensionsHandler.h"
+#include "Window.hpp"
+#include "ve_log.hpp"
+#include "vk/ExtensionsHandler.hpp"
 
 namespace ve
 {

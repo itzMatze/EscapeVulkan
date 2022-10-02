@@ -2,8 +2,8 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include "ve_log.h"
-#include "vk/PhysicalDevice.h"
+#include "ve_log.hpp"
+#include "vk/PhysicalDevice.hpp"
 
 namespace ve
 {

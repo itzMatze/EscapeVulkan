@@ -4,9 +4,9 @@
 #include <optional>
 #include <vulkan/vulkan.hpp>
 
-#include "ve_log.h"
-#include "vk/PhysicalDevice.h"
-#include "vk/Swapchain.h"
+#include "ve_log.hpp"
+#include "vk/PhysicalDevice.hpp"
+#include "vk/Swapchain.hpp"
 
 namespace ve
 {

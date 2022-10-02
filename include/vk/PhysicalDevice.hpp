@@ -2,8 +2,8 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include "ve_log.h"
-#include "vk/ExtensionsHandler.h"
+#include "ve_log.hpp"
+#include "vk/ExtensionsHandler.hpp"
 
 namespace ve
 {

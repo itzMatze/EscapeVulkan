@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include "ve_log.h"
+#include "ve_log.hpp"
 
 class ExtensionsHandler
 {
