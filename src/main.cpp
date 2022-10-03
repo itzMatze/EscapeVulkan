@@ -40,6 +40,27 @@ public:
         VE_LOG_CONSOLE(VE_INFO, VE_C_GREEN << "Destruction MainContext\n");
     }
 
+    void run()
+    {
+        auto t1 = std::chrono::high_resolution_clock::now();
+        auto t2 = std::chrono::high_resolution_clock::now();
+        double duration;
+        bool quit = false;
+        SDL_Event e;
+        while (!quit)
+        {
+            draw_frame();
+            while (SDL_PollEvent(&e))
+            {
+                quit = e.window.event == SDL_WINDOWEVENT_CLOSE;
+            }
+            t2 = std::chrono::high_resolution_clock::now();
+            duration = std::chrono::duration<double, std::milli>(t2 - t1).count();
+            window.set_title(ve::to_string(duration, 4) + " ms; FPS: " + ve::to_string(1000.0 / duration));
+            t1 = t2;
+        }
+        wait_to_finish();
+    }
 
     void draw_frame()
     {
@@ -76,17 +97,11 @@ private:
 
 int main(int argc, char** argv)
 {
+    auto t1 = std::chrono::high_resolution_clock::now();
     RenderingInfo ri(1000, 800);
     MainContext mc(ri);
-
-    bool quit = false;
-    while (!quit)
-    {
-        SDL_Event e;
-        while (SDL_PollEvent(&e))
-        {
-            quit = e.window.event == SDL_WINDOWEVENT_CLOSE;
-        }
-    }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    VE_LOG_CONSOLE(VE_INFO, VE_C_BLUE << "Setup took: " << (std::chrono::duration<double, std::milli>(t2 - t1).count()) << "ms" << std::endl);
+    mc.run();
     return 0;
 }

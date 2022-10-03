@@ -35,6 +35,11 @@ public:
         VE_ASSERT(SDL_Vulkan_GetInstanceExtensions(window, &extension_count, extensions.data()), "Failed to load required extensions for window!");
     }
 
+    void set_title(const std::string& title)
+    {
+        SDL_SetWindowTitle(window, title.c_str());
+    }
+
 private:
     SDL_Window* window;
 };
