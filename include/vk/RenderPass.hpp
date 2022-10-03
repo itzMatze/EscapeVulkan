@@ -33,12 +33,22 @@ namespace ve
             spd.colorAttachmentCount = 1;
             spd.pColorAttachments = &ar;
 
+            vk::SubpassDependency dependency{};
+            dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependency.dstSubpass = 0;
+            dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+            dependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+            dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+            dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
             vk::RenderPassCreateInfo rpci{};
             rpci.sType = vk::StructureType::eRenderPassCreateInfo;
             rpci.attachmentCount = 1;
             rpci.pAttachments = &ad;
             rpci.subpassCount = 1;
             rpci.pSubpasses = &spd;
+            rpci.dependencyCount = 1;
+            rpci.pDependencies = &dependency;
 
             VE_LOG_CONSOLE(VE_INFO, "Creating render pass\n");
             render_pass = device.createRenderPass(rpci);

@@ -127,14 +127,14 @@ namespace ve
             return format;
         }
 
-        vk::RenderPass get_render_pass()
+        vk::RenderPass get_render_pass() const
         {
             return render_pass.get();
         }
 
-        vk::Framebuffer get_framebuffer() const
+        vk::Framebuffer get_framebuffer(uint32_t idx) const
         {
-            return framebuffers[0]; //VE_TODO
+            return framebuffers[idx];
         }
 
     private:

@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "ve_log.hpp"
+#include "vk/Swapchain.hpp"
 
 namespace ve
 {
@@ -30,25 +31,38 @@ namespace ve
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "command pool +++\n");
         }
 
-        void record_command_buffer(uint32_t command_buffer_idx, const Swapchain& swapchain, const vk::RenderPass render_pass, const vk::Pipeline pipeline)
+        ~CommandPool()
         {
-            VE_ASSERT(command_buffer_idx < command_buffers.size(), "Command buffer at requested index does not exist!\n");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "command pool -\n");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying command pool\n");
+            device.destroyCommandPool(command_pool);
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "command pool ---\n");
+        }
+
+        vk::CommandBuffer get_buffer(uint32_t idx)
+        {
+            return command_buffers[idx];
+        }
+
+        void record_command_buffer(uint32_t idx, const Swapchain& swapchain, const vk::Pipeline pipeline, uint32_t image_idx)
+        {
+            VE_ASSERT(idx < command_buffers.size(), "Command buffer at requested index does not exist!\n");
             vk::CommandBufferBeginInfo cbbi{};
             cbbi.sType = vk::StructureType::eCommandBufferBeginInfo;
             cbbi.pInheritanceInfo = nullptr;
-            command_buffers[command_buffer_idx].begin(cbbi);
+            command_buffers[idx].begin(cbbi);
             vk::RenderPassBeginInfo rpbi{};
             rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
-            rpbi.renderPass = render_pass;
-            rpbi.framebuffer = swapchain.get_framebuffer();
+            rpbi.renderPass = swapchain.get_render_pass();
+            rpbi.framebuffer = swapchain.get_framebuffer(image_idx);
             rpbi.renderArea.offset = vk::Offset2D(0, 0);
             rpbi.renderArea.extent = swapchain.get_extent();
             vk::ClearValue clear_color;
             clear_color.color = std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};
             rpbi.clearValueCount = 1;
             rpbi.pClearValues = &clear_color;
-            command_buffers[command_buffer_idx].beginRenderPass(rpbi, vk::SubpassContents::eInline);
-            command_buffers[command_buffer_idx].bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+            command_buffers[idx].beginRenderPass(rpbi, vk::SubpassContents::eInline);
+            command_buffers[idx].bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
             vk::Viewport viewport{};
             viewport.x = 0.0f;
@@ -57,22 +71,19 @@ namespace ve
             viewport.height = swapchain.get_extent().height;
             viewport.minDepth = 0.0f;
             viewport.maxDepth = 1.0f;
-            command_buffers[command_buffer_idx].setViewport(0, viewport);
+            command_buffers[idx].setViewport(0, viewport);
             vk::Rect2D scissor{};
             scissor.offset = vk::Offset2D(0, 0);
             scissor.extent = swapchain.get_extent();
-            command_buffers[command_buffer_idx].setScissor(0, scissor);
-            command_buffers[command_buffer_idx].draw(3, 1, 0, 0);
-            command_buffers[command_buffer_idx].endRenderPass();
-            command_buffers[command_buffer_idx].end();
+            command_buffers[idx].setScissor(0, scissor);
+            command_buffers[idx].draw(3, 1, 0, 0);
+            command_buffers[idx].endRenderPass();
+            command_buffers[idx].end();
         }
 
-        ~CommandPool()
+        void reset_command_buffer(uint32_t idx)
         {
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "command pool -\n");
-            VE_LOG_CONSOLE(VE_INFO, "Destroying command pool\n");
-            device.destroyCommandPool(command_pool);
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "command pool ---\n");
+            command_buffers[idx].reset();
         }
 
     private:

@@ -41,14 +41,24 @@ namespace ve
             return fences.size() - 1;
         }
 
-        vk::Semaphore get_semaphore(uint32_t idx)
+        const vk::Semaphore& get_semaphore(uint32_t idx) const
         {
             return semaphores[idx];
         }
 
-        vk::Fence get_fence(uint32_t idx)
+        const vk::Fence& get_fence(uint32_t idx) const
         {
             return fences[idx];
+        }
+
+        void wait_for_fence(uint32_t idx) const
+        {
+            VE_CHECK(device.waitForFences(fences[idx], 1, uint64_t(-1)), "Failed to wait for fence!");
+        }
+
+        void reset_fence(uint32_t idx) const
+        {
+            device.resetFences(fences[idx]);
         }
 
     private:

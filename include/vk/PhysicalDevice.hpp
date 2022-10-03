@@ -4,6 +4,7 @@
 
 #include "ve_log.hpp"
 #include "vk/ExtensionsHandler.hpp"
+#include "vk/Instance.hpp"
 
 namespace ve
 {

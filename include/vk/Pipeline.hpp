@@ -156,6 +156,11 @@ namespace ve
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "pipeline ---\n");
         }
 
+        vk::Pipeline get()
+        {
+            return pipeline;
+        }
+
     private:
         const vk::Device device;
         vk::PipelineLayout pipeline_layout;
