@@ -10,7 +10,7 @@ namespace ve
     class CommandPool
     {
     public:
-        CommandPool(const vk::Device logical_device, uint32_t queue_family_idx) : device(logical_device)
+        CommandPool(const vk::Device logical_device, uint32_t queue_family_idx, uint32_t command_buffer_count) : device(logical_device)
         {
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "command pool +\n");
             vk::CommandPoolCreateInfo cpci{};
@@ -25,8 +25,8 @@ namespace ve
             cbai.commandPool = command_pool;
             // secondary command buffers can be called from primary command buffers
             cbai.level = vk::CommandBufferLevel::ePrimary;
-            cbai.commandBufferCount = 1;
-            VE_LOG_CONSOLE(VE_INFO, "Creating command buffer\n");
+            cbai.commandBufferCount = command_buffer_count;
+            VE_LOG_CONSOLE(VE_INFO, "Creating command buffers\n");
             command_buffers = device.allocateCommandBuffers(cbai);
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "command pool +++\n");
         }
