@@ -15,7 +15,7 @@ namespace ve
         Shader(const vk::Device device, const std::string& filename,
                vk::ShaderStageFlagBits shader_stage_flag) : name(filename)
         {
-            VE_LOG_CONSOLE("Loading shader \"" << filename << "\"");
+            VE_LOG_CONSOLE(VE_INFO, "Loading shader \"" << filename << "\"\n");
             std::string source = read_shader_file(std::string("shader/" + filename + ".spv"));
             vk::ShaderModuleCreateInfo smci{};
             smci.sType = vk::StructureType::eShaderModuleCreateInfo;
@@ -36,7 +36,7 @@ namespace ve
 
         void self_destruct(const vk::Device device)
         {
-            VE_LOG_CONSOLE("Destroying shader " << name);
+            VE_LOG_CONSOLE(VE_DEBUG, "Destroying shader " << name << "\n");
             device.destroyShaderModule(shader_module);
         }
 

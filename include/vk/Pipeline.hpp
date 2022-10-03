@@ -13,7 +13,7 @@ namespace ve
     public:
         Pipeline(const LogicalDevice& logical_device, const vk::RenderPass render_pass) : device(logical_device.get())
         {
-            VE_LOG_CONSOLE(PINK << "Creating pipeline");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "pipeline +\n");
             std::vector<Shader> shader_group;
             shader_group.push_back(Shader(device, "default.vert", vk::ShaderStageFlagBits::eVertex));
             shader_group.push_back(Shader(device, "default.frag", vk::ShaderStageFlagBits::eFragment));
@@ -112,7 +112,7 @@ namespace ve
             plci.pushConstantRangeCount = 0;
             plci.pPushConstantRanges = nullptr;
 
-            VE_LOG_CONSOLE("Creating pipeline layout");
+            VE_LOG_CONSOLE(VE_INFO, "Creating pipeline layout\n");
             pipeline_layout = device.createPipelineLayout(plci);
 
             vk::GraphicsPipelineCreateInfo gpci{};
@@ -134,7 +134,7 @@ namespace ve
             gpci.basePipelineHandle = VK_NULL_HANDLE;
             gpci.basePipelineIndex = -1;
 
-            VE_LOG_CONSOLE("Creating pipeline");
+            VE_LOG_CONSOLE(VE_INFO, "Creating pipeline\n");
             vk::ResultValue<vk::Pipeline> pipeline_result_value = device.createGraphicsPipeline(VK_NULL_HANDLE, gpci);
             VE_CHECK(pipeline_result_value.result, "Failed to create pipeline!");
             pipeline = pipeline_result_value.value;
@@ -143,14 +143,17 @@ namespace ve
             {
                 shader.self_destruct(device);
             }
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "pipeline +++\n");
         }
 
         ~Pipeline()
         {
-            VE_LOG_CONSOLE(PINK << "Destroying pipeline");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "pipeline -\n");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying pipeline\n");
             device.destroyPipeline(pipeline);
-            VE_LOG_CONSOLE("Destroying pipeline layout");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying pipeline layout\n");
             device.destroyPipelineLayout(pipeline_layout);
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "pipeline ---\n");
         }
 
     private:

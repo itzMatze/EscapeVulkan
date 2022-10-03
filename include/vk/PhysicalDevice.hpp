@@ -21,10 +21,10 @@ namespace ve
     public:
         PhysicalDevice(const Instance& instance, const std::vector<const char*>& required_extensions, const std::vector<const char*> optional_extensions)
         {
-            VE_LOG_CONSOLE(PINK << "Creating physical device");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "physical device +\n");
             std::vector<vk::PhysicalDevice> physical_devices = instance.get_physical_devices();
             std::unordered_set<uint32_t> suitable_p_devices;
-            VE_LOG_CONSOLE_START("Found physical devices: \n");
+            VE_LOG_CONSOLE(VE_DEBUG, "Found physical devices: \n");
             for (uint32_t i = 0; i < physical_devices.size(); ++i)
             {
                 if (is_device_suitable(i, physical_devices[i], instance.get_surface(), required_extensions, optional_extensions))
@@ -37,25 +37,25 @@ namespace ve
                 uint32_t pd_idx = 0;
                 do
                 {
-                    VE_CONSOLE_END("Select one of the suitable GPUs by typing the number\n");
+                    VE_TO_USER("Select one of the suitable GPUs by typing the number\n");
                     std::cin >> pd_idx;
                 } while (!suitable_p_devices.contains(pd_idx));
                 physical_device = physical_devices[pd_idx];
             }
             else if (suitable_p_devices.size() == 1)
             {
-                VE_CONSOLE_END("Only one suitable GPU. Using that one.\n");
+                VE_CONSOLE_ADD(VE_DEBUG, "Only one suitable GPU. Using that one.\n");
                 physical_device = physical_devices[*(suitable_p_devices.begin())];
             }
             else
             {
-                VE_CONSOLE_END("");
                 VE_THROW("No suitable GPUs found!");
             }
             extensions_handler.add_extensions(physical_device.enumerateDeviceExtensionProperties(), required_extensions, true);
             extensions_handler.add_extensions(physical_device.enumerateDeviceExtensionProperties(), optional_extensions, false);
             find_queue_families(instance.get_surface());
-            VE_LOG_CONSOLE("Queue family indices: \n    Graphics: " << queue_family_indices.graphics << "\n    Compute:  " << queue_family_indices.compute << "\n    Transfer: " << queue_family_indices.transfer << "\n    Present:  " << queue_family_indices.present);
+            VE_LOG_CONSOLE(VE_DEBUG, "Queue family indices: \n    Graphics: " << queue_family_indices.graphics << "\n    Compute:  " << queue_family_indices.compute << "\n    Transfer: " << queue_family_indices.transfer << "\n    Present:  " << queue_family_indices.present << "\n");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "physical device +++\n");
         }
 
         vk::PhysicalDevice get() const
@@ -134,12 +134,12 @@ namespace ve
             vk::PhysicalDeviceFeatures p_device_features;
             p_device.getFeatures(&p_device_features);
             std::vector<vk::ExtensionProperties> available_extensions = p_device.enumerateDeviceExtensionProperties();
-            VE_CONSOLE_ADD("    " << idx << " " << pdp.deviceName << " ");
+            VE_TO_USER("    " << idx << " " << pdp.deviceName << " ");
             for (const auto& requested_extension: required_extensions)
             {
                 if (!extensions_handler.is_extension_available(requested_extension, available_extensions))
                 {
-                    VE_CONSOLE_ADD("(not suitable)\n");
+                    VE_TO_USER("(not suitable)\n");
                     return false;
                 }
                 if (requested_extension == VK_KHR_SWAPCHAIN_EXTENSION_NAME)
@@ -154,7 +154,7 @@ namespace ve
                 if (!extensions_handler.is_extension_available(requested_extension, available_extensions)) ++missing_optional_extensions;
             }
 
-            VE_CONSOLE_ADD("(suitable, " << missing_optional_extensions << " missing optional extensions)\n");
+            VE_TO_USER("(suitable, " << missing_optional_extensions << " missing optional extensions)\n");
             return pdp.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
         }
 

@@ -14,7 +14,7 @@ namespace ve
     public:
         Instance(const Window& window, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions, const std::vector<const char*>& validation_layers) : extensions_handler()
         {
-            VE_LOG_CONSOLE(PINK << "Creating instance");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "instance +\n");
             vk::ApplicationInfo ai{};
             ai.sType = vk::StructureType::eApplicationInfo;
             ai.pApplicationName = "Vulkan Engine";
@@ -32,7 +32,7 @@ namespace ve
             extensions_handler.add_extensions(available_extensions, optional_extensions, false);
 
             std::vector<const char*> enabled_validation_layers;
-            if (!get_available_validation_layers(validation_layers, enabled_validation_layers)) VE_WARN_CONSOLE("No validation layers added!");
+            if (!get_available_validation_layers(validation_layers, enabled_validation_layers)) VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "No validation layers added!\n");
 
             vk::InstanceCreateInfo ici{};
             ici.sType = vk::StructureType::eInstanceCreateInfo;
@@ -42,17 +42,22 @@ namespace ve
             ici.enabledLayerCount = enabled_validation_layers.size();
             ici.ppEnabledLayerNames = enabled_validation_layers.data();
 
+            VE_LOG_CONSOLE(VE_INFO, "Creating instance\n");
             instance = vk::createInstance(ici);
 
+            VE_LOG_CONSOLE(VE_INFO, "Creating surface\n");
             VE_ASSERT(SDL_Vulkan_CreateSurface(window.get(), instance, reinterpret_cast<VkSurfaceKHR*>(&surface)), "Failed to create surface!");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "instance +++\n");
         }
 
         ~Instance()
         {
-            VE_LOG_CONSOLE("Destroying surface");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "instance -\n");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying surface\n");
             instance.destroySurfaceKHR(surface);
-            VE_LOG_CONSOLE(PINK << "Destroying instance");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying instance\n");
             instance.destroy();
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "instance ---\n");
         }
 
         vk::Instance get() const

@@ -12,7 +12,7 @@ namespace ve
         RenderPass() = default;
         RenderPass(const vk::Device device, const vk::Format format)
         {
-            VE_LOG_CONSOLE(PINK << "Creating render pass");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "render pass +\n");
             vk::AttachmentDescription ad{};
             ad.format = format;
             ad.samples = vk::SampleCountFlagBits::e1;
@@ -40,7 +40,9 @@ namespace ve
             rpci.subpassCount = 1;
             rpci.pSubpasses = &spd;
 
+            VE_LOG_CONSOLE(VE_INFO, "Creating render pass\n");
             render_pass = device.createRenderPass(rpci);
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "render pass +++\n");
         }
 
         const vk::RenderPass get() const
@@ -50,8 +52,10 @@ namespace ve
 
         void self_destruct(const vk::Device device)
         {
-            VE_LOG_CONSOLE(PINK << "Destroying render pass");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "render pass -\n");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying render pass\n");
             device.destroyRenderPass(render_pass);
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "render pass ---\n");
         }
 
     private:

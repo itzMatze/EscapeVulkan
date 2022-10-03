@@ -13,7 +13,7 @@ namespace ve
     public:
         Swapchain(const PhysicalDevice& physical_device, const vk::Device logical_device, const vk::SurfaceKHR surface, SDL_Window* window) : device(logical_device)
         {
-            VE_LOG_CONSOLE(PINK << "Creating swapchain");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "swapchain +\n");
             std::vector<vk::SurfaceFormatKHR> formats = physical_device.get_surface_formats(surface);
             vk::SurfaceFormatKHR surface_format = choose_surface_format(formats);
             format = surface_format.format;
@@ -39,21 +39,21 @@ namespace ve
             uint32_t queue_family_indices[] = {static_cast<uint32_t>(indices.graphics), static_cast<uint32_t>(indices.present)};
             if (indices.graphics != indices.present)
             {
-                VE_LOG_CONSOLE("Graphics and Presentation queue are two distinct queues. Using Concurrent sharing mode on swapchain.");
+                VE_LOG_CONSOLE(VE_DEBUG, "Graphics and Presentation queue are two distinct queues. Using Concurrent sharing mode on swapchain.\n");
                 sci.imageSharingMode = vk::SharingMode::eConcurrent;
                 sci.queueFamilyIndexCount = 2;
                 sci.pQueueFamilyIndices = queue_family_indices;
             }
             else
             {
-                VE_LOG_CONSOLE("Graphics and Presentation queue are the same queue. Using Exclusive sharing mode on swapchain.");
+                VE_LOG_CONSOLE(VE_DEBUG, "Graphics and Presentation queue are the same queue. Using Exclusive sharing mode on swapchain.\n");
                 sci.imageSharingMode = vk::SharingMode::eExclusive;
             }
+            VE_LOG_CONSOLE(VE_INFO, "Creating swapchain\n");
             swapchain = device.createSwapchainKHR(sci);
-            VE_LOG_CONSOLE("Getting swapchain images");
             images = device.getSwapchainImagesKHR(swapchain);
 
-            VE_LOG_CONSOLE("Creating image views");
+            VE_LOG_CONSOLE(VE_INFO, "Creating image views\n");
             for (const auto& image: images)
             {
                 vk::ImageViewCreateInfo ivci{};
@@ -75,7 +75,7 @@ namespace ve
 
             render_pass = RenderPass(device, format);
 
-            VE_LOG_CONSOLE("Creating framebuffers");
+            VE_LOG_CONSOLE(VE_INFO, "Creating framebuffers\n");
             for (const auto& image_view: image_views)
             {
                 vk::FramebufferCreateInfo fbci{};
@@ -89,23 +89,27 @@ namespace ve
 
                 framebuffers.push_back(device.createFramebuffer(fbci));
             }
+
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "swapchain +++\n");
         }
 
         ~Swapchain()
         {
-            VE_LOG_CONSOLE("Destroying framebuffers");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Swapchain -\n");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying framebuffers\n");
             for (auto& framebuffer: framebuffers)
             {
                 device.destroyFramebuffer(framebuffer);
             }
             render_pass.self_destruct(device);
-            VE_LOG_CONSOLE("Destroying image views");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying image views\n");
             for (auto& image_view: image_views)
             {
                 device.destroyImageView(image_view);
             }
-            VE_LOG_CONSOLE(PINK << "Destroying swapchain");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying swapchain\n");
             device.destroySwapchainKHR(swapchain);
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Swapchain ---\n");
         }
 
         vk::SwapchainKHR get() const
@@ -135,7 +139,7 @@ namespace ve
             {
                 if (format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) return format;
             }
-            VE_WARN_CONSOLE("Desired format not found. Using first available.");
+            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Desired format not found. Using first available.");
             return available_formats[0];
         }
 
@@ -145,7 +149,7 @@ namespace ve
             {
                 if (pm == vk::PresentModeKHR::eImmediate) return pm;
             }
-            VE_WARN_CONSOLE("Desired present mode not found. Using FIFO.");
+            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Desired present mode not found. Using FIFO.");
             return vk::PresentModeKHR::eFifo;
         }
 

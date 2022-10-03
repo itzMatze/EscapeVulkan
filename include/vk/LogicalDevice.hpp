@@ -14,7 +14,7 @@ namespace ve
     public:
         LogicalDevice(const PhysicalDevice& p_device)
         {
-            VE_LOG_CONSOLE(PINK << "Creating logical device");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "logical device +\n");
             QueueFamilyIndices indices = p_device.get_queue_families();
 
             std::vector<vk::DeviceQueueCreateInfo> qci_s;
@@ -38,6 +38,7 @@ namespace ve
             dci.enabledExtensionCount = p_device.get_extensions().size();
             dci.ppEnabledExtensionNames = p_device.get_extensions().data();
 
+            VE_LOG_CONSOLE(VE_INFO, "Creating logical device\n");
             device = p_device.get().createDevice(dci);
             queues.resize(4);
             queues_indices.graphics = 0;
@@ -48,12 +49,15 @@ namespace ve
             queues[queues_indices.transfer] = device.getQueue(indices.transfer, 0);
             queues_indices.present = 3;
             queues[queues_indices.present] = device.getQueue(indices.present, 0);
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "logical device +++\n");
         }
 
         ~LogicalDevice()
         {
-            VE_LOG_CONSOLE(PINK << "Destroying logical device");
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "logical device -\n");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying logical device\n");
             device.destroy();
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "logical device ---\n");
         }
 
         vk::Device get() const

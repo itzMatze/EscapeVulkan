@@ -35,7 +35,7 @@ public:
                 }
                 else
                 {
-                    VE_WARN_CONSOLE("Optional extension \"" << requested_extension << "\" unavailable!");
+                    VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Optional extension \"" << requested_extension << "\" unavailable!");
                     missing_extensions.push_back(requested_extension);
                 }
             }
