@@ -11,7 +11,7 @@ namespace ve
     class Pipeline
     {
     public:
-        Pipeline(const LogicalDevice& logical_device, const vk::RenderPass render_pass) : device(logical_device.get())
+        Pipeline(const vk::Device logical_device, const vk::RenderPass render_pass) : device(logical_device)
         {
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "pipeline +\n");
             std::vector<Shader> shader_group;
