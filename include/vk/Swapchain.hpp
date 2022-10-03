@@ -74,10 +74,30 @@ namespace ve
             }
 
             render_pass = RenderPass(device, format);
+
+            VE_LOG_CONSOLE("Creating framebuffers");
+            for (const auto& image_view: image_views)
+            {
+                vk::FramebufferCreateInfo fbci{};
+                fbci.sType = vk::StructureType::eFramebufferCreateInfo;
+                fbci.renderPass = render_pass.get();
+                fbci.attachmentCount = 1;
+                fbci.pAttachments = &image_view;
+                fbci.width = extent.width;
+                fbci.height = extent.height;
+                fbci.layers = 1;
+
+                framebuffers.push_back(device.createFramebuffer(fbci));
+            }
         }
 
         ~Swapchain()
         {
+            VE_LOG_CONSOLE("Destroying framebuffers");
+            for (auto& framebuffer: framebuffers)
+            {
+                device.destroyFramebuffer(framebuffer);
+            }
             render_pass.self_destruct(device);
             VE_LOG_CONSOLE("Destroying image views");
             for (auto& image_view: image_views)
