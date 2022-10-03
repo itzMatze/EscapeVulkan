@@ -132,6 +132,11 @@ namespace ve
             return render_pass.get();
         }
 
+        vk::Framebuffer get_framebuffer() const
+        {
+            return framebuffers[0]; //VE_TODO
+        }
+
     private:
         vk::SurfaceFormatKHR choose_surface_format(const std::vector<vk::SurfaceFormatKHR>& available_formats)
         {
