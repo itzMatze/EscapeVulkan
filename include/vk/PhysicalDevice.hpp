@@ -78,6 +78,16 @@ namespace ve
             return extensions_handler.get_missing_extensions();
         }
 
+        std::vector<vk::SurfaceFormatKHR> get_surface_formats(const vk::SurfaceKHR surface) const
+        {
+            return physical_device.getSurfaceFormatsKHR(surface);
+        }
+
+        std::vector<vk::PresentModeKHR> get_surface_present_modes(const vk::SurfaceKHR surface) const
+        {
+            return physical_device.getSurfacePresentModesKHR(surface);
+        }
+
     private:
         void find_queue_families(const vk::SurfaceKHR surface)
         {

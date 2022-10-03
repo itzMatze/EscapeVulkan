@@ -4,19 +4,20 @@
 
 #include "ve_log.hpp"
 #include "vk/PhysicalDevice.hpp"
+#include "vk/RenderPass.hpp"
 
 namespace ve
 {
     class Swapchain
     {
     public:
-        Swapchain(const PhysicalDevice& physical_device, const vk::Device device, const vk::SurfaceKHR surface, SDL_Window* window)
+        Swapchain(const PhysicalDevice& physical_device, const vk::Device logical_device, const vk::SurfaceKHR surface, SDL_Window* window) : device(logical_device)
         {
             VE_LOG_CONSOLE(PINK << "Creating swapchain");
-            std::vector<vk::SurfaceFormatKHR> formats = physical_device.get().getSurfaceFormatsKHR(surface);
+            std::vector<vk::SurfaceFormatKHR> formats = physical_device.get_surface_formats(surface);
             vk::SurfaceFormatKHR surface_format = choose_surface_format(formats);
             format = surface_format.format;
-            std::vector<vk::PresentModeKHR> present_modes = physical_device.get().getSurfacePresentModesKHR(surface);
+            std::vector<vk::PresentModeKHR> present_modes = physical_device.get_surface_present_modes(surface);
             vk::SurfaceCapabilitiesKHR capabilities = physical_device.get().getSurfaceCapabilitiesKHR(surface);
             extent = choose_extent(capabilities, window);
             uint32_t image_count = capabilities.maxImageCount > 0 ? std::min(capabilities.minImageCount + 1, capabilities.maxImageCount) : capabilities.minImageCount + 1;
@@ -71,20 +72,40 @@ namespace ve
                 ivci.subresourceRange.layerCount = 1;
                 image_views.push_back(device.createImageView(ivci));
             }
+
+            render_pass = RenderPass(device, format);
         }
 
-        void self_destruct(const vk::Device device)
+        ~Swapchain()
         {
+            render_pass.self_destruct(device);
+            VE_LOG_CONSOLE("Destroying image views");
             for (auto& image_view: image_views)
             {
                 device.destroyImageView(image_view);
             }
+            VE_LOG_CONSOLE(PINK << "Destroying swapchain");
             device.destroySwapchainKHR(swapchain);
         }
 
-        vk::SwapchainKHR get()
+        vk::SwapchainKHR get() const
         {
             return swapchain;
+        }
+
+        vk::Extent2D get_extent() const
+        {
+            return extent;
+        }
+
+        vk::Format get_format() const
+        {
+            return format;
+        }
+
+        vk::RenderPass get_render_pass()
+        {
+            return render_pass.get();
         }
 
     private:
@@ -124,9 +145,12 @@ namespace ve
                 return extent;
             }
         }
+        const vk::Device device;
         vk::SwapchainKHR swapchain;
         std::vector<vk::Image> images;
         std::vector<vk::ImageView> image_views;
+        std::vector<vk::Framebuffer> framebuffers;
+        RenderPass render_pass;
         vk::Format format;
         vk::Extent2D extent;
     };

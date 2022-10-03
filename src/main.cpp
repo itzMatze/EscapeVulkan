@@ -12,6 +12,9 @@
 #include "vk/Instance.hpp"
 #include "vk/LogicalDevice.hpp"
 #include "vk/PhysicalDevice.hpp"
+#include "vk/Shader.hpp"
+#include "vk/Pipeline.hpp"
+#include "vk/Swapchain.hpp"
 
 struct RenderingInfo {
     RenderingInfo(uint32_t width, uint32_t height) : width(width), height(height)
@@ -23,15 +26,13 @@ struct RenderingInfo {
 class MainContext
 {
 public:
-    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(this->window, required_extensions, optional_extensions, validation_layers), physical_device(this->instance, required_device_extensions, optional_device_extensions), logical_device(physical_device)
+    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(window, required_extensions, optional_extensions, validation_layers), physical_device(instance, required_device_extensions, optional_device_extensions), logical_device(physical_device), swapchain(physical_device, logical_device.get(), instance.get_surface(), window.get()), pipeline(logical_device, swapchain.get_render_pass())
     {
-        logical_device.create_swapchain(instance.get_surface(), window.get());
         VE_LOG_CONSOLE(PINK << "Created MainContext");
     }
 
     ~MainContext()
     {
-
     }
 
 private:
@@ -45,6 +46,8 @@ private:
     ve::Instance instance;
     ve::PhysicalDevice physical_device;
     ve::LogicalDevice logical_device;
+    ve::Swapchain swapchain;
+    ve::Pipeline pipeline;
 };
 
 int main(int argc, char** argv)

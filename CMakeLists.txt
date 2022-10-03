@@ -12,3 +12,25 @@ find_package(SDL2 REQUIRED)
 find_package(Vulkan REQUIRED)
 
 target_link_libraries(Vulkan_Engine ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES})
+
+function(add_shader TARGET SHADER)
+    find_program(GLSLC glslc)
+
+    set(current-shader-path "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER}")
+    set(current-output-path "${CMAKE_CURRENT_BINARY_DIR}/${SHADER}.spv")
+
+    add_custom_command(
+           OUTPUT "${current-output-path}"
+           COMMENT "Compiling \"${current-shader-path}\" to \"${current-output-path}\""
+           DEPENDS "${current-shader-path}"
+           IMPLICIT_DEPENDS CXX "${current-shader-path}"
+           COMMAND ${GLSLC} -O -o "${current-output-path}" "${current-shader-path}"
+           VERBATIM)
+
+    target_sources(${TARGET} PRIVATE ${current-output-path})
+endfunction(add_shader)
+
+file(GLOB_RECURSE SHADER_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/" "${CMAKE_CURRENT_SOURCE_DIR}/shader/*")
+foreach(SHADER_FILE ${SHADER_FILES})
+    add_shader(Vulkan_Engine ${SHADER_FILE})
+endforeach()

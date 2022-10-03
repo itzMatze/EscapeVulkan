@@ -1,22 +1,21 @@
 #pragma once
 
-#include <set>
 #include <optional>
+#include <set>
 #include <vulkan/vulkan.hpp>
 
 #include "ve_log.hpp"
 #include "vk/PhysicalDevice.hpp"
-#include "vk/Swapchain.hpp"
 
 namespace ve
 {
     class LogicalDevice
     {
     public:
-        LogicalDevice(const PhysicalDevice& p_device) : physical_device(p_device)
+        LogicalDevice(const PhysicalDevice& p_device)
         {
             VE_LOG_CONSOLE(PINK << "Creating logical device");
-            QueueFamilyIndices indices = physical_device.get_queue_families();
+            QueueFamilyIndices indices = p_device.get_queue_families();
 
             std::vector<vk::DeviceQueueCreateInfo> qci_s;
             std::set<int32_t> unique_queue_families = {indices.graphics, indices.compute, indices.transfer, indices.present};
@@ -36,10 +35,10 @@ namespace ve
             dci.sType = vk::StructureType::eDeviceCreateInfo;
             dci.queueCreateInfoCount = qci_s.size();
             dci.pQueueCreateInfos = qci_s.data();
-            dci.enabledExtensionCount = physical_device.get_extensions().size();
-            dci.ppEnabledExtensionNames = physical_device.get_extensions().data();
+            dci.enabledExtensionCount = p_device.get_extensions().size();
+            dci.ppEnabledExtensionNames = p_device.get_extensions().data();
 
-            device = physical_device.get().createDevice(dci);
+            device = p_device.get().createDevice(dci);
             queues.resize(4);
             queues_indices.graphics = 0;
             queues[queues_indices.graphics] = device.getQueue(indices.graphics, 0);
@@ -53,7 +52,7 @@ namespace ve
 
         ~LogicalDevice()
         {
-            if (swapchain.has_value()) swapchain.value().self_destruct(device);
+            VE_LOG_CONSOLE(PINK << "Destroying logical device");
             device.destroy();
         }
 
@@ -82,16 +81,9 @@ namespace ve
             return queues[queues_indices.present];
         }
 
-        void create_swapchain(const vk::SurfaceKHR surface, SDL_Window* window)
-        {
-            swapchain = std::make_optional<Swapchain>(physical_device, device, surface, window);
-        }
-
     private:
-        const PhysicalDevice physical_device;
         QueueFamilyIndices queues_indices;
         std::vector<vk::Queue> queues;
         vk::Device device;
-        std::optional<Swapchain> swapchain;
     };
 }// namespace ve

@@ -49,7 +49,9 @@ namespace ve
 
         ~Instance()
         {
+            VE_LOG_CONSOLE("Destroying surface");
             instance.destroySurfaceKHR(surface);
+            VE_LOG_CONSOLE(PINK << "Destroying instance");
             instance.destroy();
         }
 
