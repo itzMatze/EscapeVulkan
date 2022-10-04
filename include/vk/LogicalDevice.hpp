@@ -86,32 +86,6 @@ namespace ve
             return queues[queues_indices.present];
         }
 
-        void submit_graphics(const ve::Synchronization& sync, glm::vec3 sync_indices, vk::PipelineStageFlags wait_stage, vk::CommandBuffer command_buffer, vk::SwapchainKHR swapchain, uint32_t image_idx)
-        {
-            vk::SubmitInfo si{};
-            si.sType = vk::StructureType::eSubmitInfo;
-            si.waitSemaphoreCount = 1;
-            si.pWaitSemaphores = &sync.get_semaphore(sync_indices.x);
-            si.pWaitDstStageMask = &wait_stage;
-            si.commandBufferCount = 1;
-            si.pCommandBuffers = &command_buffer;
-            si.signalSemaphoreCount = 1;
-            si.pSignalSemaphores = &sync.get_semaphore(sync_indices.y);
-            queues[queues_indices.graphics].submit(si, sync.get_fence(sync_indices.z));
-            sync.wait_for_fence(sync_indices.z);
-            sync.reset_fence(sync_indices.z);
-
-            vk::PresentInfoKHR present_info{};
-            present_info.sType = vk::StructureType::ePresentInfoKHR;
-            present_info.waitSemaphoreCount = 1;
-            present_info.pWaitSemaphores = &sync.get_semaphore(sync_indices.y);
-            present_info.swapchainCount = 1;
-            present_info.pSwapchains = &swapchain;
-            present_info.pImageIndices = &image_idx;
-            present_info.pResults = nullptr;
-            VE_CHECK(queues[queues_indices.present].presentKHR(present_info), "Failed to present image!");
-        }
-
     private:
         QueueFamilyIndices queues_indices;
         std::vector<vk::Queue> queues;

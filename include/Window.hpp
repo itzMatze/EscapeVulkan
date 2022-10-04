@@ -13,7 +13,7 @@ public:
     {
         VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Creating window\n");
         SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
-        window = SDL_CreateWindow("Vulkan Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI);
+        window = SDL_CreateWindow("Vulkan Engine", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width, height, SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_RESIZABLE);
     }
 
     ~Window()

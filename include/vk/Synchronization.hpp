@@ -37,6 +37,7 @@ namespace ve
         {
             vk::FenceCreateInfo fci{};
             fci.sType = vk::StructureType::eFenceCreateInfo;
+            fci.flags = vk::FenceCreateFlagBits::eSignaled;
             fences.push_back(device.createFence(fci));
             return fences.size() - 1;
         }

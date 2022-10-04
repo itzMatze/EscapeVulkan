@@ -14,6 +14,82 @@ namespace ve
         Swapchain(const PhysicalDevice& physical_device, const vk::Device logical_device, const vk::SurfaceKHR surface, SDL_Window* window) : device(logical_device)
         {
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "swapchain +\n");
+            VE_LOG_CONSOLE(VE_INFO, "Creating swapchain\n");
+            create_swapchain(physical_device, surface, window);
+            render_pass = RenderPass(device, format);
+            VE_LOG_CONSOLE(VE_INFO, "Creating image views\n");
+            create_image_views();
+            VE_LOG_CONSOLE(VE_INFO, "Creating framebuffers\n");
+            create_framebuffers();
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "swapchain +++\n");
+        }
+
+        ~Swapchain()
+        {
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Swapchain -\n");
+            VE_LOG_CONSOLE(VE_INFO, "Destroying framebuffers\n");
+            for (auto& framebuffer: framebuffers)
+            {
+                device.destroyFramebuffer(framebuffer);
+            }
+            render_pass.self_destruct(device);
+            VE_LOG_CONSOLE(VE_INFO, "Destroying image views\n");
+            for (auto& image_view: image_views)
+            {
+                device.destroyImageView(image_view);
+            }
+            VE_LOG_CONSOLE(VE_INFO, "Destroying swapchain\n");
+            device.destroySwapchainKHR(swapchain);
+            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Swapchain ---\n");
+        }
+
+        const vk::SwapchainKHR& get() const
+        {
+            return swapchain;
+        }
+
+        vk::Extent2D get_extent() const
+        {
+            return extent;
+        }
+
+        vk::Format get_format() const
+        {
+            return format;
+        }
+
+        vk::RenderPass get_render_pass() const
+        {
+            return render_pass.get();
+        }
+
+        vk::Framebuffer get_framebuffer(uint32_t idx) const
+        {
+            return framebuffers[idx];
+        }
+
+        void recreate(const PhysicalDevice& physical_device, const vk::SurfaceKHR surface, SDL_Window* window)
+        {
+            for (auto& framebuffer: framebuffers)
+            {
+                device.destroyFramebuffer(framebuffer);
+            }
+            for (auto& image_view: image_views)
+            {
+                device.destroyImageView(image_view);
+            }
+            device.destroySwapchainKHR(swapchain);
+            images.clear();
+            image_views.clear();
+            framebuffers.clear();
+            create_swapchain(physical_device, surface, window);
+            create_image_views();
+            create_framebuffers();
+        }
+
+    private:
+        void create_swapchain(const PhysicalDevice& physical_device, const vk::SurfaceKHR surface, SDL_Window* window)
+        {
             std::vector<vk::SurfaceFormatKHR> formats = physical_device.get_surface_formats(surface);
             vk::SurfaceFormatKHR surface_format = choose_surface_format(formats);
             format = surface_format.format;
@@ -49,11 +125,12 @@ namespace ve
                 VE_LOG_CONSOLE(VE_DEBUG, "Graphics and Presentation queue are the same queue. Using Exclusive sharing mode on swapchain.\n");
                 sci.imageSharingMode = vk::SharingMode::eExclusive;
             }
-            VE_LOG_CONSOLE(VE_INFO, "Creating swapchain\n");
             swapchain = device.createSwapchainKHR(sci);
             images = device.getSwapchainImagesKHR(swapchain);
+        }
 
-            VE_LOG_CONSOLE(VE_INFO, "Creating image views\n");
+        void create_image_views()
+        {
             for (const auto& image: images)
             {
                 vk::ImageViewCreateInfo ivci{};
@@ -72,10 +149,10 @@ namespace ve
                 ivci.subresourceRange.layerCount = 1;
                 image_views.push_back(device.createImageView(ivci));
             }
+        }
 
-            render_pass = RenderPass(device, format);
-
-            VE_LOG_CONSOLE(VE_INFO, "Creating framebuffers\n");
+        void create_framebuffers()
+        {
             for (const auto& image_view: image_views)
             {
                 vk::FramebufferCreateInfo fbci{};
@@ -89,55 +166,8 @@ namespace ve
 
                 framebuffers.push_back(device.createFramebuffer(fbci));
             }
-
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "swapchain +++\n");
         }
 
-        ~Swapchain()
-        {
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Swapchain -\n");
-            VE_LOG_CONSOLE(VE_INFO, "Destroying framebuffers\n");
-            for (auto& framebuffer: framebuffers)
-            {
-                device.destroyFramebuffer(framebuffer);
-            }
-            render_pass.self_destruct(device);
-            VE_LOG_CONSOLE(VE_INFO, "Destroying image views\n");
-            for (auto& image_view: image_views)
-            {
-                device.destroyImageView(image_view);
-            }
-            VE_LOG_CONSOLE(VE_INFO, "Destroying swapchain\n");
-            device.destroySwapchainKHR(swapchain);
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Swapchain ---\n");
-        }
-
-        vk::SwapchainKHR get() const
-        {
-            return swapchain;
-        }
-
-        vk::Extent2D get_extent() const
-        {
-            return extent;
-        }
-
-        vk::Format get_format() const
-        {
-            return format;
-        }
-
-        vk::RenderPass get_render_pass() const
-        {
-            return render_pass.get();
-        }
-
-        vk::Framebuffer get_framebuffer(uint32_t idx) const
-        {
-            return framebuffers[idx];
-        }
-
-    private:
         vk::SurfaceFormatKHR choose_surface_format(const std::vector<vk::SurfaceFormatKHR>& available_formats)
         {
             for (const auto& format: available_formats)
@@ -167,7 +197,12 @@ namespace ve
             else
             {
                 int32_t width, height;
-                SDL_Vulkan_GetDrawableSize(window, &width, &height);
+                SDL_Event e;
+                do
+                {
+                    SDL_Vulkan_GetDrawableSize(window, &width, &height);
+                    SDL_WaitEvent(&e);
+                } while (width == 0 || height == 0);
                 vk::Extent2D extent(width, height);
                 extent.width = std::clamp(extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
                 extent.height = std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);

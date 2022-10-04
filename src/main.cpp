@@ -52,7 +52,14 @@ public:
         SDL_Event e;
         while (!quit)
         {
-            draw_frame();
+            try
+            {
+                draw_frame();
+            }
+            catch (const vk::OutOfDateKHRError e)
+            {
+                recreate_swapchain();
+            }
             while (SDL_PollEvent(&e))
             {
                 quit = e.window.event == SDL_WINDOWEVENT_CLOSE;
@@ -62,7 +69,7 @@ public:
             window.set_title(ve::to_string(duration, 4) + " ms; FPS: " + ve::to_string(1000.0 / duration));
             t1 = t2;
         }
-        wait_to_finish();
+        wait_idle();
     }
 
     void draw_frame()
@@ -70,17 +77,49 @@ public:
         glm::vec3 draw_sync_indices(sync_indices[0 + 3 * current_frame], sync_indices[1 + 3 * current_frame], sync_indices[2 + 3 * current_frame]);
         vk::ResultValue<uint32_t> image_idx = logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), sync.get_semaphore(draw_sync_indices.x));
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
+        sync.wait_for_fence(sync_indices[2 + 3 * current_frame]);
+        sync.reset_fence(sync_indices[2 + 3 * current_frame]);
         command_pool.reset_command_buffer(current_frame);
         command_pool.record_command_buffer(current_frame, swapchain, pipeline.get(), image_idx.value);
-        logical_device.submit_graphics(sync, draw_sync_indices, vk::PipelineStageFlagBits::eColorAttachmentOutput, command_pool.get_buffer(current_frame), swapchain.get(), image_idx.value);
+        submit_graphics(draw_sync_indices, vk::PipelineStageFlagBits::eColorAttachmentOutput, image_idx.value);
+        current_frame = (current_frame + 1) % frames_in_flight;
     }
 
-    void wait_to_finish()
+    void recreate_swapchain()
+    {
+        wait_idle();
+        swapchain.recreate(physical_device, instance.get_surface(), window.get());
+    }
+
+    void wait_idle()
     {
         logical_device.get().waitIdle();
     }
 
 private:
+    void submit_graphics(glm::vec3 sync_indices, vk::PipelineStageFlags wait_stage, uint32_t image_idx)
+    {
+        vk::SubmitInfo si{};
+        si.sType = vk::StructureType::eSubmitInfo;
+        si.waitSemaphoreCount = 1;
+        si.pWaitSemaphores = &sync.get_semaphore(sync_indices.x);
+        si.pWaitDstStageMask = &wait_stage;
+        si.commandBufferCount = 1;
+        si.pCommandBuffers = &command_pool.get_buffer(current_frame);
+        si.signalSemaphoreCount = 1;
+        si.pSignalSemaphores = &sync.get_semaphore(sync_indices.y);
+        logical_device.get_graphics_queue().submit(si, sync.get_fence(sync_indices.z));
+
+        vk::PresentInfoKHR present_info{};
+        present_info.sType = vk::StructureType::ePresentInfoKHR;
+        present_info.waitSemaphoreCount = 1;
+        present_info.pWaitSemaphores = &sync.get_semaphore(sync_indices.y);
+        present_info.swapchainCount = 1;
+        present_info.pSwapchains = &swapchain.get();
+        present_info.pImageIndices = &image_idx;
+        present_info.pResults = nullptr;
+        VE_CHECK(logical_device.get_present_queue().presentKHR(present_info), "Failed to present image!");
+    }
     const std::vector<const char*> required_extensions{VK_KHR_SURFACE_EXTENSION_NAME};
     const std::vector<const char*> optional_extensions{};
     const std::vector<const char*> validation_layers{"VK_LAYER_KHRONOS_validation"};

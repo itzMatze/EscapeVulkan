@@ -39,7 +39,7 @@ namespace ve
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "command pool ---\n");
         }
 
-        vk::CommandBuffer get_buffer(uint32_t idx)
+        vk::CommandBuffer& get_buffer(uint32_t idx)
         {
             return command_buffers[idx];
         }
