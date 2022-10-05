@@ -8,7 +8,9 @@
 #include <glm/vec4.hpp>
 
 #include "Window.hpp"
+#include "common.hpp"
 #include "ve_log.hpp"
+#include "vk/Buffer.hpp"
 #include "vk/CommandPool.hpp"
 #include "vk/Instance.hpp"
 #include "vk/LogicalDevice.hpp"
@@ -27,7 +29,7 @@ struct RenderingInfo {
 class MainContext
 {
 public:
-    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(window, required_extensions, optional_extensions, validation_layers), physical_device(instance, required_device_extensions, optional_device_extensions), logical_device(physical_device), swapchain(physical_device, logical_device.get(), instance.get_surface(), window.get()), pipeline(logical_device.get(), swapchain.get_render_pass()), command_pool(logical_device.get(), physical_device.get_queue_families().graphics, frames_in_flight), sync(logical_device.get())
+    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(window, required_extensions, optional_extensions, validation_layers), physical_device(instance, required_device_extensions, optional_device_extensions), logical_device(physical_device), swapchain(physical_device, logical_device.get(), instance.get_surface(), window.get()), pipeline(logical_device.get(), swapchain.get_render_pass()), command_pool(logical_device.get(), physical_device.get_queue_families().graphics, frames_in_flight), sync(logical_device.get()), vertex_buffer(physical_device.get(), logical_device.get())
     {
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -35,6 +37,8 @@ public:
             sync_indices.push_back(sync.add_semaphore());
             sync_indices.push_back(sync.add_fence());
         }
+        vertex_buffer.add_buffer(vertices, vk::BufferUsageFlagBits::eVertexBuffer);
+        vertex_buffer.copy_data(vertices, 0);
         VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created MainContext\n");
     }
 
@@ -80,7 +84,7 @@ public:
         sync.wait_for_fence(sync_indices[2 + 3 * current_frame]);
         sync.reset_fence(sync_indices[2 + 3 * current_frame]);
         command_pool.reset_command_buffer(current_frame);
-        command_pool.record_command_buffer(current_frame, swapchain, pipeline.get(), image_idx.value);
+        command_pool.record_command_buffer(current_frame, swapchain, pipeline.get(), image_idx.value, vertex_buffer);
         submit_graphics(draw_sync_indices, vk::PipelineStageFlagBits::eColorAttachmentOutput, image_idx.value);
         current_frame = (current_frame + 1) % frames_in_flight;
     }
@@ -127,6 +131,11 @@ private:
     const std::vector<const char*> required_device_extensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     const std::vector<const char*> optional_device_extensions{VK_KHR_RAY_QUERY_EXTENSION_NAME, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 
+    const std::vector<ve::Vertex> vertices = {
+            {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+            {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+            {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+
     const uint32_t frames_in_flight = 2;
     uint32_t current_frame = 0;
 
@@ -139,6 +148,7 @@ private:
     ve::CommandPool command_pool;
     ve::Synchronization sync;
     std::vector<uint32_t> sync_indices;
+    ve::Buffer vertex_buffer;
 };
 
 int main(int argc, char** argv)

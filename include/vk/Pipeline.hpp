@@ -5,6 +5,7 @@
 #include "ve_log.hpp"
 #include "vk/RenderPass.hpp"
 #include "vk/Shader.hpp"
+#include "common.hpp"
 
 namespace ve
 {
@@ -30,12 +31,15 @@ namespace ve
             pdsci.dynamicStateCount = dynamic_states.size();
             pdsci.pDynamicStates = dynamic_states.data();
 
+            auto binding_description = Vertex::get_binding_description();
+            auto attribute_descriptions = Vertex::get_attribute_descriptions();
+
             vk::PipelineVertexInputStateCreateInfo pvisci{};
             pvisci.sType = vk::StructureType::ePipelineVertexInputStateCreateInfo;
-            pvisci.vertexBindingDescriptionCount = 0;
-            pvisci.pVertexBindingDescriptions = nullptr;
-            pvisci.vertexAttributeDescriptionCount = 0;
-            pvisci.pVertexAttributeDescriptions = nullptr;
+            pvisci.vertexBindingDescriptionCount = 1;
+            pvisci.pVertexBindingDescriptions = &binding_description;
+            pvisci.vertexAttributeDescriptionCount = attribute_descriptions.size();
+            pvisci.pVertexAttributeDescriptions = attribute_descriptions.data();
 
             vk::PipelineInputAssemblyStateCreateInfo piasci{};
             piasci.sType = vk::StructureType::ePipelineInputAssemblyStateCreateInfo;
