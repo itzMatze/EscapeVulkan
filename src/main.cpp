@@ -29,7 +29,7 @@ struct RenderingInfo {
 class MainContext
 {
 public:
-    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(window, required_extensions, optional_extensions, validation_layers), physical_device(instance, required_device_extensions, optional_device_extensions), logical_device(physical_device), swapchain(physical_device, logical_device.get(), instance.get_surface(), window.get()), pipeline(logical_device.get(), swapchain.get_render_pass()), command_pool(logical_device.get(), physical_device.get_queue_families().graphics, frames_in_flight), sync(logical_device.get()), vertex_buffer(physical_device.get(), logical_device.get())
+    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(window, required_extensions, optional_extensions, validation_layers), physical_device(instance, required_device_extensions, optional_device_extensions), logical_device(physical_device), swapchain(physical_device, logical_device.get(), instance.get_surface(), window.get()), pipeline(logical_device.get(), swapchain.get_render_pass()), graphics_command_pool(logical_device.get(), physical_device.get_queue_families().graphics, frames_in_flight), transfer_command_pool(logical_device.get(), physical_device.get_queue_families().transfer, 1), sync(logical_device.get()), vertex_buffer(physical_device.get(), logical_device.get())
     {
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -37,8 +37,10 @@ public:
             sync_indices.push_back(sync.add_semaphore());
             sync_indices.push_back(sync.add_fence());
         }
-        vertex_buffer.add_buffer(vertices, vk::BufferUsageFlagBits::eVertexBuffer);
-        vertex_buffer.copy_data(vertices, 0);
+        vertex_buffer.add_buffer(vertices, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, {uint32_t(physical_device.get_queue_families().transfer), uint32_t(physical_device.get_queue_families().graphics)});
+        vertex_buffer.send_data(vertices, 0);
+        vertex_buffer.add_buffer(vertices, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, {uint32_t(physical_device.get_queue_families().transfer), uint32_t(physical_device.get_queue_families().graphics)});
+        vertex_buffer.copy_data(0, 1, sizeof(ve::Vertex) * vertices.size(), transfer_command_pool.get_buffer(0), logical_device.get_transfer_queue());
         VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created MainContext\n");
     }
 
@@ -83,8 +85,8 @@ public:
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
         sync.wait_for_fence(sync_indices[2 + 3 * current_frame]);
         sync.reset_fence(sync_indices[2 + 3 * current_frame]);
-        command_pool.reset_command_buffer(current_frame);
-        command_pool.record_command_buffer(current_frame, swapchain, pipeline.get(), image_idx.value, vertex_buffer);
+        graphics_command_pool.reset_command_buffer(current_frame);
+        graphics_command_pool.record_graphics_command_buffer(current_frame, swapchain, pipeline.get(), image_idx.value, vertex_buffer);
         submit_graphics(draw_sync_indices, vk::PipelineStageFlagBits::eColorAttachmentOutput, image_idx.value);
         current_frame = (current_frame + 1) % frames_in_flight;
     }
@@ -109,7 +111,7 @@ private:
         si.pWaitSemaphores = &sync.get_semaphore(sync_indices.x);
         si.pWaitDstStageMask = &wait_stage;
         si.commandBufferCount = 1;
-        si.pCommandBuffers = &command_pool.get_buffer(current_frame);
+        si.pCommandBuffers = &graphics_command_pool.get_buffer(current_frame);
         si.signalSemaphoreCount = 1;
         si.pSignalSemaphores = &sync.get_semaphore(sync_indices.y);
         logical_device.get_graphics_queue().submit(si, sync.get_fence(sync_indices.z));
@@ -145,7 +147,8 @@ private:
     ve::LogicalDevice logical_device;
     ve::Swapchain swapchain;
     ve::Pipeline pipeline;
-    ve::CommandPool command_pool;
+    ve::CommandPool graphics_command_pool;
+    ve::CommandPool transfer_command_pool;
     ve::Synchronization sync;
     std::vector<uint32_t> sync_indices;
     ve::Buffer vertex_buffer;
