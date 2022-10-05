@@ -29,7 +29,7 @@ struct RenderingInfo {
 class MainContext
 {
 public:
-    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(window, required_extensions, optional_extensions, validation_layers), physical_device(instance, required_device_extensions, optional_device_extensions), logical_device(physical_device), swapchain(physical_device, logical_device.get(), instance.get_surface(), window.get()), pipeline(logical_device.get(), swapchain.get_render_pass()), graphics_command_pool(logical_device.get(), physical_device.get_queue_families().graphics, frames_in_flight), transfer_command_pool(logical_device.get(), physical_device.get_queue_families().transfer, 1), sync(logical_device.get()), vertex_buffer(physical_device.get(), logical_device.get())
+    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(window, required_extensions, optional_extensions, validation_layers), physical_device(instance, required_device_extensions, optional_device_extensions), logical_device(physical_device), swapchain(physical_device, logical_device.get(), instance.get_surface(), window.get()), pipeline(logical_device.get(), swapchain.get_render_pass()), graphics_command_pool(logical_device.get(), physical_device.get_queue_families().graphics, frames_in_flight), transfer_command_pool(logical_device.get(), physical_device.get_queue_families().transfer, 1), sync(logical_device.get()), vertex_buffer(physical_device.get(), logical_device.get()), index_buffer(physical_device.get(), logical_device.get())
     {
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -41,6 +41,11 @@ public:
         vertex_buffer.send_data(vertices, 0);
         vertex_buffer.add_buffer(vertices, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, {uint32_t(physical_device.get_queue_families().transfer), uint32_t(physical_device.get_queue_families().graphics)});
         vertex_buffer.copy_data(0, 1, sizeof(ve::Vertex) * vertices.size(), transfer_command_pool.get_buffer(0), logical_device.get_transfer_queue());
+
+        index_buffer.add_buffer(indices, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, {uint32_t(physical_device.get_queue_families().transfer), uint32_t(physical_device.get_queue_families().graphics)});
+        index_buffer.send_data(indices, 0);
+        index_buffer.add_buffer(indices, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal, {uint32_t(physical_device.get_queue_families().transfer), uint32_t(physical_device.get_queue_families().graphics)});
+        index_buffer.copy_data(0, 1, sizeof(uint32_t) * indices.size(), transfer_command_pool.get_buffer(0), logical_device.get_transfer_queue());
         VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created MainContext\n");
     }
 
@@ -86,7 +91,7 @@ public:
         sync.wait_for_fence(sync_indices[2 + 3 * current_frame]);
         sync.reset_fence(sync_indices[2 + 3 * current_frame]);
         graphics_command_pool.reset_command_buffer(current_frame);
-        graphics_command_pool.record_graphics_command_buffer(current_frame, swapchain, pipeline.get(), image_idx.value, vertex_buffer);
+        graphics_command_pool.record_graphics_command_buffer(current_frame, swapchain, pipeline.get(), image_idx.value, vertex_buffer, index_buffer);
         submit_graphics(draw_sync_indices, vk::PipelineStageFlagBits::eColorAttachmentOutput, image_idx.value);
         current_frame = (current_frame + 1) % frames_in_flight;
     }
@@ -134,9 +139,13 @@ private:
     const std::vector<const char*> optional_device_extensions{VK_KHR_RAY_QUERY_EXTENSION_NAME, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 
     const std::vector<ve::Vertex> vertices = {
-            {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-            {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-            {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+            {{-0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f}},
+            {{0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+            {{0.5f, 0.5f, 1.0f}, {0.0f, 0.0f, 1.0f}},
+            {{-0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}}};
+
+    const std::vector<uint32_t> indices = {
+            0, 1, 2, 2, 3, 0};
 
     const uint32_t frames_in_flight = 2;
     uint32_t current_frame = 0;
@@ -152,6 +161,7 @@ private:
     ve::Synchronization sync;
     std::vector<uint32_t> sync_indices;
     ve::Buffer vertex_buffer;
+    ve::Buffer index_buffer;
 };
 
 int main(int argc, char** argv)

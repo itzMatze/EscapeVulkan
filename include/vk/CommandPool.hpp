@@ -45,7 +45,7 @@ namespace ve
             return command_buffers[idx];
         }
 
-        void record_graphics_command_buffer(uint32_t idx, const Swapchain& swapchain, const vk::Pipeline pipeline, uint32_t image_idx, const ve::Buffer& vertex_buffer)
+        void record_graphics_command_buffer(uint32_t idx, const Swapchain& swapchain, const vk::Pipeline pipeline, uint32_t image_idx, const ve::Buffer& vertex_buffer, const ve::Buffer& index_buffer)
         {
             VE_ASSERT(idx < command_buffers.size(), "Command buffer at requested index does not exist!\n");
             vk::CommandBufferBeginInfo cbbi{};
@@ -80,7 +80,8 @@ namespace ve
 
             std::vector<vk::DeviceSize> offsets(vertex_buffer.get_buffers().size() - 1, 0);
             command_buffers[idx].bindVertexBuffers(0, vertex_buffer.get_buffers()[1], offsets);
-            command_buffers[idx].draw(vertex_buffer.vertices, 1, 0, 0);
+            command_buffers[idx].bindIndexBuffer(index_buffer.get_buffers()[1], 0, vk::IndexType::eUint32);
+            command_buffers[idx].drawIndexed(index_buffer.vertices / 2, 1, 0, 0, 0);
             command_buffers[idx].endRenderPass();
             command_buffers[idx].end();
         }

@@ -46,12 +46,12 @@ namespace ve
 #if defined(VE_LOGGING)
 
 #define VE_CONSOLE_ADD(L, X) \
-    if (L >= VE_LOG_LEVEL) std::cout << X
-#define VE_ERR_CONSOLE_ADD(X) std::cerr << X
+    if (L >= VE_LOG_LEVEL) std::cout << X << VE_C_WHITE
+#define VE_ERR_CONSOLE_ADD(X) std::cerr << X << VE_C_WHITE
 
 #define VE_LOG_CONSOLE(L, X) \
-    if (L >= VE_LOG_LEVEL) std::cout << get_time() << X
-#define VE_ERR_CONSOLE(X) std::cerr << get_time() << VE_C_RED << X
+    if (L >= VE_LOG_LEVEL) std::cout << get_time() << X << VE_C_WHITE
+#define VE_ERR_CONSOLE(X) std::cerr << get_time() << VE_C_RED << X << VE_C_WHITE
 
 #define VE_THROW(X)                         \
     {                                       \
