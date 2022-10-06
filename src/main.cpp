@@ -29,7 +29,7 @@ struct RenderingInfo {
 class MainContext
 {
 public:
-    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(window, required_extensions, optional_extensions, validation_layers), physical_device(instance, required_device_extensions, optional_device_extensions), logical_device(physical_device), swapchain(physical_device, logical_device.get(), instance.get_surface(), window.get()), pipeline(logical_device.get(), swapchain.get_render_pass()), graphics_command_pool(logical_device.get(), physical_device.get_queue_families().graphics, frames_in_flight), transfer_command_pool(logical_device.get(), physical_device.get_queue_families().transfer, 1), sync(logical_device.get()), vertex_buffer(physical_device.get(), logical_device.get()), index_buffer(physical_device.get(), logical_device.get())
+    MainContext(const RenderingInfo& ri) : window(ri.width, ri.height), instance(window), physical_device(instance), logical_device(physical_device), swapchain(physical_device, logical_device.get(), instance.get_surface(), window.get()), pipeline(logical_device.get(), swapchain.get_render_pass()), graphics_command_pool(logical_device.get(), physical_device.get_queue_families().graphics, frames_in_flight), transfer_command_pool(logical_device.get(), physical_device.get_queue_families().transfer, 1), sync(logical_device.get()), vertex_buffer(physical_device.get(), logical_device.get()), index_buffer(physical_device.get(), logical_device.get())
     {
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -131,12 +131,6 @@ private:
         present_info.pResults = nullptr;
         VE_CHECK(logical_device.get_present_queue().presentKHR(present_info), "Failed to present image!");
     }
-    const std::vector<const char*> required_extensions{VK_KHR_SURFACE_EXTENSION_NAME};
-    const std::vector<const char*> optional_extensions{};
-    const std::vector<const char*> validation_layers{"VK_LAYER_KHRONOS_validation"};
-
-    const std::vector<const char*> required_device_extensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-    const std::vector<const char*> optional_device_extensions{VK_KHR_RAY_QUERY_EXTENSION_NAME, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 
     const std::vector<ve::Vertex> vertices = {
             {{-0.5f, -0.5f, 1.0f}, {1.0f, 0.0f, 0.0f}},

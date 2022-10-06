@@ -20,15 +20,20 @@ namespace ve
     class PhysicalDevice
     {
     public:
-        PhysicalDevice(const Instance& instance, const std::vector<const char*>& required_extensions, const std::vector<const char*> optional_extensions)
+        PhysicalDevice(const Instance& instance)
         {
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "physical device +\n");
+            const std::vector<const char*> required_extensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+            const std::vector<const char*> optional_extensions{VK_KHR_RAY_QUERY_EXTENSION_NAME, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
+            extensions_handler.add_extensions(required_extensions, true);
+            extensions_handler.add_extensions(optional_extensions, false);
+
             std::vector<vk::PhysicalDevice> physical_devices = instance.get_physical_devices();
             std::unordered_set<uint32_t> suitable_p_devices;
             VE_LOG_CONSOLE(VE_DEBUG, "Found physical devices: \n");
             for (uint32_t i = 0; i < physical_devices.size(); ++i)
             {
-                if (is_device_suitable(i, physical_devices[i], instance.get_surface(), required_extensions, optional_extensions))
+                if (is_device_suitable(i, physical_devices[i], instance.get_surface()))
                 {
                     suitable_p_devices.insert(i);
                 }
@@ -52,8 +57,8 @@ namespace ve
             {
                 VE_THROW("No suitable GPUs found!");
             }
-            extensions_handler.add_extensions(physical_device.enumerateDeviceExtensionProperties(), required_extensions, true);
-            extensions_handler.add_extensions(physical_device.enumerateDeviceExtensionProperties(), optional_extensions, false);
+            extensions_handler.remove_missing_extensions();
+
             find_queue_families(instance.get_surface());
             VE_LOG_CONSOLE(VE_DEBUG, "Queue family indices: \n    Graphics: " << queue_family_indices.graphics << "\n    Compute:  " << queue_family_indices.compute << "\n    Transfer: " << queue_family_indices.transfer << "\n    Present:  " << queue_family_indices.present << "\n");
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "physical device +++\n");
@@ -128,38 +133,28 @@ namespace ve
             VE_ASSERT(queue_family_indices.graphics > -1 && queue_family_indices.compute > -1 && queue_family_indices.transfer > -1, "One queue family could not be satisfied!");
         }
 
-        bool is_device_suitable(uint32_t idx, const vk::PhysicalDevice p_device, const vk::SurfaceKHR surface, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions) const
+        bool is_device_suitable(uint32_t idx, const vk::PhysicalDevice p_device, const vk::SurfaceKHR surface)
         {
             vk::PhysicalDeviceProperties pdp;
             p_device.getProperties(&pdp);
             vk::PhysicalDeviceFeatures p_device_features;
             p_device.getFeatures(&p_device_features);
             std::vector<vk::ExtensionProperties> available_extensions = p_device.enumerateDeviceExtensionProperties();
+            std::vector<const char*> avail_ext_names;
+            for (const auto& ext: available_extensions) avail_ext_names.push_back(ext.extensionName);
             VE_TO_USER("    " << idx << " " << pdp.deviceName << " ");
-            for (const auto& requested_extension: required_extensions)
+            int32_t missing_extensions = extensions_handler.check_extension_availability(avail_ext_names);
+            if (missing_extensions == -1 || (extensions_handler.find_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME) && !is_swapchain_supported(p_device, surface)))
             {
-                if (!extensions_handler.is_extension_available(requested_extension, available_extensions))
-                {
-                    VE_TO_USER("(not suitable)\n");
-                    return false;
-                }
-                if (requested_extension == VK_KHR_SWAPCHAIN_EXTENSION_NAME)
-                {
-                    if (!is_swapchain_supported(p_device, surface)) return false;
-                }
+                VE_TO_USER("(not suitable)\n");
+                return false;
             }
-
-            uint32_t missing_optional_extensions = 0;
-            for (const auto& requested_extension: optional_extensions)
-            {
-                if (!extensions_handler.is_extension_available(requested_extension, available_extensions)) ++missing_optional_extensions;
-            }
-
-            VE_TO_USER("(suitable, " << missing_optional_extensions << " missing optional extensions)\n");
+            VE_TO_USER("(suitable, " << missing_extensions << " missing optional extensions)\n");
             return pdp.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
         }
 
-        bool is_swapchain_supported(const vk::PhysicalDevice p_device, const vk::SurfaceKHR surface) const
+        bool
+        is_swapchain_supported(const vk::PhysicalDevice p_device, const vk::SurfaceKHR surface) const
         {
             std::vector<vk::SurfaceFormatKHR> f = p_device.getSurfaceFormatsKHR(surface);
             std::vector<vk::PresentModeKHR> pm = p_device.getSurfacePresentModesKHR(surface);

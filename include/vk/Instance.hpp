@@ -12,9 +12,13 @@ namespace ve
     class Instance
     {
     public:
-        Instance(const Window& window, const std::vector<const char*>& required_extensions, const std::vector<const char*>& optional_extensions, const std::vector<const char*>& validation_layers) : extensions_handler()
+        Instance(const Window& window) : extensions_handler()
         {
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "instance +\n");
+            const std::vector<const char*> required_extensions{VK_KHR_SURFACE_EXTENSION_NAME};
+            const std::vector<const char*> optional_extensions{};
+            const std::vector<const char*> validation_layers{"VK_LAYER_KHRONOS_validation"};
+
             vk::ApplicationInfo ai{};
             ai.sType = vk::StructureType::eApplicationInfo;
             ai.pApplicationName = "Vulkan Engine";
@@ -24,23 +28,31 @@ namespace ve
             ai.apiVersion = VK_API_VERSION_1_3;
 
             std::vector<vk::ExtensionProperties> available_extensions = vk::enumerateInstanceExtensionProperties();
-
+            std::vector<const char*> avail_ext_names;
+            for (const auto& ext: available_extensions) avail_ext_names.push_back(ext.extensionName);
             std::vector<const char*> tmp_extensions;
             window.get_required_extensions(tmp_extensions);
-            extensions_handler.add_extensions(available_extensions, tmp_extensions, true);
-            extensions_handler.add_extensions(available_extensions, required_extensions, true);
-            extensions_handler.add_extensions(available_extensions, optional_extensions, false);
+            extensions_handler.add_extensions(tmp_extensions, true);
+            extensions_handler.add_extensions(required_extensions, true);
+            extensions_handler.add_extensions(optional_extensions, false);
+            if (extensions_handler.check_extension_availability(avail_ext_names) == -1) VE_THROW("Required instance extension not found!");
+            extensions_handler.remove_missing_extensions();
 
-            std::vector<const char*> enabled_validation_layers;
-            if (!get_available_validation_layers(validation_layers, enabled_validation_layers)) VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "No validation layers added!\n");
+            std::vector<vk::LayerProperties> available_layers = vk::enumerateInstanceLayerProperties();
+            std::vector<const char*> avail_layer_names;
+            for (const auto& layer: available_layers) avail_layer_names.push_back(layer.layerName);
+            validation_handler.add_extensions(validation_layers, false);
+            int32_t missing_layers = validation_handler.check_extension_availability(avail_layer_names);
+            validation_handler.remove_missing_extensions();
+            if (missing_layers > 0) VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << missing_layers << " validation layers not found!\n");
 
             vk::InstanceCreateInfo ici{};
             ici.sType = vk::StructureType::eInstanceCreateInfo;
             ici.pApplicationInfo = &ai;
-            ici.enabledExtensionCount = extensions_handler.get_extensions().size();
+            ici.enabledExtensionCount = extensions_handler.get_size();
             ici.ppEnabledExtensionNames = extensions_handler.get_extensions().data();
-            ici.enabledLayerCount = enabled_validation_layers.size();
-            ici.ppEnabledLayerNames = enabled_validation_layers.data();
+            ici.enabledLayerCount = validation_handler.get_size();
+            ici.ppEnabledLayerNames = validation_handler.get_extensions().data();
 
             VE_LOG_CONSOLE(VE_INFO, "Creating instance\n");
             instance = vk::createInstance(ici);
@@ -77,32 +89,15 @@ namespace ve
 
         std::vector<vk::PhysicalDevice> get_physical_devices() const
         {
-            std::vector<vk::PhysicalDevice>physical_devices = instance.enumeratePhysicalDevices();
+            std::vector<vk::PhysicalDevice> physical_devices = instance.enumeratePhysicalDevices();
             if (physical_devices.empty()) VE_THROW("Failed to find GPUs with Vulkan support!");
             return physical_devices;
         }
 
     private:
-        bool get_available_validation_layers(const std::vector<const char*>& requested_validation_layers, std::vector<const char*>& validation_layers) const
-        {
-            std::vector<vk::LayerProperties> available_layers = vk::enumerateInstanceLayerProperties();
-
-            for (const auto& req_layer: requested_validation_layers)
-            {
-                for (const auto& avail_layer: available_layers)
-                {
-                    if (strcmp(req_layer, avail_layer.layerName) == 0)
-                    {
-                        validation_layers.push_back(req_layer);
-                        break;
-                    }
-                }
-            }
-            return validation_layers.size() > 0;
-        }
-
         vk::Instance instance;
         ExtensionsHandler extensions_handler;
+        ExtensionsHandler validation_handler;
         vk::SurfaceKHR surface;
     };
 }// namespace ve
