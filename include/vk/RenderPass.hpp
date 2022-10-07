@@ -3,16 +3,15 @@
 #include <vulkan/vulkan.hpp>
 
 #include "ve_log.hpp"
+#include "vk/VulkanMainContext.hpp"
 
 namespace ve
 {
     class RenderPass
     {
     public:
-        RenderPass() = default;
-        RenderPass(const vk::Device device, const vk::Format format)
+        RenderPass(const VulkanMainContext& vmc, const vk::Format& format) : vmc(vmc)
         {
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "render pass +\n");
             vk::AttachmentDescription ad{};
             ad.format = format;
             ad.samples = vk::SampleCountFlagBits::e1;
@@ -50,9 +49,7 @@ namespace ve
             rpci.dependencyCount = 1;
             rpci.pDependencies = &dependency;
 
-            VE_LOG_CONSOLE(VE_INFO, "Creating render pass\n");
-            render_pass = device.createRenderPass(rpci);
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "render pass +++\n");
+            render_pass = vmc.logical_device.get().createRenderPass(rpci);
         }
 
         const vk::RenderPass get() const
@@ -60,15 +57,18 @@ namespace ve
             return render_pass;
         }
 
-        void self_destruct(const vk::Device device)
+        void self_destruct()
         {
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "render pass -\n");
-            VE_LOG_CONSOLE(VE_INFO, "Destroying render pass\n");
-            device.destroyRenderPass(render_pass);
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "render pass ---\n");
+            vmc.logical_device.get().destroyRenderPass(render_pass);
+        }
+
+        void create_render_pass()
+        {
+            
         }
 
     private:
+        const VulkanMainContext& vmc;
         vk::RenderPass render_pass;
     };
 }// namespace ve

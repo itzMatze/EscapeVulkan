@@ -12,8 +12,8 @@ namespace ve
     class Shader
     {
     public:
-        Shader(const vk::Device device, const std::string& filename,
-               vk::ShaderStageFlagBits shader_stage_flag) : name(filename)
+        Shader(const vk::Device& device, const std::string filename,
+               vk::ShaderStageFlagBits shader_stage_flag) : name(filename), device(device)
         {
             VE_LOG_CONSOLE(VE_INFO, "Loading shader \"" << filename << "\"\n");
             std::string source = read_shader_file(std::string("shader/" + filename + ".spv"));
@@ -29,15 +29,14 @@ namespace ve
             pssci.pName = "main";
         }
 
+        void self_destruct()
+        {
+            device.destroyShaderModule(shader_module);
+        }
+
         const vk::ShaderModule get() const
         {
             return shader_module;
-        }
-
-        void self_destruct(const vk::Device device)
-        {
-            VE_LOG_CONSOLE(VE_DEBUG, "Destroying shader " << name << "\n");
-            device.destroyShaderModule(shader_module);
         }
 
         const vk::PipelineShaderStageCreateInfo& get_stage_create_info() const
@@ -56,6 +55,7 @@ namespace ve
         }
 
         const std::string name;
+        const vk::Device& device;
         vk::ShaderModule shader_module;
         vk::PipelineShaderStageCreateInfo pssci;
     };

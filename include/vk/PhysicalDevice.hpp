@@ -20,9 +20,8 @@ namespace ve
     class PhysicalDevice
     {
     public:
-        PhysicalDevice(const Instance& instance)
+        PhysicalDevice(const Instance& instance, const vk::SurfaceKHR& surface)
         {
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "physical device +\n");
             const std::vector<const char*> required_extensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
             const std::vector<const char*> optional_extensions{VK_KHR_RAY_QUERY_EXTENSION_NAME, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
             extensions_handler.add_extensions(required_extensions, true);
@@ -30,10 +29,9 @@ namespace ve
 
             std::vector<vk::PhysicalDevice> physical_devices = instance.get_physical_devices();
             std::unordered_set<uint32_t> suitable_p_devices;
-            VE_LOG_CONSOLE(VE_DEBUG, "Found physical devices: \n");
             for (uint32_t i = 0; i < physical_devices.size(); ++i)
             {
-                if (is_device_suitable(i, physical_devices[i], instance.get_surface()))
+                if (is_device_suitable(i, physical_devices[i], surface))
                 {
                     suitable_p_devices.insert(i);
                 }
@@ -59,9 +57,8 @@ namespace ve
             }
             extensions_handler.remove_missing_extensions();
 
-            find_queue_families(instance.get_surface());
+            find_queue_families(surface);
             VE_LOG_CONSOLE(VE_DEBUG, "Queue family indices: \n    Graphics: " << queue_family_indices.graphics << "\n    Compute:  " << queue_family_indices.compute << "\n    Transfer: " << queue_family_indices.transfer << "\n    Present:  " << queue_family_indices.present << "\n");
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "physical device +++\n");
         }
 
         vk::PhysicalDevice get() const
@@ -84,18 +81,8 @@ namespace ve
             return extensions_handler.get_missing_extensions();
         }
 
-        std::vector<vk::SurfaceFormatKHR> get_surface_formats(const vk::SurfaceKHR surface) const
-        {
-            return physical_device.getSurfaceFormatsKHR(surface);
-        }
-
-        std::vector<vk::PresentModeKHR> get_surface_present_modes(const vk::SurfaceKHR surface) const
-        {
-            return physical_device.getSurfacePresentModesKHR(surface);
-        }
-
     private:
-        void find_queue_families(const vk::SurfaceKHR surface)
+        void find_queue_families(const vk::SurfaceKHR& surface)
         {
             std::vector<vk::QueueFamilyProperties> queue_families = physical_device.getQueueFamilyProperties();
             QueueFamilyIndices scores;
@@ -133,7 +120,7 @@ namespace ve
             VE_ASSERT(queue_family_indices.graphics > -1 && queue_family_indices.compute > -1 && queue_family_indices.transfer > -1, "One queue family could not be satisfied!");
         }
 
-        bool is_device_suitable(uint32_t idx, const vk::PhysicalDevice p_device, const vk::SurfaceKHR surface)
+        bool is_device_suitable(uint32_t idx, const vk::PhysicalDevice p_device, const vk::SurfaceKHR& surface)
         {
             vk::PhysicalDeviceProperties pdp;
             p_device.getProperties(&pdp);
@@ -154,7 +141,7 @@ namespace ve
         }
 
         bool
-        is_swapchain_supported(const vk::PhysicalDevice p_device, const vk::SurfaceKHR surface) const
+        is_swapchain_supported(const vk::PhysicalDevice p_device, const vk::SurfaceKHR& surface) const
         {
             std::vector<vk::SurfaceFormatKHR> f = p_device.getSurfaceFormatsKHR(surface);
             std::vector<vk::PresentModeKHR> pm = p_device.getSurfacePresentModesKHR(surface);

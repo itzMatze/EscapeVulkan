@@ -9,20 +9,21 @@ namespace ve
     class Synchronization
     {
     public:
-        Synchronization(const vk::Device logical_device) : device(logical_device)
-        {
-        }
+        Synchronization(const vk::Device& logical_device) : device(logical_device)
+        {}
 
-        ~Synchronization()
+        void self_destruct()
         {
             for (auto& s: semaphores)
             {
                 device.destroy(s);
             }
+            semaphores.clear();
             for (auto& f: fences)
             {
                 device.destroyFence(f);
             }
+            fences.clear();
         }
 
         uint32_t add_semaphore()
@@ -62,8 +63,13 @@ namespace ve
             device.resetFences(fences[idx]);
         }
 
+        void wait_idle() const
+        {
+            device.waitIdle();
+        }
+
     private:
-        const vk::Device device;
+        const vk::Device& device;
         std::vector<vk::Semaphore> semaphores;
         std::vector<vk::Fence> fences;
     };

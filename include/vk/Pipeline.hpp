@@ -2,22 +2,33 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include "common.hpp"
 #include "ve_log.hpp"
 #include "vk/RenderPass.hpp"
 #include "vk/Shader.hpp"
-#include "common.hpp"
+#include "vk/VulkanMainContext.hpp"
 
 namespace ve
 {
     class Pipeline
     {
     public:
-        Pipeline(const vk::Device logical_device, const vk::RenderPass render_pass) : device(logical_device)
+        Pipeline(const VulkanMainContext& vmc, const vk::RenderPass& render_pass) : vmc(vmc)
         {
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "pipeline +\n");
+            create_pipeline(render_pass);
+        }
+
+        void self_destruct()
+        {
+            vmc.logical_device.get().destroyPipeline(pipeline);
+            vmc.logical_device.get().destroyPipelineLayout(pipeline_layout);
+        }
+
+        void create_pipeline(const vk::RenderPass& render_pass)
+        {
             std::vector<Shader> shader_group;
-            shader_group.push_back(Shader(device, "default.vert", vk::ShaderStageFlagBits::eVertex));
-            shader_group.push_back(Shader(device, "default.frag", vk::ShaderStageFlagBits::eFragment));
+            shader_group.push_back(Shader(vmc.logical_device.get(), "default.vert", vk::ShaderStageFlagBits::eVertex));
+            shader_group.push_back(Shader(vmc.logical_device.get(), "default.frag", vk::ShaderStageFlagBits::eFragment));
 
             std::vector<vk::PipelineShaderStageCreateInfo> shader_stage;
             for (const auto& shader: shader_group)
@@ -116,8 +127,7 @@ namespace ve
             plci.pushConstantRangeCount = 0;
             plci.pPushConstantRanges = nullptr;
 
-            VE_LOG_CONSOLE(VE_INFO, "Creating pipeline layout\n");
-            pipeline_layout = device.createPipelineLayout(plci);
+            pipeline_layout = vmc.logical_device.get().createPipelineLayout(plci);
 
             vk::GraphicsPipelineCreateInfo gpci{};
             gpci.sType = vk::StructureType::eGraphicsPipelineCreateInfo;
@@ -138,35 +148,23 @@ namespace ve
             gpci.basePipelineHandle = VK_NULL_HANDLE;
             gpci.basePipelineIndex = -1;
 
-            VE_LOG_CONSOLE(VE_INFO, "Creating pipeline\n");
-            vk::ResultValue<vk::Pipeline> pipeline_result_value = device.createGraphicsPipeline(VK_NULL_HANDLE, gpci);
+            vk::ResultValue<vk::Pipeline> pipeline_result_value = vmc.logical_device.get().createGraphicsPipeline(VK_NULL_HANDLE, gpci);
             VE_CHECK(pipeline_result_value.result, "Failed to create pipeline!");
             pipeline = pipeline_result_value.value;
 
             for (auto& shader: shader_group)
             {
-                shader.self_destruct(device);
+                vmc.logical_device.get().destroyShaderModule(shader.get());
             }
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "pipeline +++\n");
         }
 
-        ~Pipeline()
-        {
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "pipeline -\n");
-            VE_LOG_CONSOLE(VE_INFO, "Destroying pipeline\n");
-            device.destroyPipeline(pipeline);
-            VE_LOG_CONSOLE(VE_INFO, "Destroying pipeline layout\n");
-            device.destroyPipelineLayout(pipeline_layout);
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "pipeline ---\n");
-        }
-
-        vk::Pipeline get()
+        const vk::Pipeline& get() const
         {
             return pipeline;
         }
 
     private:
-        const vk::Device device;
+        const VulkanMainContext& vmc;
         vk::PipelineLayout pipeline_layout;
         vk::Pipeline pipeline;
     };

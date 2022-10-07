@@ -3,6 +3,10 @@
 #include <glm/vec3.hpp>
 #include <vulkan/vulkan.hpp>
 
+#include "Window.hpp"
+#include "vk/LogicalDevice.hpp"
+#include "vk/PhysicalDevice.hpp"
+
 namespace ve
 {
     struct Vertex {

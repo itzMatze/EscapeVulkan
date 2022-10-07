@@ -1,62 +1,36 @@
 #pragma once
 
+#include <utility>
 #include <vulkan/vulkan.hpp>
 
 #include "ve_log.hpp"
+#include "vk/VulkanMainContext.hpp"
 
 namespace ve
 {
     class Buffer
     {
     public:
-        Buffer(const vk::PhysicalDevice physical_device, const vk::Device logical_device) : device(logical_device), physical_device(physical_device)
-        {
-        }
-
-        ~Buffer()
-        {
-            for (auto& buffer: buffers)
-            {
-                device.destroyBuffer(buffer);
-            }
-            for (auto& memory: memories)
-            {
-                device.freeMemory(memory);
-            }
-        }
-
         template<class T>
-        void add_buffer(const std::vector<T>& data, vk::BufferUsageFlags usage_flags, vk::MemoryPropertyFlags mem_property_flags, const std::vector<uint32_t>& queue_family_indices)
+        Buffer(const VulkanMainContext& vmc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, const std::vector<uint32_t>& queue_family_indices) : vmc(vmc), element_count(data.size()), byte_size(sizeof(T) * data.size())
         {
-            vk::BufferCreateInfo bci{};
-            bci.sType = vk::StructureType::eBufferCreateInfo;
-            bci.size = sizeof(T) * data.size();
-            bci.usage = usage_flags;
-            bci.sharingMode = vk::SharingMode::eConcurrent;
-            bci.flags = {};
-            bci.queueFamilyIndexCount = 2;
-            bci.pQueueFamilyIndices = queue_family_indices.data();
-            buffers.push_back(device.createBuffer(bci));
-            vk::MemoryRequirements mem_requirements = device.getBufferMemoryRequirements(buffers[buffers.size() - 1]);
-            vk::MemoryAllocateInfo mai{};
-            mai.sType = vk::StructureType::eMemoryAllocateInfo;
-            mai.allocationSize = mem_requirements.size;
-            mai.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, mem_property_flags);
-            memories.push_back(device.allocateMemory(mai));
-            device.bindBufferMemory(buffers[buffers.size() - 1], memories[memories.size() - 1], 0);
-            vertices += data.size();
-        }
+            std::tie(buffer, memory) = create_buffer(usage_flags, {vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent}, queue_family_indices);
 
-        template<class T>
-        void send_data(const std::vector<T>& data, uint32_t idx)
-        {
-            void* mapped_mem = device.mapMemory(memories[idx], 0, VK_WHOLE_SIZE);
+            void* mapped_mem = vmc.logical_device.get().mapMemory(memory, 0, VK_WHOLE_SIZE);
             memcpy(mapped_mem, data.data(), sizeof(T) * data.size());
-            device.unmapMemory(memories[idx]);
+            vmc.logical_device.get().unmapMemory(memory);
         }
 
-        void copy_data(uint32_t idx_src, uint32_t idx_dst, vk::DeviceSize size, const vk::CommandBuffer command_buffer, const vk::Queue queue)
+        template<class T>
+        Buffer(const VulkanMainContext& vmc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, std::vector<uint32_t> queue_family_indices, const vk::CommandBuffer& command_buffer) : vmc(vmc), element_count(data.size()), byte_size(sizeof(T) * data.size())
         {
+            auto [local_buffer, local_memory] = create_buffer((usage_flags | vk::BufferUsageFlagBits::eTransferSrc), {vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent}, queue_family_indices);
+            std::tie(buffer, memory) = create_buffer((usage_flags | vk::BufferUsageFlagBits::eTransferDst), {vk::MemoryPropertyFlagBits::eDeviceLocal}, queue_family_indices);
+
+            void* mapped_mem = vmc.logical_device.get().mapMemory(local_memory, 0, VK_WHOLE_SIZE);
+            memcpy(mapped_mem, data.data(), sizeof(T) * data.size());
+            vmc.logical_device.get().unmapMemory(local_memory);
+
             vk::CommandBufferBeginInfo cbbi{};
             cbbi.sType = vk::StructureType::eCommandBufferBeginInfo;
             cbbi.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
@@ -64,27 +38,67 @@ namespace ve
             vk::BufferCopy copy_region{};
             copy_region.srcOffset = 0;
             copy_region.dstOffset = 0;
-            copy_region.size = size;
-            command_buffer.copyBuffer(buffers[idx_src], buffers[idx_dst], copy_region);
+            copy_region.size = sizeof(T) * data.size();
+            command_buffer.copyBuffer(local_buffer, buffer, copy_region);
             command_buffer.end();
             vk::SubmitInfo submit_info{};
             submit_info.sType = vk::StructureType::eSubmitInfo;
             submit_info.commandBufferCount = 1;
             submit_info.pCommandBuffers = &command_buffer;
-            queue.submit(submit_info);
-            queue.waitIdle();
+            vmc.get_transfer_queue().submit(submit_info);
+            vmc.get_transfer_queue().waitIdle();
+            command_buffer.reset();
+
+            vmc.logical_device.get().destroyBuffer(local_buffer);
+            vmc.logical_device.get().freeMemory(local_memory);
         }
 
-        const std::vector<vk::Buffer>& get_buffers() const
+        void self_destruct()
         {
-            return buffers;
+            vmc.logical_device.get().destroyBuffer(buffer);
+            vmc.logical_device.get().freeMemory(memory);
         }
-        uint32_t vertices = 0;
+
+        const vk::Buffer& get() const
+        {
+            return buffer;
+        }
+
+        uint64_t get_element_count() const
+        {
+            return element_count;
+        }
+
+        uint64_t get_byte_size() const
+        {
+            return byte_size;
+        }
 
     private:
+        std::pair<vk::Buffer, vk::DeviceMemory> create_buffer(vk::BufferUsageFlags usage_flags, vk::MemoryPropertyFlags mpf, const std::vector<uint32_t>& queue_family_indices)
+        {
+            vk::BufferCreateInfo bci{};
+            bci.sType = vk::StructureType::eBufferCreateInfo;
+            bci.size = byte_size;
+            bci.usage = usage_flags;
+            bci.sharingMode = queue_family_indices.size() == 1 ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
+            bci.flags = {};
+            bci.queueFamilyIndexCount = queue_family_indices.size();
+            bci.pQueueFamilyIndices = queue_family_indices.data();
+            vk::Buffer local_buffer = vmc.logical_device.get().createBuffer(bci);
+            vk::MemoryRequirements mem_requirements = vmc.logical_device.get().getBufferMemoryRequirements(local_buffer);
+            vk::MemoryAllocateInfo mai{};
+            mai.sType = vk::StructureType::eMemoryAllocateInfo;
+            mai.allocationSize = mem_requirements.size;
+            mai.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, mpf);
+            vk::DeviceMemory local_memory = vmc.logical_device.get().allocateMemory(mai);
+            vmc.logical_device.get().bindBufferMemory(local_buffer, local_memory, 0);
+            return std::make_pair(local_buffer, local_memory);
+        }
+
         uint32_t find_memory_type(uint32_t type_filter, vk::MemoryPropertyFlags properties)
         {
-            vk::PhysicalDeviceMemoryProperties mem_properties = physical_device.getMemoryProperties();
+            vk::PhysicalDeviceMemoryProperties mem_properties = vmc.physical_device.get().getMemoryProperties();
             for (uint32_t i = 0; i < mem_properties.memoryTypeCount; ++i)
             {
                 if ((type_filter & (1 << i)) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties) return i;
@@ -92,9 +106,10 @@ namespace ve
             VE_THROW("Failed to find suitable memory type!");
         }
 
-        const vk::Device device;
-        const vk::PhysicalDevice physical_device;
-        std::vector<vk::Buffer> buffers;
-        std::vector<vk::DeviceMemory> memories;
+        const VulkanMainContext& vmc;
+        uint64_t byte_size;
+        uint64_t element_count;
+        vk::Buffer buffer;
+        vk::DeviceMemory memory;
     };
 }// namespace ve
