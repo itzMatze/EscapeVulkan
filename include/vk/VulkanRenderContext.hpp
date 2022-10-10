@@ -10,7 +10,7 @@
 namespace ve
 {
     struct VulkanRenderContext {
-        VulkanRenderContext(const VulkanMainContext& vmc) : descriptor_set_handler(vmc), surface_format(choose_surface_format(vmc)), render_pass(vmc, surface_format.format), swapchain(vmc, surface_format, render_pass.get()), pipeline(vmc, render_pass.get(), descriptor_set_handler)
+        VulkanRenderContext(const VulkanMainContext& vmc) : descriptor_set_handler(vmc, frames_in_flight), surface_format(choose_surface_format(vmc)), render_pass(vmc, surface_format.format), swapchain(vmc, surface_format, render_pass.get()), pipeline(vmc, render_pass.get(), descriptor_set_handler)
         {
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created VulkanRenderContext\n");
         }
@@ -24,6 +24,7 @@ namespace ve
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed VulkanRenderContext\n");
         }
 
+        const uint32_t frames_in_flight = 2;
         DescriptorSetHandler descriptor_set_handler;
         vk::SurfaceFormatKHR surface_format;
         RenderPass render_pass;

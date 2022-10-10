@@ -125,7 +125,7 @@ namespace ve
             {
                 if (pm == vk::PresentModeKHR::eImmediate) return pm;
             }
-            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Desired present mode not found. Using FIFO.");
+            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Desired present mode not found. Using FIFO.\n");
             return vk::PresentModeKHR::eFifo;
         }
 

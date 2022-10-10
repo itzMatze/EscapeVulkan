@@ -31,6 +31,7 @@ public:
         vcc.self_destruct();
         vrc.self_destruct();
         vmc.self_destruct();
+        VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed MainContext" << std::endl);
     }
 
     void run()

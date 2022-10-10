@@ -9,7 +9,7 @@ namespace ve
     class DescriptorSetHandler
     {
     public:
-        DescriptorSetHandler(const VulkanMainContext& vmc) : vmc(vmc)
+        DescriptorSetHandler(const VulkanMainContext& vmc, uint32_t copies) : vmc(vmc), copies(copies)
         {
             create_layout();
         }
@@ -27,37 +27,38 @@ namespace ve
             dslci.sType = vk::StructureType::eDescriptorSetLayoutCreateInfo;
             dslci.bindingCount = 1;
             dslci.pBindings = &uniform_buffer;
-            descriptor_set_layouts.push_back(vmc.logical_device.get().createDescriptorSetLayout(dslci));
-            descriptor_set_layouts.push_back(vmc.logical_device.get().createDescriptorSetLayout(dslci));
+            for (uint32_t i = 0; i < copies; ++i)
+            {
+                descriptor_set_layouts.push_back(vmc.logical_device.get().createDescriptorSetLayout(dslci));
+            }
         }
 
         void create_sets(auto uniform_buffers_range)
         {
             vk::DescriptorPoolSize dps{};
             dps.type = vk::DescriptorType::eUniformBuffer;
-            dps.descriptorCount = 2;
+            dps.descriptorCount = copies;
 
             vk::DescriptorPoolCreateInfo dpci{};
             dpci.sType = vk::StructureType::eDescriptorPoolCreateInfo;
             dpci.poolSizeCount = 1;
             dpci.pPoolSizes = &dps;
-            dpci.maxSets = 2;
+            dpci.maxSets = copies;
 
             descriptor_pools.push_back(vmc.logical_device.get().createDescriptorPool(dpci));
 
             vk::DescriptorSetAllocateInfo dsai{};
             dsai.sType = vk::StructureType::eDescriptorSetAllocateInfo;
             dsai.descriptorPool = descriptor_pools[0];
-            dsai.descriptorSetCount = 2;
+            dsai.descriptorSetCount = copies;
             dsai.pSetLayouts = descriptor_set_layouts.data();
 
             descriptor_sets = vmc.logical_device.get().allocateDescriptorSets(dsai);
 
-            for (uint32_t i = 0; i < 2; ++i)
+            for (uint32_t i = 0; i < copies; ++i)
             {
                 vk::DescriptorBufferInfo dbi{};
                 dbi.buffer = uniform_buffers_range.first->second.get();
-                std::advance(uniform_buffers_range.first, 1);
                 dbi.offset = 0;
                 dbi.range = uniform_buffers_range.first->second.get_byte_size();
 
@@ -74,6 +75,8 @@ namespace ve
                 wds.pTexelBufferView = nullptr;
 
                 vmc.logical_device.get().updateDescriptorSets(wds, {});
+
+                std::advance(uniform_buffers_range.first, 1);
             }
         }
 
@@ -101,6 +104,7 @@ namespace ve
 
     private:
         const VulkanMainContext& vmc;
+        const uint32_t copies;
         std::vector<vk::DescriptorSetLayout> descriptor_set_layouts;
         std::vector<vk::DescriptorPool> descriptor_pools;
         std::vector<vk::DescriptorSet> descriptor_sets;

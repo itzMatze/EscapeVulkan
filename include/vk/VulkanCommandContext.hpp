@@ -37,9 +37,9 @@ namespace ve
 
             command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queues_family_indices.graphics));
             command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queues_family_indices.transfer));
-            command_buffers.push_back(command_pools[0].create_command_buffers(frames_in_flight));
+            command_buffers.push_back(command_pools[0].create_command_buffers(vrc.frames_in_flight));
             command_buffers.push_back(command_pools[1].create_command_buffers(1));
-            for (uint32_t i = 0; i < frames_in_flight; ++i)
+            for (uint32_t i = 0; i < vrc.frames_in_flight; ++i)
             {
                 sync_indices.push_back(sync.add_semaphore());
                 sync_indices.push_back(sync.add_semaphore());
@@ -47,7 +47,7 @@ namespace ve
             }
             buffers.emplace(BufferNames::Vertex, Buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, command_buffers[1][0]));
             buffers.emplace(BufferNames::Index, Buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, command_buffers[1][0]));
-            for (uint32_t i = 0; i < frames_in_flight; ++i)
+            for (uint32_t i = 0; i < vrc.frames_in_flight; ++i)
             {
                 buffers.emplace(BufferNames::MVPUniform, Buffer(vmc, std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}));
             }
@@ -82,7 +82,6 @@ namespace ve
         std::vector<CommandPool> command_pools;
         std::vector<std::vector<vk::CommandBuffer>> command_buffers;
         std::unordered_multimap<BufferNames, Buffer> buffers;
-        const uint32_t frames_in_flight = 2;
         uint32_t current_frame = 0;
         std::vector<uint32_t> sync_indices;
 
@@ -102,7 +101,7 @@ namespace ve
             reset_command_buffer(current_frame);
             record_graphics_command_buffer(current_frame, image_idx.value);
             submit_graphics(draw_sync_indices, vk::PipelineStageFlagBits::eColorAttachmentOutput, image_idx.value);
-            current_frame = (current_frame + 1) % frames_in_flight;
+            current_frame = (current_frame + 1) % vrc.frames_in_flight;
         }
 
         void update_uniform_data(float time_diff, const glm::mat4& vp)
@@ -148,7 +147,7 @@ namespace ve
             scissor.extent = vrc.swapchain.get_extent();
             command_buffers[0][idx].setScissor(0, scissor);
 
-            command_buffers[0][idx].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vrc.pipeline.get_layout(), 0, vrc.descriptor_set_handler.get_sets(), {});
+            command_buffers[0][idx].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, vrc.pipeline.get_layout(), 0, vrc.descriptor_set_handler.get_sets()[current_frame], {});
 
             std::vector<vk::DeviceSize> offsets(1, 0);
             command_buffers[0][idx].bindVertexBuffers(0, buffers.find(BufferNames::Vertex)->second.get(), offsets);
