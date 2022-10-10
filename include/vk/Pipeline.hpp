@@ -4,6 +4,7 @@
 
 #include "common.hpp"
 #include "ve_log.hpp"
+#include "vk/DescriptorSetHandler.hpp"
 #include "vk/RenderPass.hpp"
 #include "vk/Shader.hpp"
 #include "vk/VulkanMainContext.hpp"
@@ -13,9 +14,9 @@ namespace ve
     class Pipeline
     {
     public:
-        Pipeline(const VulkanMainContext& vmc, const vk::RenderPass& render_pass) : vmc(vmc)
+        Pipeline(const VulkanMainContext& vmc, const vk::RenderPass& render_pass, const DescriptorSetHandler& ds_handler) : vmc(vmc)
         {
-            create_pipeline(render_pass);
+            create_pipeline(render_pass, ds_handler);
         }
 
         void self_destruct()
@@ -24,7 +25,7 @@ namespace ve
             vmc.logical_device.get().destroyPipelineLayout(pipeline_layout);
         }
 
-        void create_pipeline(const vk::RenderPass& render_pass)
+        void create_pipeline(const vk::RenderPass& render_pass, const DescriptorSetHandler& ds_handler)
         {
             std::vector<Shader> shader_group;
             shader_group.push_back(Shader(vmc.logical_device.get(), "default.vert", vk::ShaderStageFlagBits::eVertex));
@@ -83,8 +84,8 @@ namespace ve
             prsci.rasterizerDiscardEnable = VK_FALSE;
             prsci.polygonMode = vk::PolygonMode::eFill;
             prsci.lineWidth = 1.0f;
-            prsci.cullMode = vk::CullModeFlagBits::eBack;
-            prsci.frontFace = vk::FrontFace::eClockwise;
+            prsci.cullMode = vk::CullModeFlagBits::eNone;
+            prsci.frontFace = vk::FrontFace::eCounterClockwise;
             prsci.depthBiasEnable = VK_FALSE;
             prsci.depthBiasConstantFactor = 0.0f;
             prsci.depthBiasClamp = 0.0f;
@@ -122,8 +123,8 @@ namespace ve
 
             vk::PipelineLayoutCreateInfo plci{};
             plci.sType = vk::StructureType::ePipelineLayoutCreateInfo;
-            plci.setLayoutCount = 0;
-            plci.pSetLayouts = nullptr;
+            plci.setLayoutCount = ds_handler.get_layouts().size();
+            plci.pSetLayouts = ds_handler.get_layouts().data();
             plci.pushConstantRangeCount = 0;
             plci.pPushConstantRanges = nullptr;
 
@@ -161,6 +162,11 @@ namespace ve
         const vk::Pipeline& get() const
         {
             return pipeline;
+        }
+
+        const vk::PipelineLayout& get_layout() const
+        {
+            return pipeline_layout;
         }
 
     private:

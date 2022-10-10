@@ -10,18 +10,18 @@
 
 namespace ve
 {
-    enum QueueIndex
+    enum class QueueIndex
     {
-        GRAPHICS_IDX = 0,
-        COMPUTE_IDX = 1,
-        TRANSFER_IDX = 2,
-        PRESENT_IDX = 3
+        Graphics,
+        Compute,
+        Transfer,
+        Present
     };
 
     class LogicalDevice
     {
     public:
-        LogicalDevice(const PhysicalDevice& p_device, QueueFamilyIndices& indices, std::vector<vk::Queue>& queues)
+        LogicalDevice(const PhysicalDevice& p_device, QueueFamilyIndices& indices, std::unordered_map<QueueIndex, vk::Queue>& queues)
         {
             indices = p_device.get_queue_families();
 
@@ -47,11 +47,10 @@ namespace ve
             dci.ppEnabledExtensionNames = p_device.get_extensions().data();
 
             device = p_device.get().createDevice(dci);
-            queues.resize(4);
-            queues[GRAPHICS_IDX] = device.getQueue(indices.graphics, 0);
-            queues[COMPUTE_IDX] = device.getQueue(indices.compute, 0);
-            queues[TRANSFER_IDX] = device.getQueue(indices.transfer, 0);
-            queues[PRESENT_IDX] = device.getQueue(indices.present, 0);
+            queues.emplace(QueueIndex::Graphics, device.getQueue(indices.graphics, 0));
+            queues.emplace(QueueIndex::Compute, device.getQueue(indices.compute, 0));
+            queues.emplace(QueueIndex::Transfer, device.getQueue(indices.transfer, 0));
+            queues.emplace(QueueIndex::Present, device.getQueue(indices.present, 0));
         }
 
         void self_destruct()

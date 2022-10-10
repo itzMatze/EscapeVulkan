@@ -5,11 +5,12 @@
 #include "vk/Pipeline.hpp"
 #include "vk/RenderPass.hpp"
 #include "vk/Swapchain.hpp"
+#include "vk/DescriptorSetHandler.hpp"
 
 namespace ve
 {
     struct VulkanRenderContext {
-        VulkanRenderContext(const VulkanMainContext& vmc) : surface_format(choose_surface_format(vmc)), render_pass(vmc, surface_format.format), swapchain(vmc, surface_format, render_pass.get()), pipeline(vmc, render_pass.get())
+        VulkanRenderContext(const VulkanMainContext& vmc) : descriptor_set_handler(vmc), surface_format(choose_surface_format(vmc)), render_pass(vmc, surface_format.format), swapchain(vmc, surface_format, render_pass.get()), pipeline(vmc, render_pass.get(), descriptor_set_handler)
         {
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created VulkanRenderContext\n");
         }
@@ -19,9 +20,11 @@ namespace ve
             pipeline.self_destruct();
             swapchain.self_destruct();
             render_pass.self_destruct();
+            descriptor_set_handler.self_destruct();
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed VulkanRenderContext\n");
         }
 
+        DescriptorSetHandler descriptor_set_handler;
         vk::SurfaceFormatKHR surface_format;
         RenderPass render_pass;
         Swapchain swapchain;

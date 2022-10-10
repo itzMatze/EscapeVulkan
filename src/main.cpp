@@ -7,20 +7,11 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
-#include "Window.hpp"
+#include "Camera.h"
 #include "ve_log.hpp"
-#include "vk/Buffer.hpp"
-#include "vk/CommandPool.hpp"
-#include "vk/Instance.hpp"
-#include "vk/LogicalDevice.hpp"
-#include "vk/PhysicalDevice.hpp"
-#include "vk/Pipeline.hpp"
-#include "vk/Swapchain.hpp"
-#include "vk/Synchronization.hpp"
 #include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanMainContext.hpp"
 #include "vk/VulkanRenderContext.hpp"
-#include "vk/common.hpp"
 
 struct RenderingInfo {
     RenderingInfo(uint32_t width, uint32_t height) : width(width), height(height)
@@ -32,27 +23,28 @@ struct RenderingInfo {
 class MainContext
 {
 public:
-    MainContext(const RenderingInfo& ri) : vmc(ri.width, ri.height), vrc(vmc), vcc(vmc, vrc)
+    MainContext(const RenderingInfo& ri) : vmc(ri.width, ri.height), vrc(vmc), vcc(vmc, vrc), camera(45.0f, ri.width, ri.height)
     {}
 
     ~MainContext()
     {
-       vcc.self_destruct();
-       vrc.self_destruct();
-       vmc.self_destruct(); 
+        vcc.self_destruct();
+        vrc.self_destruct();
+        vmc.self_destruct();
     }
 
     void run()
     {
         auto t1 = std::chrono::high_resolution_clock::now();
         auto t2 = std::chrono::high_resolution_clock::now();
-        double duration;
+        double duration = 0.0;
         bool quit = false;
         SDL_Event e;
         while (!quit)
         {
             try
             {
+                vcc.update_uniform_data(duration / 1000.0f, camera.getVP());
                 vcc.draw_frame();
             }
             catch (const vk::OutOfDateKHRError e)
@@ -74,6 +66,7 @@ private:
     ve::VulkanMainContext vmc;
     ve::VulkanRenderContext vrc;
     ve::VulkanCommandContext vcc;
+    Camera camera;
 };
 
 int main(int argc, char** argv)

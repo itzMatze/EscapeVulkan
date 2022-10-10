@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
+#include <unordered_map>
 
 #include "Window.hpp"
 #include "vk/LogicalDevice.hpp"
@@ -40,26 +41,26 @@ namespace ve
 
         const vk::Queue& get_graphics_queue() const
         {
-            return queues[GRAPHICS_IDX];
+            return queues.at(QueueIndex::Graphics);
         }
 
         const vk::Queue& get_transfer_queue() const
         {
-            return queues[TRANSFER_IDX];
+            return queues.at(QueueIndex::Transfer);
         }
 
         const vk::Queue& get_compute_queue() const
         {
-            return queues[COMPUTE_IDX];
+            return queues.at(QueueIndex::Compute);
         }
 
         const vk::Queue& get_present_queue() const
         {
-            return queues[PRESENT_IDX];
+            return queues.at(QueueIndex::Present);
         }
 
     private:
-        std::vector<vk::Queue> queues;
+        std::unordered_map<QueueIndex, vk::Queue> queues;
 
     public:
         QueueFamilyIndices queues_family_indices;
