@@ -34,8 +34,8 @@ public:
 
     void onMouseMove(float xRel, float yRel)
     {
-        yaw += xRel * mouse_sensitivity;
-        pitch += yRel * mouse_sensitivity;
+        yaw -= xRel * mouse_sensitivity;
+        pitch -= yRel * mouse_sensitivity;
         if (pitch > 89.0f)
         {
             pitch = 89.0f;
@@ -58,7 +58,7 @@ public:
         update();
     }
 
-    void moveSideways(float amount)
+    void moveRight(float amount)
     {
         translate(glm::normalize(glm::cross(look_at, up)) * amount);
         update();
