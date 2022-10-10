@@ -14,10 +14,8 @@ namespace ve
     class Pipeline
     {
     public:
-        Pipeline(const VulkanMainContext& vmc, const vk::RenderPass& render_pass, const DescriptorSetHandler& ds_handler) : vmc(vmc)
-        {
-            create_pipeline(render_pass, ds_handler);
-        }
+        Pipeline(const VulkanMainContext& vmc) : vmc(vmc)
+        {}
 
         void self_destruct()
         {
@@ -25,7 +23,7 @@ namespace ve
             vmc.logical_device.get().destroyPipelineLayout(pipeline_layout);
         }
 
-        void create_pipeline(const vk::RenderPass& render_pass, const DescriptorSetHandler& ds_handler)
+        void construct(const vk::RenderPass& render_pass, const DescriptorSetHandler& ds_handler)
         {
             std::vector<Shader> shader_group;
             shader_group.push_back(Shader(vmc.logical_device.get(), "default.vert", vk::ShaderStageFlagBits::eVertex));

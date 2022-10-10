@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include "vk/Buffer.hpp"
 #include "vk/VulkanMainContext.hpp"
 
 namespace ve
@@ -9,84 +10,134 @@ namespace ve
     class DescriptorSetHandler
     {
     public:
-        DescriptorSetHandler(const VulkanMainContext& vmc, uint32_t copies) : vmc(vmc), copies(copies)
-        {
-            create_layout();
-        }
+        DescriptorSetHandler(const VulkanMainContext& vmc) : vmc(vmc)
+        {}
 
-        void create_layout()
+        template<class T>
+        std::vector<ve::Buffer> add_uniform_buffer(uint32_t copies, const std::vector<T>& data, const std::vector<uint32_t>& queue_family_indices)
         {
             vk::DescriptorSetLayoutBinding uniform_buffer{};
             uniform_buffer.binding = 0;
             uniform_buffer.descriptorType = vk::DescriptorType::eUniformBuffer;
             uniform_buffer.descriptorCount = 1;
-            uniform_buffer.stageFlags = vk::ShaderStageFlagBits::eVertex;
+            uniform_buffer.stageFlags = vk::ShaderStageFlagBits::eAll;
             uniform_buffer.pImmutableSamplers = nullptr;
+
+            layout_bindings.push_back(uniform_buffer);
+
+            std::vector<ve::Buffer> uniform_buffers;
+            for (uint32_t i = 0; i < copies; ++i)
+            {
+                uniform_buffers.push_back(Buffer(vmc, data, vk::BufferUsageFlagBits::eUniformBuffer, queue_family_indices));
+
+                vk::DescriptorBufferInfo uniform_dbi{};
+                uniform_dbi.buffer = uniform_buffers[i].get();
+                uniform_dbi.offset = 0;
+                uniform_dbi.range = uniform_buffers[i].get_byte_size();
+
+                uniform_buffer_infos.push_back(uniform_dbi);
+            }
+
+            return uniform_buffers;
+        }
+
+        void add_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages, const ve::Buffer& buffer)
+        {
+            vk::DescriptorSetLayoutBinding dslb{};
+            dslb.binding = binding;
+            dslb.descriptorType = type;
+            dslb.descriptorCount = 1;
+            dslb.stageFlags = stages;
+            dslb.pImmutableSamplers = nullptr;
+
+            layout_bindings.push_back(dslb);
+
+            vk::DescriptorBufferInfo dbi{};
+            dbi.buffer = buffer.get();
+            dbi.offset = 0;
+            dbi.range = buffer.get_byte_size();
+
+            buffer_infos.push_back(dbi);
+        }
+
+        void construct()
+        {
+            std::vector<vk::DescriptorPoolSize> pool_sizes;
+            pool_sizes.push_back(vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, uniform_buffer_infos.size()));
+            for (const auto& dslb: layout_bindings)
+            {
+                vk::DescriptorPoolSize dps{};
+                dps.type = dslb.descriptorType;
+                dps.descriptorCount = 1;
+
+                pool_sizes.push_back(dps);
+            }
 
             vk::DescriptorSetLayoutCreateInfo dslci{};
             dslci.sType = vk::StructureType::eDescriptorSetLayoutCreateInfo;
-            dslci.bindingCount = 1;
-            dslci.pBindings = &uniform_buffer;
-            for (uint32_t i = 0; i < copies; ++i)
+            dslci.bindingCount = layout_bindings.size();
+            dslci.pBindings = layout_bindings.data();
+            for (uint32_t i = 0; i < uniform_buffer_infos.size(); ++i)
             {
-                descriptor_set_layouts.push_back(vmc.logical_device.get().createDescriptorSetLayout(dslci));
+                layouts.push_back(vmc.logical_device.get().createDescriptorSetLayout(dslci));
             }
-        }
-
-        void create_sets(auto uniform_buffers_range)
-        {
-            vk::DescriptorPoolSize dps{};
-            dps.type = vk::DescriptorType::eUniformBuffer;
-            dps.descriptorCount = copies;
 
             vk::DescriptorPoolCreateInfo dpci{};
             dpci.sType = vk::StructureType::eDescriptorPoolCreateInfo;
-            dpci.poolSizeCount = 1;
-            dpci.pPoolSizes = &dps;
-            dpci.maxSets = copies;
+            dpci.poolSizeCount = pool_sizes.size();
+            dpci.pPoolSizes = pool_sizes.data();
+            dpci.maxSets = uniform_buffer_infos.size();
 
-            descriptor_pools.push_back(vmc.logical_device.get().createDescriptorPool(dpci));
+            pool = vmc.logical_device.get().createDescriptorPool(dpci);
 
             vk::DescriptorSetAllocateInfo dsai{};
             dsai.sType = vk::StructureType::eDescriptorSetAllocateInfo;
-            dsai.descriptorPool = descriptor_pools[0];
-            dsai.descriptorSetCount = copies;
-            dsai.pSetLayouts = descriptor_set_layouts.data();
+            dsai.descriptorPool = pool;
+            dsai.descriptorSetCount = layouts.size();
+            dsai.pSetLayouts = layouts.data();
 
-            descriptor_sets = vmc.logical_device.get().allocateDescriptorSets(dsai);
+            sets = vmc.logical_device.get().allocateDescriptorSets(dsai);
 
-            for (uint32_t i = 0; i < copies; ++i)
+            std::vector<vk::WriteDescriptorSet> wds_s;
+            for (uint32_t i = 0; i < sets.size(); ++i)
             {
-                vk::DescriptorBufferInfo dbi{};
-                dbi.buffer = uniform_buffers_range.first->second.get();
-                dbi.offset = 0;
-                dbi.range = uniform_buffers_range.first->second.get_byte_size();
+                vk::WriteDescriptorSet uniform_wds{};
+                uniform_wds.sType = vk::StructureType::eWriteDescriptorSet;
+                uniform_wds.dstSet = sets[i];
+                uniform_wds.dstBinding = 0;
+                uniform_wds.dstArrayElement = 0;
 
-                vk::WriteDescriptorSet wds{};
-                wds.sType = vk::StructureType::eWriteDescriptorSet;
-                wds.dstSet = descriptor_sets[i];
-                wds.dstBinding = 0;
-                wds.dstArrayElement = 0;
+                uniform_wds.descriptorType = vk::DescriptorType::eUniformBuffer;
+                uniform_wds.descriptorCount = 1;
+                uniform_wds.pBufferInfo = &uniform_buffer_infos[i];
+                uniform_wds.pImageInfo = nullptr;
+                uniform_wds.pTexelBufferView = nullptr;
+                wds_s.push_back(uniform_wds);
 
-                wds.descriptorType = vk::DescriptorType::eUniformBuffer;
-                wds.descriptorCount = 1;
-                wds.pBufferInfo = &dbi;
-                wds.pImageInfo = nullptr;
-                wds.pTexelBufferView = nullptr;
+                for (uint32_t j = 1; j < layout_bindings.size(); ++j)
+                {
+                    vk::WriteDescriptorSet wds{};
+                    wds.sType = vk::StructureType::eWriteDescriptorSet;
+                    wds.dstSet = sets[i];
+                    wds.dstBinding = layout_bindings[j].binding;
+                    wds.dstArrayElement = 0;
 
-                vmc.logical_device.get().updateDescriptorSets(wds, {});
+                    wds.descriptorType = layout_bindings[j].descriptorType;
+                    wds.descriptorCount = 1;
+                    wds.pBufferInfo = &buffer_infos[j];
+                    wds.pImageInfo = nullptr;
+                    wds.pTexelBufferView = nullptr;
 
-                std::advance(uniform_buffers_range.first, 1);
+                    wds_s.push_back(wds);
+                }
             }
+            vmc.logical_device.get().updateDescriptorSets(wds_s, {});
         }
 
         void self_destruct()
         {
-            for (auto& dp: descriptor_pools)
-            {
-                vmc.logical_device.get().destroyDescriptorPool(dp);
-            }
-            for (auto& dsl: descriptor_set_layouts)
+            vmc.logical_device.get().destroyDescriptorPool(pool);
+            for (auto& dsl: layouts)
             {
                 vmc.logical_device.get().destroyDescriptorSetLayout(dsl);
             }
@@ -94,19 +145,21 @@ namespace ve
 
         const std::vector<vk::DescriptorSetLayout>& get_layouts() const
         {
-            return descriptor_set_layouts;
+            return layouts;
         }
 
         const std::vector<vk::DescriptorSet>& get_sets() const
         {
-            return descriptor_sets;
+            return sets;
         }
 
     private:
         const VulkanMainContext& vmc;
-        const uint32_t copies;
-        std::vector<vk::DescriptorSetLayout> descriptor_set_layouts;
-        std::vector<vk::DescriptorPool> descriptor_pools;
-        std::vector<vk::DescriptorSet> descriptor_sets;
+        std::vector<vk::DescriptorBufferInfo> uniform_buffer_infos;
+        std::vector<vk::DescriptorBufferInfo> buffer_infos;
+        std::vector<vk::DescriptorSetLayoutBinding> layout_bindings;
+        std::vector<vk::DescriptorSetLayout> layouts;
+        vk::DescriptorPool pool;
+        std::vector<vk::DescriptorSet> sets;
     };
 }// namespace ve
