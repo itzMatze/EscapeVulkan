@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
 #include <unordered_map>
+#include <vulkan/vulkan.hpp>
 
 #include "Window.hpp"
 #include "vk/LogicalDevice.hpp"
@@ -9,12 +9,14 @@
 
 namespace ve
 {
-    struct VulkanMainContext {
+    class VulkanMainContext
+    {
+    public:
         VulkanMainContext(const uint32_t width, const uint32_t height) : window(width, height), instance(window.get_required_extensions()), surface(window.create_surface(instance.get())), physical_device(instance, surface), logical_device(physical_device, queues_family_indices, queues)
         {
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created VulkanMainContext\n");
         }
-        
+
         void self_destruct()
         {
             instance.get().destroySurfaceKHR(surface);
