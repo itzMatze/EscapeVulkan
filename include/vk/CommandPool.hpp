@@ -3,7 +3,6 @@
 #include <vulkan/vulkan.hpp>
 
 #include "ve_log.hpp"
-#include "vk/Buffer.hpp"
 #include "vk/Swapchain.hpp"
 
 namespace ve

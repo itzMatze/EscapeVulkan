@@ -4,9 +4,7 @@
 #include <glm/mat4x4.hpp>
 #include <vulkan/vulkan.hpp>
 
-#include "vk/Buffer.hpp"
 #include "vk/CommandPool.hpp"
-#include "vk/Image.hpp"
 #include "vk/VulkanMainContext.hpp"
 
 namespace ve
@@ -40,13 +38,28 @@ namespace ve
             transfer_cb.insert(transfer_cb.end(), tmp.begin(), tmp.end());
         }
 
-        vk::CommandBuffer& begin(vk::CommandBuffer& cb)
+        const vk::CommandBuffer& begin(const vk::CommandBuffer& cb) const
         {
             vk::CommandBufferBeginInfo cbbi{};
             cbbi.sType = vk::StructureType::eCommandBufferBeginInfo;
             cbbi.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
             cb.begin(cbbi);
             return cb;
+        }
+
+        void submit_graphics(const vk::CommandBuffer& cb, bool wait_idle) const
+        {
+            submit(cb, vmc.get_graphics_queue(), wait_idle);
+        }
+
+        void submit_compute(const vk::CommandBuffer& cb, bool wait_idle) const
+        {
+            submit(cb, vmc.get_compute_queue(), wait_idle);
+        }
+
+        void submit_transfer(const vk::CommandBuffer& cb, bool wait_idle) const
+        {
+            submit(cb, vmc.get_transfer_queue(), wait_idle);
         }
 
         void self_destruct()
@@ -67,5 +80,18 @@ namespace ve
         std::vector<vk::CommandBuffer> graphics_cb;
         std::vector<vk::CommandBuffer> compute_cb;
         std::vector<vk::CommandBuffer> transfer_cb;
+
+    private:
+        void submit(const vk::CommandBuffer& cb, const vk::Queue& queue, bool wait_idle) const
+        {
+            cb.end();
+            vk::SubmitInfo submit_info{};
+            submit_info.sType = vk::StructureType::eSubmitInfo;
+            submit_info.commandBufferCount = 1;
+            submit_info.pCommandBuffers = &cb;
+            queue.submit(submit_info);
+            if (wait_idle) queue.waitIdle();
+            cb.reset();
+        }
     };
 }// namespace ve

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
+#include <optional>
 
 #include "ve_log.hpp"
 #include "vk/ExtensionsHandler.hpp"

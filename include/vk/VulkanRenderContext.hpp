@@ -3,11 +3,11 @@
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
 
+#include "vk/Buffer.hpp"
 #include "vk/DescriptorSetHandler.hpp"
 #include "vk/Pipeline.hpp"
 #include "vk/RenderPass.hpp"
 #include "vk/Swapchain.hpp"
-#include "vk/VulkanCommandContext.hpp"
 
 namespace ve
 {
@@ -43,8 +43,8 @@ namespace ve
                 sync_indices[SyncNames::FRenderFinished].push_back(vcc.sync.add_fence());
             }
 
-            buffers.emplace(BufferNames::Vertex, Buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc.begin(vcc.transfer_cb[0])));
-            buffers.emplace(BufferNames::Index, Buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc.begin(vcc.transfer_cb[0])));
+            buffers.emplace(BufferNames::Vertex, Buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc));
+            buffers.emplace(BufferNames::Index, Buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc));
             VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created VulkanRenderContext\n");
         }
 
@@ -135,7 +135,6 @@ namespace ve
             VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Desired format not found. Using first available.");
             return formats[0];
         }
-
 
         void record_graphics_command_buffer(uint32_t image_idx)
         {

@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "ve_log.hpp"
+#include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanMainContext.hpp"
 
 namespace ve
@@ -12,17 +13,21 @@ namespace ve
     {
     public:
         template<class T>
-        Buffer(const VulkanMainContext& vmc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, const std::vector<uint32_t>& queue_family_indices) : vmc(vmc), device_local(false), element_count(data.size()), byte_size(sizeof(T) * data.size())
+        Buffer(const VulkanMainContext& vmc, const T* data, std::size_t elements, vk::BufferUsageFlags usage_flags, const std::vector<uint32_t>& queue_family_indices) : vmc(vmc), device_local(false), element_count(elements), byte_size(sizeof(T) * elements)
         {
             std::tie(buffer, memory) = create_buffer(usage_flags, {vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent}, queue_family_indices);
-            update_data(data);
+            update_data(data, elements);
         }
 
         template<class T>
-        Buffer(const VulkanMainContext& vmc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, std::vector<uint32_t> queue_family_indices, const vk::CommandBuffer& command_buffer) : vmc(vmc), device_local(true), element_count(data.size()), byte_size(sizeof(T) * data.size())
+        Buffer(const VulkanMainContext& vmc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, const std::vector<uint32_t>& queue_family_indices) : Buffer(vmc, data.data(), data.size(), usage_flags, queue_family_indices)
+        {}
+
+        template<class T>
+        Buffer(const VulkanMainContext& vmc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, std::vector<uint32_t> queue_family_indices, const VulkanCommandContext& vcc) : vmc(vmc), device_local(true), element_count(data.size()), byte_size(sizeof(T) * data.size())
         {
             std::tie(buffer, memory) = create_buffer((usage_flags | vk::BufferUsageFlagBits::eTransferDst), {vk::MemoryPropertyFlagBits::eDeviceLocal}, queue_family_indices);
-            update_data(data, command_buffer);
+            update_data(data, vcc);
         }
 
         void self_destruct()
@@ -53,24 +58,30 @@ namespace ve
         }
 
         template<class T>
-        void update_data(const std::vector<T>& data)
+        void update_data(const T* data, std::size_t elements)
         {
-            VE_ASSERT(sizeof(T) * data.size() <= byte_size, "Data is larger than buffer!\n");
+            VE_ASSERT(sizeof(T) * elements <= byte_size, "Data is larger than buffer!\n");
             VE_ASSERT(!device_local, "Trying to update data to a buffer that is device local but it should not!\n");
 
             void* mapped_mem = vmc.logical_device.get().mapMemory(memory, 0, VK_WHOLE_SIZE);
-            memcpy(mapped_mem, data.data(), sizeof(T) * data.size());
+            memcpy(mapped_mem, data, sizeof(T) * elements);
             vmc.logical_device.get().unmapMemory(memory);
         }
 
         template<class T>
-        void update_data(const T& data, const vk::CommandBuffer& command_buffer)
+        void update_data(const std::vector<T>& data)
         {
-            update_data(std::vector<T>{data}, command_buffer);
+            update_data(data.data(), data.size());
         }
 
         template<class T>
-        void update_data(const std::vector<T>& data, const vk::CommandBuffer& command_buffer)
+        void update_data(const T& data, const VulkanCommandContext& vcc)
+        {
+            update_data(std::vector<T>{data}, vcc);
+        }
+
+        template<class T>
+        void update_data(const std::vector<T>& data, const VulkanCommandContext& vcc)
         {
             VE_ASSERT(sizeof(T) * data.size() <= byte_size, "Data is larger than buffer!\n");
             VE_ASSERT(device_local, "Trying to update data to a buffer that is not device local but it should!\n");
@@ -81,26 +92,27 @@ namespace ve
             memcpy(mapped_mem, data.data(), sizeof(T) * data.size());
             vmc.logical_device.get().unmapMemory(staging_memory);
 
-            vk::CommandBufferBeginInfo cbbi{};
-            cbbi.sType = vk::StructureType::eCommandBufferBeginInfo;
-            cbbi.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-            command_buffer.begin(cbbi);
+            const vk::CommandBuffer& cb(vcc.begin(vcc.transfer_cb[0]));
+
             vk::BufferCopy copy_region{};
             copy_region.srcOffset = 0;
             copy_region.dstOffset = 0;
             copy_region.size = sizeof(T) * data.size();
-            command_buffer.copyBuffer(staging_buffer, buffer, copy_region);
-            command_buffer.end();
-            vk::SubmitInfo submit_info{};
-            submit_info.sType = vk::StructureType::eSubmitInfo;
-            submit_info.commandBufferCount = 1;
-            submit_info.pCommandBuffers = &command_buffer;
-            vmc.get_transfer_queue().submit(submit_info);
-            vmc.get_transfer_queue().waitIdle();
-            command_buffer.reset();
+            cb.copyBuffer(staging_buffer, buffer, copy_region);
+            vcc.submit_transfer(cb, true);
 
             vmc.logical_device.get().destroyBuffer(staging_buffer);
             vmc.logical_device.get().freeMemory(staging_memory);
+        }
+
+        static uint32_t find_memory_type(uint32_t type_filter, vk::MemoryPropertyFlags properties, const vk::PhysicalDevice& physical_device)
+        {
+            vk::PhysicalDeviceMemoryProperties mem_properties = physical_device.getMemoryProperties();
+            for (uint32_t i = 0; i < mem_properties.memoryTypeCount; ++i)
+            {
+                if ((type_filter & (1 << i)) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties) return i;
+            }
+            VE_THROW("Failed to find suitable memory type!");
         }
 
     private:
@@ -119,20 +131,10 @@ namespace ve
             vk::MemoryAllocateInfo mai{};
             mai.sType = vk::StructureType::eMemoryAllocateInfo;
             mai.allocationSize = mem_requirements.size;
-            mai.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, mpf);
+            mai.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, mpf, vmc.physical_device.get());
             vk::DeviceMemory local_memory = vmc.logical_device.get().allocateMemory(mai);
             vmc.logical_device.get().bindBufferMemory(local_buffer, local_memory, 0);
             return std::make_pair(local_buffer, local_memory);
-        }
-
-        uint32_t find_memory_type(uint32_t type_filter, vk::MemoryPropertyFlags properties)
-        {
-            vk::PhysicalDeviceMemoryProperties mem_properties = vmc.physical_device.get().getMemoryProperties();
-            for (uint32_t i = 0; i < mem_properties.memoryTypeCount; ++i)
-            {
-                if ((type_filter & (1 << i)) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties) return i;
-            }
-            VE_THROW("Failed to find suitable memory type!");
         }
 
         const VulkanMainContext& vmc;
