@@ -20,7 +20,7 @@ namespace ve
     class PhysicalDevice
     {
     public:
-        PhysicalDevice(const Instance& instance, const vk::SurfaceKHR& surface)
+        PhysicalDevice(const Instance& instance, const std::optional<vk::SurfaceKHR>& surface)
         {
             const std::vector<const char*> required_extensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
             const std::vector<const char*> optional_extensions{VK_KHR_RAY_QUERY_EXTENSION_NAME, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
@@ -82,29 +82,32 @@ namespace ve
         }
 
     private:
-        void find_queue_families(const vk::SurfaceKHR& surface)
+        void find_queue_families(const std::optional<vk::SurfaceKHR>& surface)
         {
             std::vector<vk::QueueFamilyProperties> queue_families = physical_device.getQueueFamilyProperties();
             QueueFamilyIndices scores;
             for (uint32_t i = 0; i < queue_families.size(); ++i)
             {
-                vk::Bool32 present_support = false;
-                present_support = physical_device.getSurfaceSupportKHR(i, surface);
-                // take what we get for present queue, but ideally present and graphics queue are the same
-                if (present_support && scores.present < 0)
+                if (surface.has_value())
                 {
-                    scores.present = 0;
-                    queue_family_indices.present = i;
-                }
-                if (scores.graphics < get_queue_score(queue_families[i], vk::QueueFlagBits::eGraphics))
-                {
-                    if (present_support && scores.present < 1)
+                    vk::Bool32 present_support = false;
+                    present_support = physical_device.getSurfaceSupportKHR(i, surface.value());
+                    // take what we get for present queue, but ideally present and graphics queue are the same
+                    if (present_support && scores.present < 0)
                     {
-                        scores.present = 1;
+                        scores.present = 0;
                         queue_family_indices.present = i;
                     }
-                    scores.graphics = get_queue_score(queue_families[i], vk::QueueFlagBits::eGraphics);
-                    queue_family_indices.graphics = i;
+                    if (scores.graphics < get_queue_score(queue_families[i], vk::QueueFlagBits::eGraphics))
+                    {
+                        if (present_support && scores.present < 1)
+                        {
+                            scores.present = 1;
+                            queue_family_indices.present = i;
+                        }
+                        scores.graphics = get_queue_score(queue_families[i], vk::QueueFlagBits::eGraphics);
+                        queue_family_indices.graphics = i;
+                    }
                 }
                 if (scores.compute < get_queue_score(queue_families[i], vk::QueueFlagBits::eCompute))
                 {
@@ -120,7 +123,7 @@ namespace ve
             VE_ASSERT(queue_family_indices.graphics > -1 && queue_family_indices.compute > -1 && queue_family_indices.transfer > -1, "One queue family could not be satisfied!");
         }
 
-        bool is_device_suitable(uint32_t idx, const vk::PhysicalDevice p_device, const vk::SurfaceKHR& surface)
+        bool is_device_suitable(uint32_t idx, const vk::PhysicalDevice p_device, const std::optional<vk::SurfaceKHR>& surface)
         {
             vk::PhysicalDeviceProperties pdp;
             p_device.getProperties(&pdp);
@@ -131,7 +134,7 @@ namespace ve
             for (const auto& ext: available_extensions) avail_ext_names.push_back(ext.extensionName);
             VE_TO_USER("    " << idx << " " << pdp.deviceName << " ");
             int32_t missing_extensions = extensions_handler.check_extension_availability(avail_ext_names);
-            if (missing_extensions == -1 || (extensions_handler.find_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME) && !is_swapchain_supported(p_device, surface)))
+            if (missing_extensions == -1 || (surface.has_value() && extensions_handler.find_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME) && !is_swapchain_supported(p_device, surface.value())))
             {
                 VE_TO_USER("(not suitable)\n");
                 return false;

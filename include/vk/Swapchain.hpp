@@ -40,7 +40,7 @@ namespace ve
             uint32_t image_count = capabilities.maxImageCount > 0 ? std::min(capabilities.minImageCount + 1, capabilities.maxImageCount) : capabilities.minImageCount + 1;
             vk::SwapchainCreateInfoKHR sci{};
             sci.sType = vk::StructureType::eSwapchainCreateInfoKHR;
-            sci.surface = vmc.surface;
+            sci.surface = vmc.surface.value();
             sci.minImageCount = image_count;
             sci.imageFormat = surface_format.format;
             sci.imageColorSpace = surface_format.colorSpace;
@@ -141,7 +141,7 @@ namespace ve
                 SDL_Event e;
                 do
                 {
-                    SDL_Vulkan_GetDrawableSize(vmc.window.get(), &width, &height);
+                    SDL_Vulkan_GetDrawableSize(vmc.window.value().get(), &width, &height);
                     SDL_WaitEvent(&e);
                 } while (width == 0 || height == 0);
                 vk::Extent2D extent(width, height);
