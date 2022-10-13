@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "vk/Buffer.hpp"
+#include "vk/Image.hpp"
 #include "vk/VulkanMainContext.hpp"
 
 namespace ve
@@ -16,14 +17,8 @@ namespace ve
         template<class T>
         std::vector<ve::Buffer> add_uniform_buffer(uint32_t copies, const std::vector<T>& data, const std::vector<uint32_t>& queue_family_indices)
         {
-            vk::DescriptorSetLayoutBinding uniform_buffer{};
-            uniform_buffer.binding = 0;
-            uniform_buffer.descriptorType = vk::DescriptorType::eUniformBuffer;
-            uniform_buffer.descriptorCount = 1;
-            uniform_buffer.stageFlags = vk::ShaderStageFlagBits::eAll;
-            uniform_buffer.pImmutableSamplers = nullptr;
-
-            layout_bindings.push_back(uniform_buffer);
+            set_copies = copies;
+            add_layout_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eAll);
 
             std::vector<ve::Buffer> uniform_buffers;
             for (uint32_t i = 0; i < copies; ++i)
@@ -35,40 +30,43 @@ namespace ve
                 uniform_dbi.offset = 0;
                 uniform_dbi.range = uniform_buffers[i].get_byte_size();
 
-                uniform_buffer_infos.push_back(uniform_dbi);
+                infos.push_back(Binding(uniform_dbi, {}));
             }
-
             return uniform_buffers;
         }
 
-        void add_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages, const ve::Buffer& buffer)
+        void add_buffer_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages, const vk::Buffer& buffer, uint64_t byte_size)
         {
-            vk::DescriptorSetLayoutBinding dslb{};
-            dslb.binding = binding;
-            dslb.descriptorType = type;
-            dslb.descriptorCount = 1;
-            dslb.stageFlags = stages;
-            dslb.pImmutableSamplers = nullptr;
-
-            layout_bindings.push_back(dslb);
+            add_layout_binding(binding, type, stages);
 
             vk::DescriptorBufferInfo dbi{};
-            dbi.buffer = buffer.get();
+            dbi.buffer = buffer;
             dbi.offset = 0;
-            dbi.range = buffer.get_byte_size();
+            dbi.range = byte_size;
 
-            buffer_infos.push_back(dbi);
+            infos.push_back(Binding(dbi, {}));
+        }
+
+        void add_image_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages, const Image& image)
+        {
+            add_layout_binding(binding, type, stages);
+
+            vk::DescriptorImageInfo dii{};
+            dii.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            dii.imageView = image.get_view();
+            dii.sampler = image.get_sampler();
+
+            infos.push_back(Binding({}, dii));
         }
 
         void construct()
         {
             std::vector<vk::DescriptorPoolSize> pool_sizes;
-            pool_sizes.push_back(vk::DescriptorPoolSize(vk::DescriptorType::eUniformBuffer, uniform_buffer_infos.size()));
             for (const auto& dslb: layout_bindings)
             {
                 vk::DescriptorPoolSize dps{};
                 dps.type = dslb.descriptorType;
-                dps.descriptorCount = 1;
+                dps.descriptorCount = dslb.descriptorCount;
 
                 pool_sizes.push_back(dps);
             }
@@ -77,7 +75,7 @@ namespace ve
             dslci.sType = vk::StructureType::eDescriptorSetLayoutCreateInfo;
             dslci.bindingCount = layout_bindings.size();
             dslci.pBindings = layout_bindings.data();
-            for (uint32_t i = 0; i < uniform_buffer_infos.size(); ++i)
+            for (uint32_t i = 0; i < set_copies; ++i)
             {
                 layouts.push_back(vmc.logical_device.get().createDescriptorSetLayout(dslci));
             }
@@ -86,7 +84,7 @@ namespace ve
             dpci.sType = vk::StructureType::eDescriptorPoolCreateInfo;
             dpci.poolSizeCount = pool_sizes.size();
             dpci.pPoolSizes = pool_sizes.data();
-            dpci.maxSets = uniform_buffer_infos.size();
+            dpci.maxSets = set_copies;
 
             pool = vmc.logical_device.get().createDescriptorPool(dpci);
 
@@ -109,23 +107,23 @@ namespace ve
 
                 uniform_wds.descriptorType = vk::DescriptorType::eUniformBuffer;
                 uniform_wds.descriptorCount = 1;
-                uniform_wds.pBufferInfo = &uniform_buffer_infos[i];
+                uniform_wds.pBufferInfo = &(infos[i].dbi);
                 uniform_wds.pImageInfo = nullptr;
                 uniform_wds.pTexelBufferView = nullptr;
                 wds_s.push_back(uniform_wds);
 
-                for (uint32_t j = 1; j < layout_bindings.size(); ++j)
+                for (uint32_t j = set_copies; j < infos.size(); ++j)
                 {
                     vk::WriteDescriptorSet wds{};
                     wds.sType = vk::StructureType::eWriteDescriptorSet;
                     wds.dstSet = sets[i];
-                    wds.dstBinding = layout_bindings[j].binding;
+                    wds.dstBinding = layout_bindings[j - set_copies + 1].binding;
                     wds.dstArrayElement = 0;
 
-                    wds.descriptorType = layout_bindings[j].descriptorType;
+                    wds.descriptorType = layout_bindings[j - set_copies + 1].descriptorType;
                     wds.descriptorCount = 1;
-                    wds.pBufferInfo = &buffer_infos[j];
-                    wds.pImageInfo = nullptr;
+                    wds.pBufferInfo = &(infos[j].dbi);
+                    wds.pImageInfo = &(infos[j].dii);
                     wds.pTexelBufferView = nullptr;
 
                     wds_s.push_back(wds);
@@ -154,9 +152,30 @@ namespace ve
         }
 
     private:
+        void add_layout_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages)
+        {
+            vk::DescriptorSetLayoutBinding dslb{};
+            dslb.binding = binding;
+            dslb.descriptorType = type;
+            dslb.descriptorCount = 1;
+            dslb.stageFlags = stages;
+            dslb.pImmutableSamplers = nullptr;
+
+            layout_bindings.push_back(dslb);
+        }
+
+        struct Binding {
+            Binding(vk::DescriptorBufferInfo dbi, vk::DescriptorImageInfo dii) : dbi(dbi), dii(dii)
+            {}
+            vk::DescriptorBufferInfo dbi;
+            vk::DescriptorImageInfo dii;
+        };
+
         const VulkanMainContext& vmc;
-        std::vector<vk::DescriptorBufferInfo> uniform_buffer_infos;
-        std::vector<vk::DescriptorBufferInfo> buffer_infos;
+        // copies defines how many frames there are in flight. Every frame needs its own uniform buffer, so they do not interfere 
+        uint32_t set_copies = 0;
+        // the first set_copies elements are the uniform buffers
+        std::vector<Binding> infos;
         std::vector<vk::DescriptorSetLayoutBinding> layout_bindings;
         std::vector<vk::DescriptorSetLayout> layouts;
         vk::DescriptorPool pool;

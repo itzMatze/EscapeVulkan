@@ -5,6 +5,7 @@
 
 #include "vk/Buffer.hpp"
 #include "vk/DescriptorSetHandler.hpp"
+#include "vk/Image.hpp"
 #include "vk/Pipeline.hpp"
 #include "vk/RenderPass.hpp"
 #include "vk/Swapchain.hpp"
@@ -21,21 +22,25 @@ namespace ve
     public:
         VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), descriptor_set_handler(vmc), surface_format(choose_surface_format(vmc)), render_pass(vmc, surface_format.format), swapchain(vmc, surface_format, render_pass.get()), pipeline(vmc)
         {
+            vcc.add_graphics_buffers(frames_in_flight);
+            vcc.add_transfer_buffers(1);
+
             const std::vector<ve::Vertex> vertices = {
-                    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-                    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-                    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-                    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}};
+                    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+                    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+                    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+                    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}};
 
             const std::vector<uint32_t> indices = {
                     0, 1, 2, 2, 3, 0};
 
+            images.emplace(ImageNames::Texture, Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "white.png"));
+
             uniform_buffers = descriptor_set_handler.add_uniform_buffer(frames_in_flight, std::vector<UniformBufferObject>{ubo}, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)});
+            descriptor_set_handler.add_image_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, images.find(ImageNames::Texture)->second);
             descriptor_set_handler.construct();
             pipeline.construct(render_pass.get(), descriptor_set_handler);
 
-            vcc.add_graphics_buffers(frames_in_flight);
-            vcc.add_transfer_buffers(1);
             for (uint32_t i = 0; i < frames_in_flight; ++i)
             {
                 sync_indices[SyncNames::SImageAvailable].push_back(vcc.sync.add_semaphore());
@@ -50,6 +55,10 @@ namespace ve
 
         void self_destruct()
         {
+            for (auto& image: images)
+            {
+                image.second.self_destruct();
+            }
             for (auto& buffer: buffers)
             {
                 buffer.second.self_destruct();
@@ -73,6 +82,11 @@ namespace ve
             Vertex,
             Index
         };
+    
+        enum class ImageNames
+        {
+            Texture
+        };
 
         enum class SyncNames
         {
@@ -94,6 +108,7 @@ namespace ve
         std::vector<ve::Buffer> uniform_buffers;
         std::unordered_map<SyncNames, std::vector<uint32_t>> sync_indices;
         std::unordered_map<BufferNames, Buffer> buffers;
+        std::unordered_map<ImageNames, Image> images;
         vk::SurfaceFormatKHR surface_format;
         RenderPass render_pass;
         Swapchain swapchain;

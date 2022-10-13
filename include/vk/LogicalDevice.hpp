@@ -39,12 +39,14 @@ namespace ve
             }
 
             vk::PhysicalDeviceFeatures device_features{};
+            device_features.samplerAnisotropy = VK_TRUE;
             vk::DeviceCreateInfo dci{};
             dci.sType = vk::StructureType::eDeviceCreateInfo;
             dci.queueCreateInfoCount = qci_s.size();
             dci.pQueueCreateInfos = qci_s.data();
             dci.enabledExtensionCount = p_device.get_extensions().size();
             dci.ppEnabledExtensionNames = p_device.get_extensions().data();
+            dci.pEnabledFeatures = &device_features;
 
             device = p_device.get().createDevice(dci);
             queues.emplace(QueueIndex::Graphics, device.getQueue(indices.graphics, 0));

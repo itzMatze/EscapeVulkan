@@ -126,22 +126,20 @@ namespace ve
 
         bool is_device_suitable(uint32_t idx, const vk::PhysicalDevice p_device, const std::optional<vk::SurfaceKHR>& surface)
         {
-            vk::PhysicalDeviceProperties pdp;
-            p_device.getProperties(&pdp);
-            vk::PhysicalDeviceFeatures p_device_features;
-            p_device.getFeatures(&p_device_features);
+            vk::PhysicalDeviceProperties pdp = p_device.getProperties();
+            vk::PhysicalDeviceFeatures p_device_features = p_device.getFeatures();
             std::vector<vk::ExtensionProperties> available_extensions = p_device.enumerateDeviceExtensionProperties();
             std::vector<const char*> avail_ext_names;
             for (const auto& ext: available_extensions) avail_ext_names.push_back(ext.extensionName);
             VE_TO_USER("    " << idx << " " << pdp.deviceName << " ");
             int32_t missing_extensions = extensions_handler.check_extension_availability(avail_ext_names);
-            if (missing_extensions == -1 || (surface.has_value() && extensions_handler.find_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME) && !is_swapchain_supported(p_device, surface.value())))
+            if (missing_extensions == -1 || !p_device_features.samplerAnisotropy || (surface.has_value() && extensions_handler.find_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME) && !is_swapchain_supported(p_device, surface.value())))
             {
                 VE_TO_USER("(not suitable)\n");
                 return false;
             }
             VE_TO_USER("(suitable, " << missing_extensions << " missing optional extensions)\n");
-            return pdp.deviceType == vk::PhysicalDeviceType::eDiscreteGpu;
+            return true;
         }
 
         bool
