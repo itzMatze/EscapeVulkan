@@ -11,7 +11,7 @@
 #define VE_C_LBLUE "\033[96m"
 #define VE_C_WHITE "\033[0m"
 
-auto get_time()
+inline auto get_time()
 {
     auto time_point = std::chrono::system_clock::now();
     const std::time_t t = std::chrono::system_clock::to_time_t(time_point);
@@ -20,7 +20,7 @@ auto get_time()
 
 namespace ve
 {
-    std::string to_string(double number, uint32_t precision = 2)
+    inline std::string to_string(double number, uint32_t precision = 2)
     {
         std::stringstream ss;
         ss << std::fixed << std::setprecision(precision) << number;

@@ -2,7 +2,12 @@ cmake_minimum_required(VERSION 3.19)
 project(Vulkan_Engine)
 set(CMAKE_CXX_STANDARD 20)
 
-set(SOURCE_FILES src/main.cpp)
+set(SOURCE_FILES src/main.cpp src/Camera.cpp src/EventHandler.cpp src/Window.cpp
+src/vk/CommandPool.cpp src/vk/DescriptorSetHandler.cpp src/vk/ExtensionsHandler.cpp
+src/vk/Image.cpp src/vk/Instance.cpp src/vk/LogicalDevice.cpp
+src/vk/PhysicalDevice.cpp src/vk/Pipeline.cpp src/vk/RenderPass.cpp
+src/vk/Shader.cpp src/vk/Swapchain.cpp src/vk/Synchronization.cpp
+src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/vk/VulkanRenderContext.cpp)
 
 add_executable(Vulkan_Engine ${SOURCE_FILES})
 include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include")

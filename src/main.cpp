@@ -7,7 +7,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
-#include "Camera.h"
+#include "Camera.hpp"
 #include "EventHandler.hpp"
 #include "ve_log.hpp"
 #include "vk/VulkanCommandContext.hpp"
