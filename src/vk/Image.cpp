@@ -144,7 +144,7 @@ namespace ve
         }
         else
         {
-            VE_THROW("Unsupported image layout transition!\n");
+            VE_THROW("Unsupported image layout transition!");
         }
         layout = new_layout;
 

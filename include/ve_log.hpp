@@ -55,9 +55,9 @@ namespace ve
 
 #define VE_THROW(X)                         \
     {                                       \
-        VE_ERR_CONSOLE(X);                  \
+        VE_ERR_CONSOLE(X << std::endl);     \
         std::stringstream ss;               \
-        ss << X;                            \
+        ss << X << std::endl;               \
         throw std::runtime_error(ss.str()); \
     }
 #else

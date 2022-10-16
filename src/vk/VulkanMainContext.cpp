@@ -25,19 +25,19 @@ namespace ve
 
         std::vector<vk::SurfaceFormatKHR> VulkanMainContext::get_surface_formats() const
         {
-            if (!surface.has_value()) VE_THROW("Surface not initialized!\n");
+            if (!surface.has_value()) VE_THROW("Surface not initialized!");
             return physical_device.get().getSurfaceFormatsKHR(surface.value());
         }
 
         std::vector<vk::PresentModeKHR> VulkanMainContext::get_surface_present_modes() const
         {
-            if (!surface.has_value()) VE_THROW("Surface not initialized!\n");
+            if (!surface.has_value()) VE_THROW("Surface not initialized!");
             return physical_device.get().getSurfacePresentModesKHR(surface.value());
         }
 
         vk::SurfaceCapabilitiesKHR VulkanMainContext::get_surface_capabilities() const
         {
-            if (!surface.has_value()) VE_THROW("Surface not initialized!\n");
+            if (!surface.has_value()) VE_THROW("Surface not initialized!");
             return physical_device.get().getSurfaceCapabilitiesKHR(surface.value());
         }
 
