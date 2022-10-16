@@ -4,9 +4,13 @@
 #include <stb/stb_image.h>
 
 #include "vk/VulkanCommandContext.hpp"
+#include "ve_log.hpp"
 
 namespace ve
 {
+    Image::Image(const VulkanMainContext& vmc, const std::string& name) : vmc(vmc), name(name)
+    {}
+
     Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename) : vmc(vmc), name(filename)
     {
         stbi_uc* pixels = stbi_load(std::string("../assets/textures/" + filename).c_str(), &w, &h, &c, STBI_rgb_alpha);
@@ -15,34 +19,8 @@ namespace ve
         Buffer buffer(vmc, pixels, byte_size, vk::BufferUsageFlagBits::eTransferSrc, {uint32_t(vmc.queues_family_indices.transfer)});
         stbi_image_free(pixels);
         pixels = nullptr;
-
-        vk::ImageCreateInfo ici{};
-        ici.sType = vk::StructureType::eImageCreateInfo;
-        ici.imageType = vk::ImageType::e2D;
-        ici.extent.width = static_cast<uint32_t>(w);
-        ici.extent.height = static_cast<uint32_t>(h);
-        ici.extent.depth = 1;
-        ici.mipLevels = 1;
-        ici.arrayLayers = 1;
-        ici.format = vk::Format::eR8G8B8A8Srgb;
-        ici.tiling = vk::ImageTiling::eOptimal;
-        ici.initialLayout = vk::ImageLayout::eUndefined;
-        layout = vk::ImageLayout::eUndefined;
-        ici.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
-        ici.sharingMode = queue_family_indices.size() == 1 ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
-        ici.queueFamilyIndexCount = queue_family_indices.size();
-        ici.pQueueFamilyIndices = queue_family_indices.data();
-        ici.samples = vk::SampleCountFlagBits::e1;
-        ici.flags = {};
-        image = vmc.logical_device.get().createImage(ici);
-
-        vk::MemoryRequirements mem_reqs = vmc.logical_device.get().getImageMemoryRequirements(image);
-        vk::MemoryAllocateInfo mai{};
-        mai.sType = vk::StructureType::eMemoryAllocateInfo;
-        mai.allocationSize = mem_reqs.size;
-        mai.memoryTypeIndex = Buffer::find_memory_type(mem_reqs.memoryTypeBits, {vk::MemoryPropertyFlagBits::eDeviceLocal}, vmc.physical_device.get());
-        memory = vmc.logical_device.get().allocateMemory(mai);
-        vmc.logical_device.get().bindImageMemory(image, memory, 0);
+        
+        create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::Format::eR8G8B8A8Srgb);
 
         transition_image_layout(vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eTransferDstOptimal, vcc);
         copy_buffer_to_image(vcc, buffer);
@@ -50,17 +28,7 @@ namespace ve
 
         buffer.self_destruct();
 
-        vk::ImageViewCreateInfo ivci{};
-        ivci.sType = vk::StructureType::eImageViewCreateInfo;
-        ivci.image = image;
-        ivci.viewType = vk::ImageViewType::e2D;
-        ivci.format = vk::Format::eR8G8B8A8Srgb;
-        ivci.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-        ivci.subresourceRange.baseMipLevel = 0;
-        ivci.subresourceRange.levelCount = 1;
-        ivci.subresourceRange.baseArrayLayer = 0;
-        ivci.subresourceRange.layerCount = 1;
-        view = vmc.logical_device.get().createImageView(ivci);
+        create_image_view(vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor);
 
         vk::SamplerCreateInfo sci{};
         sci.sType = vk::StructureType::eSamplerCreateInfo;
@@ -80,6 +48,59 @@ namespace ve
         sci.minLod = 0.0f;
         sci.maxLod = 0.0f;
         sampler = vmc.logical_device.get().createSampler(sci);
+    }
+
+    void Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format, uint32_t width, uint32_t height)
+    {
+        w = width;
+        h = height;
+        create_image(queue_family_indices, usage, format);
+    }
+
+    void Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format)
+    {
+        vk::ImageCreateInfo ici{};
+        ici.sType = vk::StructureType::eImageCreateInfo;
+        ici.imageType = vk::ImageType::e2D;
+        ici.extent.width = static_cast<uint32_t>(w);
+        ici.extent.height = static_cast<uint32_t>(h);
+        ici.extent.depth = 1;
+        ici.mipLevels = 1;
+        ici.arrayLayers = 1;
+        ici.format = format;
+        ici.tiling = vk::ImageTiling::eOptimal;
+        ici.initialLayout = vk::ImageLayout::eUndefined;
+        layout = vk::ImageLayout::eUndefined;
+        ici.usage = usage;
+        ici.sharingMode = queue_family_indices.size() == 1 ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
+        ici.queueFamilyIndexCount = queue_family_indices.size();
+        ici.pQueueFamilyIndices = queue_family_indices.data();
+        ici.samples = vk::SampleCountFlagBits::e1;
+        ici.flags = {};
+        image = vmc.logical_device.get().createImage(ici);
+
+        vk::MemoryRequirements mem_reqs = vmc.logical_device.get().getImageMemoryRequirements(image);
+        vk::MemoryAllocateInfo mai{};
+        mai.sType = vk::StructureType::eMemoryAllocateInfo;
+        mai.allocationSize = mem_reqs.size;
+        mai.memoryTypeIndex = Buffer::find_memory_type(mem_reqs.memoryTypeBits, {vk::MemoryPropertyFlagBits::eDeviceLocal}, vmc.physical_device.get());
+        memory = vmc.logical_device.get().allocateMemory(mai);
+        vmc.logical_device.get().bindImageMemory(image, memory, 0);
+    }
+
+    void Image::create_image_view(vk::Format format, vk::ImageAspectFlags aspects)
+    {
+        vk::ImageViewCreateInfo ivci{};
+        ivci.sType = vk::StructureType::eImageViewCreateInfo;
+        ivci.image = image;
+        ivci.viewType = vk::ImageViewType::e2D;
+        ivci.format = format;
+        ivci.subresourceRange.aspectMask = aspects;
+        ivci.subresourceRange.baseMipLevel = 0;
+        ivci.subresourceRange.levelCount = 1;
+        ivci.subresourceRange.baseArrayLayer = 0;
+        ivci.subresourceRange.layerCount = 1;
+        view = vmc.logical_device.get().createImageView(ivci);
     }
 
     void Image::self_destruct()

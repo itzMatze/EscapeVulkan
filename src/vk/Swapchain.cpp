@@ -4,9 +4,9 @@
 
 namespace ve
 {
-    Swapchain::Swapchain(const VulkanMainContext& vmc, const vk::SurfaceFormatKHR& surface_format, const vk::RenderPass& render_pass) : vmc(vmc)
+    Swapchain::Swapchain(const VulkanMainContext& vmc, const vk::SurfaceFormatKHR& surface_format, const vk::Format& depth_format, const vk::RenderPass& render_pass) : vmc(vmc), depth_buffer(vmc, "Depth Buffer")
     {
-        create_swapchain(surface_format, render_pass);
+        create_swapchain(surface_format, depth_format, render_pass);
     }
 
     const vk::SwapchainKHR& Swapchain::get() const
@@ -24,12 +24,16 @@ namespace ve
         return framebuffers[idx];
     }
 
-    void Swapchain::create_swapchain(const vk::SurfaceFormatKHR& surface_format, const vk::RenderPass& render_pass)
+    void Swapchain::create_swapchain(const vk::SurfaceFormatKHR& surface_format, const vk::Format& depth_format, const vk::RenderPass& render_pass)
     {
         std::vector<vk::PresentModeKHR> present_modes = vmc.get_surface_present_modes();
         vk::SurfaceCapabilitiesKHR capabilities = vmc.get_surface_capabilities();
         choose_extent(capabilities);
         uint32_t image_count = capabilities.maxImageCount > 0 ? std::min(capabilities.minImageCount + 1, capabilities.maxImageCount) : capabilities.minImageCount + 1;
+
+        depth_buffer.create_image({uint32_t(vmc.queues_family_indices.graphics)}, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_format, extent.width, extent.height);
+        depth_buffer.create_image_view(depth_format, vk::ImageAspectFlagBits::eDepth);
+
         vk::SwapchainCreateInfoKHR sci{};
         sci.sType = vk::StructureType::eSwapchainCreateInfoKHR;
         sci.surface = vmc.surface.value();
@@ -82,11 +86,12 @@ namespace ve
 
         for (const auto& image_view: image_views)
         {
+            std::array<vk::ImageView, 2> attachments{image_view, depth_buffer.get_view()};
             vk::FramebufferCreateInfo fbci{};
             fbci.sType = vk::StructureType::eFramebufferCreateInfo;
             fbci.renderPass = render_pass;
-            fbci.attachmentCount = 1;
-            fbci.pAttachments = &image_view;
+            fbci.attachmentCount = attachments.size();
+            fbci.pAttachments = attachments.data();
             fbci.width = extent.width;
             fbci.height = extent.height;
             fbci.layers = 1;
@@ -107,6 +112,7 @@ namespace ve
             vmc.logical_device.get().destroyImageView(image_view);
         }
         image_views.clear();
+        depth_buffer.self_destruct();
         vmc.logical_device.get().destroySwapchainKHR(swapchain);
     }
 

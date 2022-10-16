@@ -60,6 +60,7 @@ namespace ve
         std::unordered_map<BufferNames, Buffer> buffers;
         std::unordered_map<ImageNames, Image> images;
         vk::SurfaceFormatKHR surface_format;
+        vk::Format depth_format;
         RenderPass render_pass;
         Swapchain swapchain;
         Pipeline pipeline;
@@ -69,7 +70,8 @@ namespace ve
         void update_uniform_data(float time_diff, const glm::mat4& vp);
 
     private:
-        vk::SurfaceFormatKHR choose_surface_format(const VulkanMainContext& vmc);
+        vk::SurfaceFormatKHR choose_surface_format();
+        vk::Format choose_depth_format();
         void record_graphics_command_buffer(uint32_t image_idx);
         void submit_graphics(vk::PipelineStageFlags wait_stage, uint32_t image_idx);
     };

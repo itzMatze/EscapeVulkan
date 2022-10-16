@@ -121,6 +121,18 @@ namespace ve
 
         pipeline_layout = vmc.logical_device.get().createPipelineLayout(plci);
 
+        vk::PipelineDepthStencilStateCreateInfo pdssci{};
+        pdssci.sType = vk::StructureType::ePipelineDepthStencilStateCreateInfo;
+        pdssci.depthTestEnable = VK_TRUE;
+        pdssci.depthWriteEnable = VK_TRUE;
+        pdssci.depthCompareOp = vk::CompareOp::eLess;
+        pdssci.depthBoundsTestEnable = VK_FALSE;
+        pdssci.minDepthBounds = 0.0f;
+        pdssci.maxDepthBounds = 1.0f;
+        pdssci.stencilTestEnable = VK_FALSE;
+        pdssci.front = vk::StencilOpState{};
+        pdssci.back = vk::StencilOpState{};
+
         vk::GraphicsPipelineCreateInfo gpci{};
         gpci.sType = vk::StructureType::eGraphicsPipelineCreateInfo;
         gpci.stageCount = 2;
@@ -130,7 +142,7 @@ namespace ve
         gpci.pViewportState = &pvsci;
         gpci.pRasterizationState = &prsci;
         gpci.pMultisampleState = &pmssci;
-        gpci.pDepthStencilState = nullptr;
+        gpci.pDepthStencilState = &pdssci;
         gpci.pColorBlendState = &pcbsci;
         gpci.pDynamicState = &pdsci;
         gpci.layout = pipeline_layout;
