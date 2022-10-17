@@ -8,12 +8,16 @@ layout(location = 0) out vec3 frag_color;
 layout(location = 1) out vec2 frag_tex;
 
 layout(binding = 0) uniform UniformBufferObject {
-    mat4 M;
     mat4 VP;
 } ubo;
 
+layout(push_constant) uniform PushConstants
+{
+    mat4 MVP;
+} pc;
+
 void main() {
-    gl_Position = ubo.VP * ubo.M * vec4(pos, 1.0);
+    gl_Position = pc.MVP * vec4(pos, 1.0);
     frag_color = color;
     frag_tex = tex;
 }

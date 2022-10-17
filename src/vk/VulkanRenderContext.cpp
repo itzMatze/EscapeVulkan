@@ -94,7 +94,7 @@ namespace ve
     void VulkanRenderContext::update_uniform_data(float time_diff, const glm::mat4& vp)
     {
         ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.VP = vp;
+        pc.MVP = vp * ubo.M;
         uniform_buffers[current_frame].update_data(ubo);
     }
 
@@ -154,6 +154,7 @@ namespace ve
         scissor.extent = swapchain.get_extent();
         vcc.graphics_cb[current_frame].setScissor(0, scissor);
 
+        vcc.graphics_cb[current_frame].pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &pc);
         vcc.graphics_cb[current_frame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, descriptor_set_handler.get_sets()[current_frame], {});
 
         std::vector<vk::DeviceSize> offsets(1, 0);

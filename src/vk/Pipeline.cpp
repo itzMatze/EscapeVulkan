@@ -1,9 +1,9 @@
 #include "vk/Pipeline.hpp"
 
-#include "vk/common.hpp"
 #include "ve_log.hpp"
 #include "vk/RenderPass.hpp"
 #include "vk/Shader.hpp"
+#include "vk/common.hpp"
 
 namespace ve
 {
@@ -112,12 +112,17 @@ namespace ve
         pcbsci.blendConstants[2] = 0.0f;
         pcbsci.blendConstants[3] = 0.0f;
 
+        vk::PushConstantRange pcr;
+        pcr.offset = 0;
+        pcr.size = sizeof(PushConstants);
+        pcr.stageFlags = vk::ShaderStageFlagBits::eVertex;
+
         vk::PipelineLayoutCreateInfo plci{};
         plci.sType = vk::StructureType::ePipelineLayoutCreateInfo;
         plci.setLayoutCount = ds_handler.get_layouts().size();
         plci.pSetLayouts = ds_handler.get_layouts().data();
-        plci.pushConstantRangeCount = 0;
-        plci.pPushConstantRanges = nullptr;
+        plci.pushConstantRangeCount = 1;
+        plci.pPushConstantRanges = &pcr;
 
         pipeline_layout = vmc.logical_device.get().createPipelineLayout(plci);
 

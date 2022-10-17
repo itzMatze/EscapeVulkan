@@ -1,11 +1,16 @@
 #pragma once
 
-#include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
 #include <vulkan/vulkan.hpp>
 
 namespace ve
 {
+    struct PushConstants {
+        glm::mat4 MVP;
+    };
+
     struct Vertex {
         glm::vec3 pos;
         glm::vec3 color;

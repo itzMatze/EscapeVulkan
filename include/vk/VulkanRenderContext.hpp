@@ -1,10 +1,11 @@
 #pragma once
 
+#include <glm/mat4x4.hpp>
 #include <unordered_map>
 #include <vector>
-#include <glm/mat4x4.hpp>
 #include <vulkan/vulkan.hpp>
 
+#include "common.hpp"
 #include "vk/Buffer.hpp"
 #include "vk/DescriptorSetHandler.hpp"
 #include "vk/Pipeline.hpp"
@@ -17,7 +18,6 @@ namespace ve
 {
     struct UniformBufferObject {
         glm::mat4 M;
-        glm::mat4 VP;
     };
 
     class VulkanRenderContext
@@ -47,7 +47,9 @@ namespace ve
 
     public:
         UniformBufferObject ubo{
-                glm::mat4(1.0f),
+                glm::mat4(1.0f)};
+
+        PushConstants pc{
                 glm::mat4(1.0f)};
 
         const uint32_t frames_in_flight = 2;
