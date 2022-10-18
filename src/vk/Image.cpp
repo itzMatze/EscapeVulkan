@@ -13,7 +13,7 @@ namespace ve
 
     Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename) : vmc(vmc), name(filename)
     {
-        stbi_uc* pixels = stbi_load(std::string("../assets/textures/" + filename).c_str(), &w, &h, &c, STBI_rgb_alpha);
+        stbi_uc* pixels = stbi_load(filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
         VE_ASSERT(pixels, "Failed to load image \"" << filename << "\"!\n");
         byte_size = w * h * 4;
         Buffer buffer(vmc, pixels, byte_size, vk::BufferUsageFlagBits::eTransferSrc, {uint32_t(vmc.queues_family_indices.transfer)});

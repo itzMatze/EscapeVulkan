@@ -13,6 +13,8 @@
 #include "vk/Swapchain.hpp"
 #include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanMainContext.hpp"
+#include "vk/Scene.hpp"
+#include "Camera.hpp"
 
 namespace ve
 {
@@ -56,7 +58,7 @@ namespace ve
         uint32_t current_frame = 0;
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
-        DescriptorSetHandler descriptor_set_handler;
+        DescriptorSetHandler dsh;
         std::vector<ve::Buffer> uniform_buffers;
         std::unordered_map<SyncNames, std::vector<uint32_t>> sync_indices;
         std::unordered_map<BufferNames, Buffer> buffers;
@@ -66,15 +68,15 @@ namespace ve
         RenderPass render_pass;
         Swapchain swapchain;
         Pipeline pipeline;
+        std::vector<Scene> scenes;
 
-        void draw_frame();
+        void draw_frame(const Camera& camera, float time_diff);
         void recreate_swapchain();
-        void update_uniform_data(float time_diff, const glm::mat4& vp);
 
     private:
         vk::SurfaceFormatKHR choose_surface_format();
         vk::Format choose_depth_format();
-        void record_graphics_command_buffer(uint32_t image_idx);
+        void record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp);
         void submit_graphics(vk::PipelineStageFlags wait_stage, uint32_t image_idx);
     };
 }// namespace ve

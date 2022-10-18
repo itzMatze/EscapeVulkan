@@ -6,7 +6,7 @@
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), descriptor_set_handler(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), swapchain(vmc, surface_format, depth_format, render_pass.get()), pipeline(vmc)
+    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), dsh(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), swapchain(vmc, surface_format, depth_format, render_pass.get()), pipeline(vmc)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
@@ -26,17 +26,18 @@ namespace ve
                 0, 1, 2, 2, 3, 0,
                 4, 5, 6, 6, 7, 4};
 
-        images.emplace(ImageNames::Texture, Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "white.png"));
+        images.emplace(ImageNames::Texture, Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             uniform_buffers.push_back(Buffer(vmc, std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}));
         }
 
-        descriptor_set_handler.add_uniform_buffer(frames_in_flight, uniform_buffers);
-        descriptor_set_handler.add_image_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, images.find(ImageNames::Texture)->second);
-        descriptor_set_handler.construct();
-        pipeline.construct(render_pass.get(), descriptor_set_handler);
+        dsh.add_uniform_buffer(frames_in_flight, uniform_buffers);
+        dsh.new_set();
+        dsh.add_image_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, images.find(ImageNames::Texture)->second);
+        dsh.construct();
+        pipeline.construct(render_pass.get(), dsh);
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -66,20 +67,28 @@ namespace ve
             buffer.self_destruct();
         }
         uniform_buffers.clear();
+        for (auto& scene: scenes)
+        {
+            scene.self_destruct();
+        }
         pipeline.self_destruct();
         swapchain.self_destruct();
         render_pass.self_destruct();
-        descriptor_set_handler.self_destruct();
+        dsh.self_destruct();
         VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed VulkanRenderContext\n");
     }
 
-    void VulkanRenderContext::draw_frame()
+    void VulkanRenderContext::draw_frame(const Camera& camera, float time_diff)
     {
+        ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        pc.MVP = camera.getVP() * ubo.M;
+        uniform_buffers[current_frame].update_data(ubo);
+
         vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), vcc.sync.get_semaphore(sync_indices[SyncNames::SImageAvailable][current_frame]));
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
         vcc.sync.wait_for_fence(sync_indices[SyncNames::FRenderFinished][current_frame]);
         vcc.sync.reset_fence(sync_indices[SyncNames::FRenderFinished][current_frame]);
-        record_graphics_command_buffer(image_idx.value);
+        record_graphics_command_buffer(image_idx.value, camera.getVP());
         submit_graphics(vk::PipelineStageFlagBits::eColorAttachmentOutput, image_idx.value);
         current_frame = (current_frame + 1) % frames_in_flight;
     }
@@ -89,13 +98,6 @@ namespace ve
         vcc.sync.wait_idle();
         swapchain.self_destruct();
         swapchain.create_swapchain(surface_format, depth_format, render_pass.get());
-    }
-
-    void VulkanRenderContext::update_uniform_data(float time_diff, const glm::mat4& vp)
-    {
-        ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        pc.MVP = vp * ubo.M;
-        uniform_buffers[current_frame].update_data(ubo);
     }
 
     vk::SurfaceFormatKHR VulkanRenderContext::choose_surface_format()
@@ -123,7 +125,7 @@ namespace ve
         VE_THROW("Failed to find supported format!");
     }
 
-    void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx)
+    void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp)
     {
         vcc.begin(vcc.graphics_cb[current_frame]);
         vk::RenderPassBeginInfo rpbi{};
@@ -155,12 +157,11 @@ namespace ve
         vcc.graphics_cb[current_frame].setScissor(0, scissor);
 
         vcc.graphics_cb[current_frame].pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &pc);
-        vcc.graphics_cb[current_frame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, descriptor_set_handler.get_sets()[current_frame], {});
+        for (auto& scene: scenes)
+        {
+            scene.draw(current_frame, pipeline.get_layout(), vp);
+        }
 
-        std::vector<vk::DeviceSize> offsets(1, 0);
-        vcc.graphics_cb[current_frame].bindVertexBuffers(0, buffers.find(BufferNames::Vertex)->second.get(), offsets);
-        vcc.graphics_cb[current_frame].bindIndexBuffer(buffers.find(BufferNames::Index)->second.get(), 0, vk::IndexType::eUint32);
-        vcc.graphics_cb[current_frame].drawIndexed(buffers.find(BufferNames::Index)->second.get_element_count(), 1, 0, 0, 0);
         vcc.graphics_cb[current_frame].endRenderPass();
         vcc.graphics_cb[current_frame].end();
     }

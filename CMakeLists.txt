@@ -7,16 +7,18 @@ src/vk/CommandPool.cpp src/vk/DescriptorSetHandler.cpp src/vk/ExtensionsHandler.
 src/vk/Image.cpp src/vk/Instance.cpp src/vk/LogicalDevice.cpp
 src/vk/PhysicalDevice.cpp src/vk/Pipeline.cpp src/vk/RenderPass.cpp
 src/vk/Shader.cpp src/vk/Swapchain.cpp src/vk/Synchronization.cpp
+src/vk/Scene.cpp src/vk/Mesh.cpp
 src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/vk/VulkanRenderContext.cpp)
 
 add_executable(Vulkan_Engine ${SOURCE_FILES})
 include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include")
 
+find_package(assimp REQUIRED)
 find_package(glm REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(Vulkan REQUIRED)
 
-target_link_libraries(Vulkan_Engine ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES})
+target_link_libraries(Vulkan_Engine ${ASSIMP_LIBRARIES} ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES})
 
 function(add_shader TARGET SHADER)
     find_program(GLSLC glslc)

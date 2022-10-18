@@ -47,8 +47,7 @@ public:
             dispatch_pressed_keys();
             try
             {
-                vrc.update_uniform_data(duration / 1000.0f, camera.getVP());
-                vrc.draw_frame();
+                vrc.draw_frame(camera, duration / 1000.0f);
             }
             catch (const vk::OutOfDateKHRError e)
             {
