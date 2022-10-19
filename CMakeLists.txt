@@ -11,7 +11,7 @@ src/vk/Scene.cpp src/vk/Mesh.cpp
 src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/vk/VulkanRenderContext.cpp)
 
 add_executable(Vulkan_Engine ${SOURCE_FILES})
-include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include")
+include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/dependencies/VulkanMemoryAllocator-3.0.1/include")
 
 find_package(assimp REQUIRED)
 find_package(glm REQUIRED)

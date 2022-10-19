@@ -6,6 +6,7 @@
 #include "Window.hpp"
 #include "vk/LogicalDevice.hpp"
 #include "vk/PhysicalDevice.hpp"
+#include "vk_mem_alloc.h"
 
 namespace ve
 {
@@ -26,6 +27,8 @@ namespace ve
     private:
         std::unordered_map<QueueIndex, vk::Queue> queues;
 
+        void create_vma_allocator();
+
     public:
         QueueFamilyIndices queues_family_indices;
         std::optional<Window> window;
@@ -33,5 +36,6 @@ namespace ve
         std::optional<vk::SurfaceKHR> surface;
         PhysicalDevice physical_device;
         LogicalDevice logical_device;
+        VmaAllocator va;
     };
 }// namespace ve
