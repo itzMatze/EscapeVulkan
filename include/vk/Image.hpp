@@ -2,6 +2,7 @@
 
 #include "vk/VulkanCommandContext.hpp"
 #include "vk/Buffer.hpp"
+#include "vk_mem_alloc.h"
 
 namespace ve
 {
@@ -26,7 +27,7 @@ namespace ve
         vk::DeviceSize byte_size;
         vk::ImageLayout layout;
         vk::Image image;
-        vk::DeviceMemory memory;
+        VmaAllocation vmaa;
         vk::ImageView view;
         vk::Sampler sampler;
 

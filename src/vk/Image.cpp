@@ -3,8 +3,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
-#include "vk/VulkanCommandContext.hpp"
 #include "ve_log.hpp"
+#include "vk/VulkanCommandContext.hpp"
 
 namespace ve
 {
@@ -19,7 +19,7 @@ namespace ve
         Buffer buffer(vmc, pixels, byte_size, vk::BufferUsageFlagBits::eTransferSrc, {uint32_t(vmc.queues_family_indices.transfer)});
         stbi_image_free(pixels);
         pixels = nullptr;
-        
+
         create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::Format::eR8G8B8A8Srgb);
 
         transition_image_layout(vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eTransferDstOptimal, vcc);
@@ -77,15 +77,12 @@ namespace ve
         ici.pQueueFamilyIndices = queue_family_indices.data();
         ici.samples = vk::SampleCountFlagBits::e1;
         ici.flags = {};
-        image = vmc.logical_device.get().createImage(ici);
 
-        vk::MemoryRequirements mem_reqs = vmc.logical_device.get().getImageMemoryRequirements(image);
-        vk::MemoryAllocateInfo mai{};
-        mai.sType = vk::StructureType::eMemoryAllocateInfo;
-        mai.allocationSize = mem_reqs.size;
-        mai.memoryTypeIndex = Buffer::find_memory_type(mem_reqs.memoryTypeBits, {vk::MemoryPropertyFlagBits::eDeviceLocal}, vmc.physical_device.get());
-        memory = vmc.logical_device.get().allocateMemory(mai);
-        vmc.logical_device.get().bindImageMemory(image, memory, 0);
+        VmaAllocationCreateInfo vaci{};
+        vaci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        VkBuffer local_buffer;
+        VmaAllocation local_vmaa;
+        vmaCreateImage(vmc.va, (VkImageCreateInfo*) (&ici), &vaci, (VkImage*) (&image), &vmaa, nullptr);
     }
 
     void Image::create_image_view(vk::Format format, vk::ImageAspectFlags aspects)
@@ -107,8 +104,7 @@ namespace ve
     {
         vmc.logical_device.get().destroySampler(sampler);
         vmc.logical_device.get().destroyImageView(view);
-        vmc.logical_device.get().destroyImage(image);
-        vmc.logical_device.get().freeMemory(memory);
+        vmaDestroyImage(vmc.va, VkImage(image), vmaa);
     }
 
     void Image::transition_image_layout(vk::Format format, vk::ImageLayout new_layout, const VulkanCommandContext& vcc)
