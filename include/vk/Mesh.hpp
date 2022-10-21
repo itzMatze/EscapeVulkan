@@ -9,15 +9,15 @@ namespace ve
     class Mesh
     {
     public:
-        Mesh(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<std::string>& texture_names, DescriptorSetHandler& dsh, const std::unordered_map<std::string, Image>& textures);
+        Mesh(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<std::string>& texture_names);
         void self_destruct();
-        void draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, uint32_t current_frame);
+        void add_set_bindings(DescriptorSetHandler& dsh, const std::unordered_map<std::string, Image>& textures);
+        void draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, const std::vector<vk::DescriptorSet>& sets, uint32_t current_frame);
 
     private:
         Buffer vertex_buffer;
         Buffer index_buffer;
-        DescriptorSetHandler& dsh;
-        uint32_t descriptor_set_start_idx;
+        std::vector<uint32_t> descriptor_set_indices;
         const std::vector<std::string> texture_names;
     };
 }// namespace ve

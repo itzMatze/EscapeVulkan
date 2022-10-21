@@ -7,58 +7,82 @@ namespace ve
 
     uint32_t DescriptorSetHandler::new_set()
     {
-        layout_bindings.push_back({});
-        infos.push_back({});
-        add_layout_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eAll);
-        infos.back().insert(infos.back().end(), uniform_infos.begin(), uniform_infos.end());
-        return (infos.size() - 1) * set_copies;
+        layouts_bindings.push_back({});
+        layouts_bindings.back().insert(layouts_bindings.back().end(), new_set_layout_bindings.begin(), new_set_layout_bindings.end());
+        bindings.push_back({});
+        bindings.back().insert(bindings.back().end(), new_set_bindings.begin(), new_set_bindings.end());
+        return (bindings.size() - 1);
     }
 
-    void DescriptorSetHandler::add_uniform_buffer(uint32_t copies, const std::vector<Buffer>& uniform_buffers)
+    void DescriptorSetHandler::add_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages, const vk::Buffer& buffer, uint64_t byte_size)
     {
-        set_copies = copies;
+        vk::DescriptorSetLayoutBinding dslb{};
+        dslb.binding = binding;
+        dslb.descriptorType = type;
+        dslb.descriptorCount = 1;
+        dslb.stageFlags = stages;
+        dslb.pImmutableSamplers = nullptr;
 
-        for (uint32_t i = 0; i < copies; ++i)
-        {
-            vk::DescriptorBufferInfo uniform_dbi{};
-            uniform_dbi.buffer = uniform_buffers[i].get();
-            uniform_dbi.offset = 0;
-            uniform_dbi.range = uniform_buffers[i].get_byte_size();
-
-            uniform_infos.push_back(Binding(uniform_dbi, {}));
-        }
-    }
-
-    void DescriptorSetHandler::add_buffer_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages, const vk::Buffer& buffer, uint64_t byte_size)
-    {
-        add_layout_binding(binding, type, stages);
+        layouts_bindings.back().push_back(dslb);
 
         vk::DescriptorBufferInfo dbi{};
         dbi.buffer = buffer;
         dbi.offset = 0;
         dbi.range = byte_size;
 
-        infos.back().push_back(Binding(dbi, {}));
+        bindings.back().push_back(Binding(dbi, {}));
     }
 
-    void DescriptorSetHandler::add_image_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages, const Image& image)
+    void DescriptorSetHandler::add_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages, const Image& image)
     {
-        add_layout_binding(binding, type, stages);
+        vk::DescriptorSetLayoutBinding dslb{};
+        dslb.binding = binding;
+        dslb.descriptorType = type;
+        dslb.descriptorCount = 1;
+        dslb.stageFlags = stages;
+        dslb.pImmutableSamplers = nullptr;
+
+        layouts_bindings.back().push_back(dslb);
 
         vk::DescriptorImageInfo dii{};
         dii.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
         dii.imageView = image.get_view();
         dii.sampler = image.get_sampler();
 
-        infos.back().push_back(Binding({}, dii));
+        bindings.back().push_back(Binding({}, dii));
+    }
+
+    void DescriptorSetHandler::apply_binding_to_new_sets(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages, const vk::Buffer& buffer, uint64_t byte_size)
+    {
+        vk::DescriptorSetLayoutBinding dslb{};
+        dslb.binding = binding;
+        dslb.descriptorType = type;
+        dslb.descriptorCount = 1;
+        dslb.stageFlags = stages;
+        dslb.pImmutableSamplers = nullptr;
+
+        new_set_layout_bindings.push_back(dslb);
+
+        vk::DescriptorBufferInfo dbi{};
+        dbi.buffer = buffer;
+        dbi.offset = 0;
+        dbi.range = byte_size;
+
+        new_set_bindings.push_back(Binding(dbi, {}));
+    }
+
+    void DescriptorSetHandler::reset_auto_apply_bindings()
+    {
+        new_set_layout_bindings.clear();
+        new_set_bindings.clear();
     }
 
     void DescriptorSetHandler::construct()
     {
         std::vector<vk::DescriptorPoolSize> pool_sizes;
-        for (const auto& set_layout_bindings: layout_bindings)
+        for (const auto& layout_bindings: layouts_bindings)
         {
-            for (const auto& dslb: set_layout_bindings)
+            for (const auto& dslb: layout_bindings)
             {
                 vk::DescriptorPoolSize dps{};
                 dps.type = dslb.descriptorType;
@@ -69,19 +93,16 @@ namespace ve
 
             vk::DescriptorSetLayoutCreateInfo dslci{};
             dslci.sType = vk::StructureType::eDescriptorSetLayoutCreateInfo;
-            dslci.bindingCount = set_layout_bindings.size();
-            dslci.pBindings = set_layout_bindings.data();
-            for (uint32_t i = 0; i < set_copies; ++i)
-            {
-                layouts.push_back(vmc.logical_device.get().createDescriptorSetLayout(dslci));
-            }
+            dslci.bindingCount = layout_bindings.size();
+            dslci.pBindings = layout_bindings.data();
+            layouts.push_back(vmc.logical_device.get().createDescriptorSetLayout(dslci));
         }
 
         vk::DescriptorPoolCreateInfo dpci{};
         dpci.sType = vk::StructureType::eDescriptorPoolCreateInfo;
         dpci.poolSizeCount = pool_sizes.size();
         dpci.pPoolSizes = pool_sizes.data();
-        dpci.maxSets = infos.size() * set_copies;
+        dpci.maxSets = bindings.size();
 
         pool = vmc.logical_device.get().createDescriptorPool(dpci);
 
@@ -94,39 +115,23 @@ namespace ve
         sets = vmc.logical_device.get().allocateDescriptorSets(dsai);
 
         std::vector<vk::WriteDescriptorSet> wds_s;
-        for (uint32_t i = 0; i < infos.size(); ++i)
+        for (uint32_t i = 0; i < bindings.size(); ++i)
         {
-            for (uint32_t c = 0; c < set_copies; ++c)
+            for (uint32_t j = 0; j < bindings[i].size(); ++j)
             {
-                vk::WriteDescriptorSet uniform_wds{};
-                uniform_wds.sType = vk::StructureType::eWriteDescriptorSet;
-                uniform_wds.dstSet = sets[(i * set_copies) + c];
-                uniform_wds.dstBinding = 0;
-                uniform_wds.dstArrayElement = 0;
+                vk::WriteDescriptorSet wds{};
+                wds.sType = vk::StructureType::eWriteDescriptorSet;
+                wds.dstSet = sets[i];
+                wds.dstBinding = layouts_bindings[i][j].binding;
+                wds.dstArrayElement = 0;
 
-                uniform_wds.descriptorType = vk::DescriptorType::eUniformBuffer;
-                uniform_wds.descriptorCount = 1;
-                uniform_wds.pBufferInfo = &(infos[i][c].dbi);
-                uniform_wds.pImageInfo = nullptr;
-                uniform_wds.pTexelBufferView = nullptr;
-                wds_s.push_back(uniform_wds);
+                wds.descriptorType = layouts_bindings[i][j].descriptorType;
+                wds.descriptorCount = 1;
+                wds.pBufferInfo = &(bindings[i][j].dbi);
+                wds.pImageInfo = &(bindings[i][j].dii);
+                wds.pTexelBufferView = nullptr;
 
-                for (uint32_t j = set_copies; j < infos[i].size(); ++j)
-                {
-                    vk::WriteDescriptorSet wds{};
-                    wds.sType = vk::StructureType::eWriteDescriptorSet;
-                    wds.dstSet = sets[(i * set_copies) + c];
-                    wds.dstBinding = layout_bindings[i][j - set_copies + 1].binding;
-                    wds.dstArrayElement = 0;
-
-                    wds.descriptorType = layout_bindings[i][j - set_copies + 1].descriptorType;
-                    wds.descriptorCount = 1;
-                    wds.pBufferInfo = &(infos[i][j].dbi);
-                    wds.pImageInfo = &(infos[i][j].dii);
-                    wds.pTexelBufferView = nullptr;
-
-                    wds_s.push_back(wds);
-                }
+                wds_s.push_back(wds);
             }
         }
         vmc.logical_device.get().updateDescriptorSets(wds_s, {});
@@ -151,15 +156,4 @@ namespace ve
         return sets;
     }
 
-    void DescriptorSetHandler::add_layout_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages)
-    {
-        vk::DescriptorSetLayoutBinding dslb{};
-        dslb.binding = binding;
-        dslb.descriptorType = type;
-        dslb.descriptorCount = 1;
-        dslb.stageFlags = stages;
-        dslb.pImmutableSamplers = nullptr;
-
-        layout_bindings.back().push_back(dslb);
-    }
 }// namespace ve

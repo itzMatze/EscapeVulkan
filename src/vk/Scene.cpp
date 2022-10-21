@@ -8,11 +8,19 @@
 
 namespace ve
 {
-    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, DescriptorSetHandler& dsh, const std::string& path, const glm::mat4& transformation) : vmc(vmc), vcc(vcc), name(path.substr(path.find_last_of('/'), path.length())), dir(path.substr(0, path.find_last_of('/'))), transformation(transformation)
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path, const glm::mat4& transformation) : vmc(vmc), vcc(vcc), name(path.substr(path.find_last_of('/'), path.length())), dir(path.substr(0, path.find_last_of('/'))), transformation(transformation)
     {
         VE_LOG_CONSOLE(VE_INFO, "Loading scene \"" << name << "\"\n");
         textures.emplace("ANY", Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
-        load_scene(path, dsh);
+        load_scene(path);
+    }
+
+    void Scene::add_set_bindings(DescriptorSetHandler& dsh)
+    {
+        for (auto& mesh: meshes)
+        {
+            mesh.add_set_bindings(dsh, textures);
+        }
     }
 
     void Scene::self_destruct()
@@ -29,17 +37,17 @@ namespace ve
         textures.clear();
     }
 
-    void Scene::draw(uint32_t current_frame, const vk::PipelineLayout& layout, const glm::mat4& vp)
+    void Scene::draw(uint32_t current_frame, const vk::PipelineLayout& layout, const std::vector<vk::DescriptorSet>& sets, const glm::mat4& vp)
     {
         PushConstants pc{vp * transformation};
         vcc.graphics_cb[current_frame].pushConstants(layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &pc);
         for (auto& mesh: meshes)
         {
-            mesh.draw(vcc.graphics_cb[current_frame], layout, current_frame);
+            mesh.draw(vcc.graphics_cb[current_frame], layout, sets, current_frame);
         }
     }
 
-    void Scene::load_scene(const std::string& path, DescriptorSetHandler& dsh)
+    void Scene::load_scene(const std::string& path)
     {
         Assimp::Importer importer;
         const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes | aiProcess_JoinIdenticalVertices);
@@ -49,23 +57,23 @@ namespace ve
             VE_THROW("Failed to load scene \"" << path << "\": " << importer.GetErrorString());
         }
 
-        process_node(scene->mRootNode, scene, dsh);
+        process_node(scene->mRootNode, scene);
     }
 
-    void Scene::process_node(aiNode* node, const aiScene* scene, DescriptorSetHandler& dsh)
+    void Scene::process_node(aiNode* node, const aiScene* scene)
     {
         for (uint32_t i = 0; i < node->mNumMeshes; ++i)
         {
             aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-            meshes.push_back(process_mesh(mesh, scene, dsh));
+            meshes.push_back(process_mesh(mesh, scene));
         }
         for (uint32_t i = 0; i < node->mNumChildren; ++i)
         {
-            process_node(node->mChildren[i], scene, dsh);
+            process_node(node->mChildren[i], scene);
         }
     }
 
-    Mesh Scene::process_mesh(aiMesh* mesh, const aiScene* scene, DescriptorSetHandler& dsh)
+    Mesh Scene::process_mesh(aiMesh* mesh, const aiScene* scene)
     {
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
@@ -130,7 +138,7 @@ namespace ve
             //textures.insert(textures.end(), specular_textures.begin(), specular_textures.end());
         }
 
-        return Mesh(vmc, vcc, vertices, indices, texture_names, dsh, textures);
+        return Mesh(vmc, vcc, vertices, indices, texture_names);
     }
 
     std::vector<std::string> Scene::load_textures(aiMaterial* mat, aiTextureType type, std::string typeName)

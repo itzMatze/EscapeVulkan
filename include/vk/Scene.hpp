@@ -14,9 +14,10 @@ namespace ve
     class Scene
     {
     public:
-        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, DescriptorSetHandler& dsh, const std::string& path, const glm::mat4& transformation);
+        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path, const glm::mat4& transformation);
         void self_destruct();
-        void draw(uint32_t current_frame, const vk::PipelineLayout& layout, const glm::mat4& vp);
+        void add_set_bindings(DescriptorSetHandler& dsh);
+        void draw(uint32_t current_frame, const vk::PipelineLayout& layout, const std::vector<vk::DescriptorSet>& sets, const glm::mat4& vp);
 
     private:
         const VulkanMainContext& vmc;
@@ -27,9 +28,9 @@ namespace ve
         std::string dir;
         glm::mat4 transformation;
 
-        void load_scene(const std::string& path, DescriptorSetHandler& dsh);
-        void process_node(aiNode* node, const aiScene* scene, DescriptorSetHandler& dsh);
-        Mesh process_mesh(aiMesh* mesh, const aiScene* scene, DescriptorSetHandler& dsh);
+        void load_scene(const std::string& path);
+        void process_node(aiNode* node, const aiScene* scene);
+        Mesh process_mesh(aiMesh* mesh, const aiScene* scene);
         std::vector<std::string> load_textures(aiMaterial* mat, aiTextureType type, std::string typeName);
     };
 }// namespace ve

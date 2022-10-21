@@ -31,11 +31,17 @@ namespace ve
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             uniform_buffers.push_back(Buffer(vmc, std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}));
+            dsh.apply_binding_to_new_sets(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex, uniform_buffers.back().get(), uniform_buffers.back().get_byte_size());
+            dsh.new_set();
+            dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, images.find(ImageNames::Texture)->second);
+
+            for (auto& scene: scenes)
+            {
+                scene.add_set_bindings(dsh);
+            }
+            dsh.reset_auto_apply_bindings();
         }
 
-        dsh.add_uniform_buffer(frames_in_flight, uniform_buffers);
-        dsh.new_set();
-        dsh.add_image_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, images.find(ImageNames::Texture)->second);
         dsh.construct();
         pipeline.construct(render_pass.get(), dsh);
 
@@ -156,10 +162,16 @@ namespace ve
         scissor.extent = swapchain.get_extent();
         vcc.graphics_cb[current_frame].setScissor(0, scissor);
 
+        std::vector<vk::DeviceSize> offsets(1, 0);
+
         vcc.graphics_cb[current_frame].pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &pc);
+        vcc.graphics_cb[current_frame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, dsh.get_sets()[0 + current_frame], {});
+        vcc.graphics_cb[current_frame].bindVertexBuffers(0, buffers.find(BufferNames::Vertex)->second.get(), offsets);
+        vcc.graphics_cb[current_frame].bindIndexBuffer(buffers.find(BufferNames::Index)->second.get(), 0, vk::IndexType::eUint32);
+        vcc.graphics_cb[current_frame].drawIndexed(buffers.find(BufferNames::Index)->second.get_element_count(), 1, 0, 0, 0);
         for (auto& scene: scenes)
         {
-            scene.draw(current_frame, pipeline.get_layout(), vp);
+            scene.draw(current_frame, pipeline.get_layout(), dsh.get_sets(), vp);
         }
 
         vcc.graphics_cb[current_frame].endRenderPass();
