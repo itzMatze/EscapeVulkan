@@ -43,7 +43,7 @@ namespace ve
         }
 
         dsh.construct();
-        pipeline.construct(render_pass.get(), dsh);
+        pipeline.construct(render_pass.get(), dsh.get_layouts()[0], {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("default.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {

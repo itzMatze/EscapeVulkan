@@ -16,16 +16,15 @@ namespace ve
         vmc.logical_device.get().destroyPipelineLayout(pipeline_layout);
     }
 
-    void Pipeline::construct(const vk::RenderPass& render_pass, const DescriptorSetHandler& ds_handler)
+    void Pipeline::construct(const vk::RenderPass& render_pass, vk::DescriptorSetLayout set_layout, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names, vk::PolygonMode polygon_mode)
     {
-        std::vector<Shader> shader_group;
-        shader_group.push_back(Shader(vmc.logical_device.get(), "default.vert", vk::ShaderStageFlagBits::eVertex));
-        shader_group.push_back(Shader(vmc.logical_device.get(), "default.frag", vk::ShaderStageFlagBits::eFragment));
-
-        std::vector<vk::PipelineShaderStageCreateInfo> shader_stage;
-        for (const auto& shader: shader_group)
+        std::vector<Shader> shaders;
+        std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
+        for (const auto& shader_name: shader_names)
         {
-            shader_stage.push_back(shader.get_stage_create_info());
+            Shader shader(vmc.logical_device.get(), shader_name.first, shader_name.second);
+            shaders.push_back(shader);
+            shader_stages.push_back(shader.get_stage_create_info());
         }
 
         std::vector<vk::DynamicState> dynamic_states = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
@@ -73,7 +72,7 @@ namespace ve
         prsci.sType = vk::StructureType::ePipelineRasterizationStateCreateInfo;
         prsci.depthClampEnable = VK_FALSE;
         prsci.rasterizerDiscardEnable = VK_FALSE;
-        prsci.polygonMode = vk::PolygonMode::eFill;
+        prsci.polygonMode = polygon_mode;
         prsci.lineWidth = 1.0f;
         prsci.cullMode = vk::CullModeFlagBits::eNone;
         prsci.frontFace = vk::FrontFace::eCounterClockwise;
@@ -119,8 +118,8 @@ namespace ve
 
         vk::PipelineLayoutCreateInfo plci{};
         plci.sType = vk::StructureType::ePipelineLayoutCreateInfo;
-        plci.setLayoutCount = ds_handler.get_layouts().size();
-        plci.pSetLayouts = ds_handler.get_layouts().data();
+        plci.setLayoutCount = 1;
+        plci.pSetLayouts = &set_layout;
         plci.pushConstantRangeCount = 1;
         plci.pPushConstantRanges = &pcr;
 
@@ -140,8 +139,8 @@ namespace ve
 
         vk::GraphicsPipelineCreateInfo gpci{};
         gpci.sType = vk::StructureType::eGraphicsPipelineCreateInfo;
-        gpci.stageCount = 2;
-        gpci.pStages = shader_stage.data();
+        gpci.stageCount = shader_stages.size();
+        gpci.pStages = shader_stages.data();
         gpci.pVertexInputState = &pvisci;
         gpci.pInputAssemblyState = &piasci;
         gpci.pViewportState = &pvsci;
@@ -161,7 +160,7 @@ namespace ve
         VE_CHECK(pipeline_result_value.result, "Failed to create pipeline!");
         pipeline = pipeline_result_value.value;
 
-        for (auto& shader: shader_group)
+        for (auto& shader: shaders)
         {
             vmc.logical_device.get().destroyShaderModule(shader.get());
         }
