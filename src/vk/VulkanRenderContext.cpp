@@ -11,22 +11,30 @@ namespace ve
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
 
-        const std::vector<ve::Vertex> vertices = {
-                {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-                {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-                {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-                {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+        const std::vector<ve::Vertex> vertices_one = {
+                {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+                {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+                {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+                {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
 
-                {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-                {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-                {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-                {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
+        const std::vector<ve::Vertex> vertices_two = {
+                {{-500.0f, -500.0f, -500.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+                {{500.0f, -500.0f, -500.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+                {{500.0f, -500.0f, 500.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+                {{-500.0f, -500.0f, 500.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
 
-        const std::vector<uint32_t> indices = {
-                0, 1, 2, 2, 3, 0,
-                4, 5, 6, 6, 7, 4};
+        const std::vector<uint32_t> indices_one = {
+                0, 1, 2, 2, 3, 0};
 
-        images.emplace(ImageNames::Texture, Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
+        const std::vector<uint32_t> indices_two = {
+                0, 1, 2, 2, 3, 0};
+
+        images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
+        images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
+
+        meshes.emplace_back(std::make_pair(glm::mat4(1.0f), Mesh(vmc, vcc, vertices_one, indices_one)));
+        meshes.emplace_back(std::make_pair(glm::mat4(1.0f), Mesh(vmc, vcc, vertices_two, indices_two)));
+
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -38,6 +46,11 @@ namespace ve
             for (auto& scene: scenes)
             {
                 scene.add_set_bindings(dsh);
+            }
+
+            for (uint32_t m = 0; m < meshes.size(); ++m)
+            {
+                meshes[m].second.add_set_bindings(dsh, {images[m]});
             }
             dsh.reset_auto_apply_bindings();
         }
@@ -52,8 +65,6 @@ namespace ve
             sync_indices[SyncNames::FRenderFinished].push_back(vcc.sync.add_fence());
         }
 
-        buffers.emplace(BufferNames::Vertex, Buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc));
-        buffers.emplace(BufferNames::Index, Buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc));
         VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created VulkanRenderContext\n");
     }
 
@@ -61,13 +72,9 @@ namespace ve
     {
         for (auto& image: images)
         {
-            image.second.self_destruct();
+            image.self_destruct();
         }
-        for (auto& buffer: buffers)
-        {
-            buffer.second.self_destruct();
-        }
-        buffers.clear();
+        images.clear();
         for (auto& buffer: uniform_buffers)
         {
             buffer.self_destruct();
@@ -77,6 +84,12 @@ namespace ve
         {
             scene.self_destruct();
         }
+        scenes.clear();
+        for (auto& mesh: meshes)
+        {
+            mesh.second.self_destruct();
+        }
+        scenes.clear();
         pipeline.self_destruct();
         swapchain.self_destruct();
         render_pass.self_destruct();
@@ -87,6 +100,7 @@ namespace ve
     void VulkanRenderContext::draw_frame(const Camera& camera, float time_diff)
     {
         ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        meshes[0].first = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
         pc.MVP = camera.getVP() * ubo.M;
         uniform_buffers[current_frame].update_data(ubo);
 
@@ -164,11 +178,13 @@ namespace ve
 
         std::vector<vk::DeviceSize> offsets(1, 0);
 
+        for (auto& mesh: meshes)
+        {
+            pc.MVP = vp * mesh.first;
         vcc.graphics_cb[current_frame].pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &pc);
-        vcc.graphics_cb[current_frame].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, dsh.get_sets()[0 + current_frame], {});
-        vcc.graphics_cb[current_frame].bindVertexBuffers(0, buffers.find(BufferNames::Vertex)->second.get(), offsets);
-        vcc.graphics_cb[current_frame].bindIndexBuffer(buffers.find(BufferNames::Index)->second.get(), 0, vk::IndexType::eUint32);
-        vcc.graphics_cb[current_frame].drawIndexed(buffers.find(BufferNames::Index)->second.get_element_count(), 1, 0, 0, 0);
+            mesh.second.draw(vcc.graphics_cb[current_frame], pipeline.get_layout(), dsh.get_sets(), current_frame);
+        }
+
         for (auto& scene: scenes)
         {
             scene.draw(current_frame, pipeline.get_layout(), dsh.get_sets(), vp);

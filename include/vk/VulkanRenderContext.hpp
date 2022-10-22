@@ -29,17 +29,6 @@ namespace ve
         void self_destruct();
 
     private:
-        enum class BufferNames
-        {
-            Vertex,
-            Index
-        };
-
-        enum class ImageNames
-        {
-            Texture
-        };
-
         enum class SyncNames
         {
             SImageAvailable,
@@ -61,8 +50,8 @@ namespace ve
         DescriptorSetHandler dsh;
         std::vector<ve::Buffer> uniform_buffers;
         std::unordered_map<SyncNames, std::vector<uint32_t>> sync_indices;
-        std::unordered_map<BufferNames, Buffer> buffers;
-        std::unordered_map<ImageNames, Image> images;
+        std::vector<std::pair<glm::mat4, Mesh>> meshes;
+        std::vector<Image> images;
         vk::SurfaceFormatKHR surface_format;
         vk::Format depth_format;
         RenderPass render_pass;
