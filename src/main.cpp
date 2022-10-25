@@ -51,7 +51,8 @@ public:
             }
             catch (const vk::OutOfDateKHRError e)
             {
-                vrc.recreate_swapchain();
+                vk::Extent2D extent = vrc.recreate_swapchain();
+                camera.updateScreenSize(extent.width, extent.height);
             }
             while (SDL_PollEvent(&e))
             {

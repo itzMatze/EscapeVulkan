@@ -25,14 +25,12 @@ public:
 
 private:
     glm::mat4 vp;
-    float near;
-    float far;
-    float yaw;
-    float pitch;
-    const float mouse_sensitivity = 0.25f;
-    glm::vec3 look_at;
     glm::vec3 up;
+    glm::vec3 u, v, w;
+    float near, far;
+    float yaw, pitch;
     float fov;
+    const float mouse_sensitivity = 0.25f;
 
     void update();
 };

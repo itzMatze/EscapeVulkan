@@ -60,7 +60,7 @@ namespace ve
         std::vector<Scene> scenes;
 
         void draw_frame(const Camera& camera, float time_diff);
-        void recreate_swapchain();
+        vk::Extent2D recreate_swapchain();
 
     private:
         vk::SurfaceFormatKHR choose_surface_format();

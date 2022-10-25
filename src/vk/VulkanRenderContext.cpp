@@ -113,11 +113,12 @@ namespace ve
         current_frame = (current_frame + 1) % frames_in_flight;
     }
 
-    void VulkanRenderContext::recreate_swapchain()
+    vk::Extent2D VulkanRenderContext::recreate_swapchain()
     {
         vcc.sync.wait_idle();
         swapchain.self_destruct();
         swapchain.create_swapchain(surface_format, depth_format, render_pass.get());
+        return swapchain.get_extent();
     }
 
     vk::SurfaceFormatKHR VulkanRenderContext::choose_surface_format()
