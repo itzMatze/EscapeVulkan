@@ -1,5 +1,6 @@
 #include <iostream>
 #include <stdexcept>
+#include <thread>
 #include <vulkan/vulkan.hpp>
 
 #define GLM_FORCE_RADIANS
@@ -25,7 +26,10 @@ class MainContext
 {
 public:
     MainContext(const RenderingInfo& ri) : vmc(ri.width, ri.height), vcc(vmc), vrc(vmc, vcc), camera(45.0f, ri.width, ri.height)
-    {}
+    {
+        vk::Extent2D extent = vrc.swapchain.get_extent();
+        camera.updateScreenSize(extent.width, extent.height);
+    }
 
     ~MainContext()
     {
@@ -37,16 +41,20 @@ public:
 
     void run()
     {
+        constexpr double min_frametime = 5.0;
         auto t1 = std::chrono::high_resolution_clock::now();
         auto t2 = std::chrono::high_resolution_clock::now();
         double duration = 0.0;
+        double frametime = 0.0;
         bool quit = false;
         SDL_Event e;
         while (!quit)
         {
+            move_amount = duration * 0.0125f;
             dispatch_pressed_keys();
             try
             {
+                std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(min_frametime - frametime));
                 vrc.draw_frame(camera, duration / 1000.0f);
             }
             catch (const vk::OutOfDateKHRError e)
@@ -61,7 +69,8 @@ public:
             }
             t2 = std::chrono::high_resolution_clock::now();
             duration = std::chrono::duration<double, std::milli>(t2 - t1).count();
-            vmc.window->set_title(ve::to_string(duration, 4) + " ms; FPS: " + ve::to_string(1000.0 / duration));
+            frametime = duration - std::max(0.0, min_frametime - frametime);
+            vmc.window->set_title(ve::to_string(duration, 4) + " ms; FPS: " + ve::to_string(1000.0 / duration) + " (" + ve::to_string(frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / frametime) + ")");
             t1 = t2;
         }
     }
@@ -72,7 +81,7 @@ private:
     ve::VulkanRenderContext vrc;
     Camera camera;
     EventHandler eh;
-    float move_amount = 0.2f;
+    float move_amount;
 
     void dispatch_pressed_keys()
     {
@@ -82,7 +91,7 @@ private:
         if (eh.pressed_keys.contains(Key::D)) camera.moveRight(move_amount);
         if (eh.pressed_keys.contains(Key::Q)) camera.moveDown(move_amount);
         if (eh.pressed_keys.contains(Key::E)) camera.moveDown(-move_amount);
-        
+
         if (eh.pressed_keys.contains(Key::Plus))
         {
             move_amount += 0.05f;
@@ -93,16 +102,16 @@ private:
             move_amount -= 0.05f;
             eh.pressed_keys.erase(Key::Minus);
         }
-        if (eh.pressed_keys.contains(Key::MouseRight))
+        if (eh.pressed_keys.contains(Key::MouseLeft))
         {
             if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);
-            camera.onMouseMove(eh.mouse_motion.x, eh.mouse_motion.y);
+            camera.onMouseMove(eh.mouse_motion.x * 1.5f, eh.mouse_motion.y * 1.5f);
             eh.mouse_motion = glm::vec2(0.0f);
         }
-        if (eh.released_keys.contains(Key::MouseRight))
+        if (eh.released_keys.contains(Key::MouseLeft))
         {
             if (SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
-            eh.released_keys.erase(Key::MouseRight);
+            eh.released_keys.erase(Key::MouseLeft);
         }
     }
 };
