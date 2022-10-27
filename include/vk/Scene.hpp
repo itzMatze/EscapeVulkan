@@ -14,9 +14,12 @@ namespace ve
     {
     public:
         Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path, const glm::mat4& transformation);
+        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material, const glm::mat4& transformation);
         void self_destruct();
         void add_set_bindings(DescriptorSetHandler& dsh);
         void draw(uint32_t current_frame, const vk::PipelineLayout& layout, const std::vector<vk::DescriptorSet>& sets, const glm::mat4& vp);
+        void change_transformation(const glm::mat4& trans);
+        void set_transformation(const glm::mat4& trans);
 
     private:
         const VulkanMainContext& vmc;

@@ -19,6 +19,11 @@ namespace ve
         load_scene(path);
     }
 
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material, const glm::mat4& transformation) : vmc(vmc), vcc(vcc), name("custom scene"), transformation(transformation)
+    {
+        meshes.emplace_back(Mesh(vmc, vcc, vertices, indices, material));
+    }
+
     void Scene::add_set_bindings(DescriptorSetHandler& dsh)
     {
         for (auto& mesh: meshes)
@@ -49,6 +54,16 @@ namespace ve
         {
             mesh.draw(vcc.graphics_cb[current_frame], layout, sets, current_frame);
         }
+    }
+
+    void Scene::change_transformation(const glm::mat4& trans)
+    {
+        transformation *= trans;
+    }
+
+    void Scene::set_transformation(const glm::mat4& trans)
+    {
+        transformation = trans;
     }
 
     void Scene::load_scene(const std::string& path)
@@ -217,7 +232,7 @@ namespace ve
                 default:
                     VE_THROW("Index component type " << accessor.componentType << " not supported!");
             }
-            meshes.push_back(Mesh(vmc, vcc, vertices, indices, &(materials[std::max(primitive.material, 0)])));
+            meshes.emplace_back(Mesh(vmc, vcc, vertices, indices, &(materials[std::max(primitive.material, 0)])));
         }
     }
 }// namespace ve

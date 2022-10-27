@@ -1,6 +1,7 @@
 #include "vk/VulkanRenderContext.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/transform.hpp>
 
 #include "vk/common.hpp"
 
@@ -29,8 +30,14 @@ namespace ve
         const std::vector<uint32_t> indices_two = {
                 0, 1, 2, 2, 3, 0};
 
+        images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
+        Material m1{};
+        m1.base_texture = &(images[0]);
         ros.emplace(ShaderFlavor::Default, vmc);
         ros.emplace(ShaderFlavor::Basic, vmc);
+
+        ros.at(ShaderFlavor::Default).add_scene(vcc, vertices_one, indices_one, &m1, glm::mat4(1.0f));
+        ros.at(ShaderFlavor::Basic).add_scene(vcc, vertices_two, indices_two, nullptr, glm::mat4(1.0f));
 
         ros.at(ShaderFlavor::Default).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Default).dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
@@ -88,6 +95,7 @@ namespace ve
     void VulkanRenderContext::draw_frame(const Camera& camera, float time_diff)
     {
         ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ros.at(ShaderFlavor::Default).change_transformation(0, glm::rotate(time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)));
         pc.MVP = camera.getVP() * ubo.M;
         uniform_buffers[current_frame].update_data(ubo);
 

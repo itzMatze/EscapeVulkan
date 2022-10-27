@@ -14,7 +14,10 @@ namespace ve
     void Mesh::add_set_bindings(DescriptorSetHandler& dsh)
     {
         descriptor_set_indices.push_back(dsh.new_set());
-        if (mat->base_texture != nullptr) dsh.add_descriptor(1, *(mat->base_texture));
+        if (mat != nullptr)
+        {
+            if (mat->base_texture != nullptr) dsh.add_descriptor(1, *(mat->base_texture));
+        }
     }
 
     void Mesh::draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, const std::vector<vk::DescriptorSet>& sets, uint32_t current_frame)
