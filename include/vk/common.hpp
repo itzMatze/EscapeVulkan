@@ -7,6 +7,12 @@
 
 namespace ve
 {
+    enum class ShaderFlavor
+    {
+        Basic,
+        Default
+    };
+
     struct PushConstants {
         glm::mat4 MVP;
     };

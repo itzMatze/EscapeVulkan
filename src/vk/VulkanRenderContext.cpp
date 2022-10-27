@@ -6,7 +6,7 @@
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), dsh(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), swapchain(vmc, surface_format, depth_format, render_pass.get()), pipeline(vmc)
+    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), swapchain(vmc, surface_format, depth_format, render_pass.get())
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
@@ -29,36 +29,29 @@ namespace ve
         const std::vector<uint32_t> indices_two = {
                 0, 1, 2, 2, 3, 0};
 
-        images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
-        images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
-        Material m1{};
-        m1.base_texture = &(images[0]);
-        Material m2{};
-        m2.base_texture = &(images[1]);
+        ros.emplace(ShaderFlavor::Default, vmc);
+        ros.emplace(ShaderFlavor::Basic, vmc);
 
-        meshes.emplace_back(std::make_pair(glm::mat4(1.0f), Mesh(vmc, vcc, vertices_one, indices_one, &m1)));
-        meshes.emplace_back(std::make_pair(glm::mat4(1.0f), Mesh(vmc, vcc, vertices_two, indices_two, &m2)));
+        ros.at(ShaderFlavor::Default).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
 
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             uniform_buffers.push_back(Buffer(vmc, std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}));
-            dsh.apply_binding_to_new_sets(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex, uniform_buffers.back().get(), uniform_buffers.back().get_byte_size());
-
-            for (uint32_t m = 0; m < meshes.size(); ++m)
+            ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(0, uniform_buffers.back());
+            ros.at(ShaderFlavor::Basic).dsh.apply_descriptor_to_new_sets(0, uniform_buffers.back());
+            for (auto& ro: ros)
             {
-                meshes[m].second.add_set_bindings(dsh);
+                ro.second.add_bindings();
             }
-
-            for (auto& scene: scenes)
-            {
-                scene.add_set_bindings(dsh);
-            }
-            dsh.reset_auto_apply_bindings();
+            ros.at(ShaderFlavor::Default).dsh.reset_auto_apply_bindings();
+            ros.at(ShaderFlavor::Basic).dsh.reset_auto_apply_bindings();
         }
 
-        dsh.construct();
-        pipeline.construct(render_pass.get(), dsh.get_layouts()[0], {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("default.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
+        ros.at(ShaderFlavor::Default).construct(render_pass.get(), {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("default.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
+        ros.at(ShaderFlavor::Basic).construct(render_pass.get(), {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("basic.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -81,28 +74,20 @@ namespace ve
         {
             buffer.self_destruct();
         }
+        for (auto& ro: ros)
+        {
+            ro.second.self_destruct();
+        }
+        ros.clear();
         uniform_buffers.clear();
-        for (auto& scene: scenes)
-        {
-            scene.self_destruct();
-        }
-        scenes.clear();
-        for (auto& mesh: meshes)
-        {
-            mesh.second.self_destruct();
-        }
-        scenes.clear();
-        pipeline.self_destruct();
         swapchain.self_destruct();
         render_pass.self_destruct();
-        dsh.self_destruct();
         VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed VulkanRenderContext\n");
     }
 
     void VulkanRenderContext::draw_frame(const Camera& camera, float time_diff)
     {
         ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        meshes[0].first = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
         pc.MVP = camera.getVP() * ubo.M;
         uniform_buffers[current_frame].update_data(ubo);
 
@@ -164,7 +149,6 @@ namespace ve
         rpbi.clearValueCount = clear_values.size();
         rpbi.pClearValues = clear_values.data();
         vcc.graphics_cb[current_frame].beginRenderPass(rpbi, vk::SubpassContents::eInline);
-        vcc.graphics_cb[current_frame].bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
 
         vk::Viewport viewport{};
         viewport.x = 0.0f;
@@ -181,16 +165,9 @@ namespace ve
 
         std::vector<vk::DeviceSize> offsets(1, 0);
 
-        for (auto& mesh: meshes)
+        for (auto& ro: ros)
         {
-            pc.MVP = vp * mesh.first;
-        vcc.graphics_cb[current_frame].pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &pc);
-            mesh.second.draw(vcc.graphics_cb[current_frame], pipeline.get_layout(), dsh.get_sets(), current_frame);
-        }
-
-        for (auto& scene: scenes)
-        {
-            scene.draw(current_frame, pipeline.get_layout(), dsh.get_sets(), vp);
+            ro.second.draw(vcc.graphics_cb[current_frame], current_frame, vp);
         }
 
         vcc.graphics_cb[current_frame].endRenderPass();

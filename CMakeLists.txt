@@ -7,7 +7,7 @@ src/vk/CommandPool.cpp src/vk/DescriptorSetHandler.cpp src/vk/ExtensionsHandler.
 src/vk/Image.cpp src/vk/Instance.cpp src/vk/LogicalDevice.cpp
 src/vk/PhysicalDevice.cpp src/vk/Pipeline.cpp src/vk/RenderPass.cpp
 src/vk/Shader.cpp src/vk/Swapchain.cpp src/vk/Synchronization.cpp
-src/vk/Scene.cpp src/vk/Mesh.cpp
+src/vk/Scene.cpp src/vk/Mesh.cpp src/vk/RenderObject.cpp
 src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/vk/VulkanRenderContext.cpp)
 
 add_executable(Vulkan_Engine ${SOURCE_FILES})

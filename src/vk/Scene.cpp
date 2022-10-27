@@ -73,11 +73,11 @@ namespace ve
         for (tinygltf::Material& mat: model.materials)
         {
             Material material{};
-            material.base_texture = (mat.values.find("baseColorTexture") != mat.values.end()) ? &textures[mat.values["baseColorTexture"].TextureIndex()] : &textures.back();
-            material.metallic_roughness_texture = (mat.values.find("metallicRoughnessTexture") != mat.values.end()) ? &textures[mat.values["metallicRoughnessTexture"].TextureIndex()] : &textures.back();
-            material.normal_texture = (mat.additionalValues.find("normalTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["normalTexture"].TextureIndex()] : &textures.back();
-            material.emissive_texture = (mat.additionalValues.find("emissiveTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["emissiveTexture"].TextureIndex()] : &textures.back();
-            material.occlusion_texture = (mat.additionalValues.find("occlusionTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["occlusionTexture"].TextureIndex()] : &textures.back();
+            material.base_texture = (mat.values.find("baseColorTexture") != mat.values.end()) ? &textures[mat.values["baseColorTexture"].TextureIndex()] : nullptr;
+            material.metallic_roughness_texture = (mat.values.find("metallicRoughnessTexture") != mat.values.end()) ? &textures[mat.values["metallicRoughnessTexture"].TextureIndex()] : nullptr;
+            material.normal_texture = (mat.additionalValues.find("normalTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["normalTexture"].TextureIndex()] : nullptr;
+            material.emissive_texture = (mat.additionalValues.find("emissiveTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["emissiveTexture"].TextureIndex()] : nullptr;
+            material.occlusion_texture = (mat.additionalValues.find("occlusionTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["occlusionTexture"].TextureIndex()] : nullptr;
             if (mat.values.find("baseColorFactor") != mat.values.end())
             {
                 material.base_color = glm::make_vec4(mat.values["baseColorFactor"].ColorFactor().data());
@@ -97,11 +97,11 @@ namespace ve
             materials.push_back(material);
         }
         Material default_mat;
-        default_mat.base_texture = &textures.back();
-        default_mat.metallic_roughness_texture = &textures.back();
-        default_mat.normal_texture = &textures.back();
-        default_mat.emissive_texture = &textures.back();
-        default_mat.occlusion_texture = &textures.back();
+        default_mat.base_texture = nullptr;
+        default_mat.metallic_roughness_texture = nullptr;
+        default_mat.normal_texture = nullptr;
+        default_mat.emissive_texture = nullptr;
+        default_mat.occlusion_texture = nullptr;
         materials.push_back(default_mat);
         const tinygltf::Scene& scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
         // traverse scene nodes

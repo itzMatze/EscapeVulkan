@@ -5,16 +5,15 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
+#include "Camera.hpp"
 #include "common.hpp"
 #include "vk/Buffer.hpp"
 #include "vk/DescriptorSetHandler.hpp"
-#include "vk/Pipeline.hpp"
+#include "vk/RenderObject.hpp"
 #include "vk/RenderPass.hpp"
 #include "vk/Swapchain.hpp"
 #include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanMainContext.hpp"
-#include "vk/Scene.hpp"
-#include "Camera.hpp"
 
 namespace ve
 {
@@ -47,17 +46,14 @@ namespace ve
         uint32_t current_frame = 0;
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
-        DescriptorSetHandler dsh;
         std::vector<ve::Buffer> uniform_buffers;
         std::unordered_map<SyncNames, std::vector<uint32_t>> sync_indices;
-        std::vector<std::pair<glm::mat4, Mesh>> meshes;
         std::vector<Image> images;
         vk::SurfaceFormatKHR surface_format;
         vk::Format depth_format;
         RenderPass render_pass;
         Swapchain swapchain;
-        Pipeline pipeline;
-        std::vector<Scene> scenes;
+        std::unordered_map<ShaderFlavor, RenderObject> ros;
 
         void draw_frame(const Camera& camera, float time_diff);
         vk::Extent2D recreate_swapchain();
