@@ -1,10 +1,9 @@
 #pragma once
 
-#include <assimp/Importer.hpp>
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
 #include <string>
 #include <vector>
+
+#include "tiny_gltf.h"
 
 #include "vk/Image.hpp"
 #include "vk/Mesh.hpp"
@@ -23,14 +22,14 @@ namespace ve
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
         std::vector<Mesh> meshes;
-        std::unordered_map<std::string, Image> textures;
+        std::vector<Image> textures;
+        std::vector<Material> materials;
         std::string name;
         std::string dir;
         glm::mat4 transformation;
 
         void load_scene(const std::string& path);
-        void process_node(aiNode* node, const aiScene* scene);
-        Mesh process_mesh(aiMesh* mesh, const aiScene* scene);
-        std::vector<std::string> load_textures(aiMaterial* mat, aiTextureType type, std::string typeName);
+        void process_node(const tinygltf::Node& node, const tinygltf::Model& model, const glm::mat4 trans);
+        void process_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model, const glm::mat4 matrix);
     };
 }// namespace ve

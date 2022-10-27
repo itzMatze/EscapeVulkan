@@ -1,7 +1,7 @@
 #pragma once
 
-#include "vk/VulkanCommandContext.hpp"
 #include "vk/Buffer.hpp"
+#include "vk/VulkanCommandContext.hpp"
 #include "vk_mem_alloc.h"
 
 namespace ve
@@ -10,7 +10,9 @@ namespace ve
     {
     public:
         Image(const VulkanMainContext& vmc, const std::string& name);
+        Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const unsigned char* data, uint32_t width, uint32_t height);
         Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename);
+        void create_image_from_data(const unsigned char* data, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices);
         void create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format, uint32_t width, uint32_t height);
         void create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format);
         void create_image_view(vk::Format format, vk::ImageAspectFlags aspects);

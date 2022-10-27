@@ -11,20 +11,21 @@ src/vk/Scene.cpp src/vk/Mesh.cpp
 src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/vk/VulkanRenderContext.cpp)
 
 add_executable(Vulkan_Engine ${SOURCE_FILES})
-include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/dependencies/VulkanMemoryAllocator-3.0.1/include")
+include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/dependencies/VulkanMemoryAllocator-3.0.1/include" "${PROJECT_SOURCE_DIR}/dependencies/tinygltf-2.6.3/")
 
-find_package(assimp REQUIRED)
 find_package(glm REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(Vulkan REQUIRED)
 
-target_link_libraries(Vulkan_Engine ${ASSIMP_LIBRARIES} ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES})
+target_link_libraries(Vulkan_Engine ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES})
+
+set(SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shader")
 
 function(add_shader TARGET SHADER)
     find_program(GLSLC glslc)
 
-    set(current-shader-path "${CMAKE_CURRENT_SOURCE_DIR}/${SHADER}")
-    set(current-output-path "${CMAKE_CURRENT_BINARY_DIR}/${SHADER}.spv")
+    set(current-shader-path "${SHADER_DIR}/${SHADER}")
+    set(current-output-path "${SHADER_DIR}/bin/${SHADER}.spv")
 
     add_custom_command(
            OUTPUT "${current-output-path}"
@@ -37,7 +38,8 @@ function(add_shader TARGET SHADER)
     target_sources(${TARGET} PRIVATE ${current-output-path})
 endfunction(add_shader)
 
-file(GLOB_RECURSE SHADER_FILES RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/" "${CMAKE_CURRENT_SOURCE_DIR}/shader/*")
-foreach(SHADER_FILE ${SHADER_FILES})
+file(GLOB_RECURSE SHADER_FILES RELATIVE "${SHADER_DIR}" "${SHADER_DIR}/*")
+list(FILTER SHADER_FILES EXCLUDE REGEX ".*spv")
+foreach(SHADER_FILE "${SHADER_FILES}")
     add_shader(Vulkan_Engine ${SHADER_FILE})
 endforeach()

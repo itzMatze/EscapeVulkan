@@ -1,6 +1,5 @@
 #include "vk/Image.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
 #include "ve_log.hpp"
@@ -11,14 +10,24 @@ namespace ve
     Image::Image(const VulkanMainContext& vmc, const std::string& name) : vmc(vmc), name(name)
     {}
 
+    Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const unsigned char* data, uint32_t width, uint32_t height) : vmc(vmc), w(width), h(height), byte_size(width * height * 4)
+    {
+        create_image_from_data(data, vcc, queue_family_indices);
+    }
+
     Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename) : vmc(vmc), name(filename)
     {
         stbi_uc* pixels = stbi_load(filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
         VE_ASSERT(pixels, "Failed to load image \"" << filename << "\"!\n");
         byte_size = w * h * 4;
-        Buffer buffer(vmc, pixels, byte_size, vk::BufferUsageFlagBits::eTransferSrc, {uint32_t(vmc.queues_family_indices.transfer)});
+        create_image_from_data(pixels, vcc, queue_family_indices);
         stbi_image_free(pixels);
         pixels = nullptr;
+    }
+
+    void Image::create_image_from_data(const unsigned char* data, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices)
+    {
+        Buffer buffer(vmc, data, byte_size, vk::BufferUsageFlagBits::eTransferSrc, {uint32_t(vmc.queues_family_indices.transfer)});
 
         create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::Format::eR8G8B8A8Srgb);
 

@@ -12,16 +12,16 @@ namespace ve
         vcc.add_transfer_buffers(1);
 
         const std::vector<ve::Vertex> vertices_one = {
-                {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-                {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-                {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-                {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
+                {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+                {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+                {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+                {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
 
         const std::vector<ve::Vertex> vertices_two = {
-                {{-500.0f, -500.0f, -500.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-                {{500.0f, -500.0f, -500.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-                {{500.0f, -500.0f, 500.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-                {{-500.0f, -500.0f, 500.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
+                {{-500.0f, -500.0f, -500.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
+                {{500.0f, -500.0f, -500.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+                {{500.0f, -500.0f, 500.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+                {{-500.0f, -500.0f, 500.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
 
         const std::vector<uint32_t> indices_one = {
                 0, 1, 2, 2, 3, 0};
@@ -31,26 +31,28 @@ namespace ve
 
         images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
         images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
+        Material m1{};
+        m1.base_texture = &(images[0]);
+        Material m2{};
+        m2.base_texture = &(images[1]);
 
-        meshes.emplace_back(std::make_pair(glm::mat4(1.0f), Mesh(vmc, vcc, vertices_one, indices_one)));
-        meshes.emplace_back(std::make_pair(glm::mat4(1.0f), Mesh(vmc, vcc, vertices_two, indices_two)));
+        meshes.emplace_back(std::make_pair(glm::mat4(1.0f), Mesh(vmc, vcc, vertices_one, indices_one, &m1)));
+        meshes.emplace_back(std::make_pair(glm::mat4(1.0f), Mesh(vmc, vcc, vertices_two, indices_two, &m2)));
 
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             uniform_buffers.push_back(Buffer(vmc, std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}));
             dsh.apply_binding_to_new_sets(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex, uniform_buffers.back().get(), uniform_buffers.back().get_byte_size());
-            dsh.new_set();
-            dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, images.find(ImageNames::Texture)->second);
+
+            for (uint32_t m = 0; m < meshes.size(); ++m)
+            {
+                meshes[m].second.add_set_bindings(dsh);
+            }
 
             for (auto& scene: scenes)
             {
                 scene.add_set_bindings(dsh);
-            }
-
-            for (uint32_t m = 0; m < meshes.size(); ++m)
-            {
-                meshes[m].second.add_set_bindings(dsh, {images[m]});
             }
             dsh.reset_auto_apply_bindings();
         }

@@ -1,7 +1,12 @@
 #include "vk/Scene.hpp"
 
 #include <string>
-#include <regex>
+
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "tiny_gltf.h"
+#include <glm/gtc/type_ptr.hpp>
 
 #include "vk/DescriptorSetHandler.hpp"
 #include "vk/common.hpp"
@@ -10,8 +15,7 @@ namespace ve
 {
     Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path, const glm::mat4& transformation) : vmc(vmc), vcc(vcc), name(path.substr(path.find_last_of('/'), path.length())), dir(path.substr(0, path.find_last_of('/'))), transformation(transformation)
     {
-        VE_LOG_CONSOLE(VE_INFO, "Loading scene \"" << name << "\"\n");
-        textures.emplace("ANY", Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
+        VE_LOG_CONSOLE(VE_INFO, "Loading glb: \"" << path << "\"\n");
         load_scene(path);
     }
 
@@ -19,7 +23,7 @@ namespace ve
     {
         for (auto& mesh: meshes)
         {
-            mesh.add_set_bindings(dsh, textures);
+            mesh.add_set_bindings(dsh);
         }
     }
 
@@ -32,7 +36,7 @@ namespace ve
         meshes.clear();
         for (auto& texture: textures)
         {
-            texture.second.self_destruct();
+            texture.self_destruct();
         }
         textures.clear();
     }
@@ -49,115 +53,171 @@ namespace ve
 
     void Scene::load_scene(const std::string& path)
     {
-        Assimp::Importer importer;
-        const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_OptimizeGraph | aiProcess_OptimizeMeshes | aiProcess_JoinIdenticalVertices);
+        tinygltf::TinyGLTF loader;
+        tinygltf::Model model;
+        std::string err;
+        std::string warn;
+        if (!loader.LoadBinaryFromFile(&model, &err, &warn, path)) VE_THROW("Failed to load glb: \"" << path << "\"\n");
+        if (!warn.empty()) VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << warn << "\n");
+        if (!err.empty()) VE_THROW(err);
 
-        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
+        // load textures
+        for (tinygltf::Texture& tex: model.textures)
         {
-            VE_THROW("Failed to load scene \"" << path << "\": " << importer.GetErrorString());
+            textures.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height));
         }
+        std::vector<unsigned char> black{0, 0, 0, 0};
+        textures.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, black.data(), 1, 1));
 
-        process_node(scene->mRootNode, scene);
+        // load materials
+        for (tinygltf::Material& mat: model.materials)
+        {
+            Material material{};
+            material.base_texture = (mat.values.find("baseColorTexture") != mat.values.end()) ? &textures[mat.values["baseColorTexture"].TextureIndex()] : &textures.back();
+            material.metallic_roughness_texture = (mat.values.find("metallicRoughnessTexture") != mat.values.end()) ? &textures[mat.values["metallicRoughnessTexture"].TextureIndex()] : &textures.back();
+            material.normal_texture = (mat.additionalValues.find("normalTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["normalTexture"].TextureIndex()] : &textures.back();
+            material.emissive_texture = (mat.additionalValues.find("emissiveTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["emissiveTexture"].TextureIndex()] : &textures.back();
+            material.occlusion_texture = (mat.additionalValues.find("occlusionTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["occlusionTexture"].TextureIndex()] : &textures.back();
+            if (mat.values.find("baseColorFactor") != mat.values.end())
+            {
+                material.base_color = glm::make_vec4(mat.values["baseColorFactor"].ColorFactor().data());
+            }
+            if (mat.values.find("metallicFactor") != mat.values.end())
+            {
+                material.metallic = static_cast<float>(mat.values["metallicFactor"].Factor());
+            }
+            if (mat.values.find("roughnessFactor") != mat.values.end())
+            {
+                material.roughness = static_cast<float>(mat.values["roughnessFactor"].Factor());
+            }
+            if (mat.additionalValues.find("emissiveFactor") != mat.additionalValues.end())
+            {
+                material.emission = glm::vec4(glm::make_vec3(mat.additionalValues["emissiveFactor"].ColorFactor().data()), 1.0);
+            }
+            materials.push_back(material);
+        }
+        Material default_mat;
+        default_mat.base_texture = &textures.back();
+        default_mat.metallic_roughness_texture = &textures.back();
+        default_mat.normal_texture = &textures.back();
+        default_mat.emissive_texture = &textures.back();
+        default_mat.occlusion_texture = &textures.back();
+        materials.push_back(default_mat);
+        const tinygltf::Scene& scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
+        // traverse scene nodes
+        for (auto& node_idx: scene.nodes)
+        {
+            process_node(model.nodes[node_idx], model, glm::mat4(1.0f));
+        }
     }
 
-    void Scene::process_node(aiNode* node, const aiScene* scene)
+    void Scene::process_node(const tinygltf::Node& node, const tinygltf::Model& model, const glm::mat4 trans)
     {
-        for (uint32_t i = 0; i < node->mNumMeshes; ++i)
+        glm::vec3 translation = (node.translation.size() == 3) ? glm::make_vec3(node.translation.data()) : glm::dvec3(0.0f);
+        glm::quat q = (node.rotation.size() == 4) ? glm::make_quat(node.rotation.data()) : glm::qua<double>();
+        glm::vec3 scale = (node.scale.size() == 3) ? glm::make_vec3(node.scale.data()) : glm::dvec3(1.0f);
+        glm::mat4 matrix = (node.matrix.size() == 16) ? glm::make_mat4x4(node.matrix.data()) : glm::dmat4(1.0f);
+        matrix = trans * glm::translate(glm::mat4(1.0f), translation) * glm::mat4(q) * glm::scale(glm::mat4(1.0f), scale) * matrix;
+        for (auto& child_idx: node.children)
         {
-            aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-            meshes.push_back(process_mesh(mesh, scene));
+            process_node(model.nodes[child_idx], model, matrix);
         }
-        for (uint32_t i = 0; i < node->mNumChildren; ++i)
-        {
-            process_node(node->mChildren[i], scene);
-        }
+        if (node.mesh > -1) (process_mesh(model.meshes[node.mesh], model, matrix));
     }
 
-    Mesh Scene::process_mesh(aiMesh* mesh, const aiScene* scene)
+    void Scene::process_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model, const glm::mat4 matrix)
     {
-        std::vector<Vertex> vertices;
-        std::vector<uint32_t> indices;
-
-        // process vertices
-        for (uint32_t i = 0; i < mesh->mNumVertices; ++i)
+        for (const tinygltf::Primitive& primitive: mesh.primitives)
         {
-            Vertex v;
-            v.pos.x = mesh->mVertices[i].x;
-            v.pos.y = mesh->mVertices[i].y;
-            v.pos.z = mesh->mVertices[i].z;
-            v.normal.x = mesh->mNormals[i].x;
-            v.normal.y = mesh->mNormals[i].y;
-            v.normal.z = mesh->mNormals[i].z;
+            std::vector<Vertex> vertices;
+            std::vector<uint32_t> indices;
+            // vertices
+            {
+                const float* pos_buffer = nullptr;
+                const float* normal_buffer = nullptr;
+                const float* tex_buffer = nullptr;
+                const float* color_buffer = nullptr;
 
-            if (mesh->mColors[0])
-            {
-                v.color.r = mesh->mColors[0][i].r;
-                v.color.g = mesh->mColors[0][i].g;
-                v.color.b = mesh->mColors[0][i].b;
-                //v.color.a = mesh->mColors[0][i].a;
-            }
-            else
-            {
-                aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+                int pos_stride;
+                int normal_stride;
+                int tex_stride;
+                int color_stride;
 
-                aiColor3D color(0.f, 0.f, 0.f);
-                material->Get(AI_MATKEY_COLOR_DIFFUSE, color);
-                v.color.r = color.r;
-                v.color.g = color.g;
-                v.color.b = color.b;
+                const tinygltf::Accessor& pos_accessor = model.accessors[primitive.attributes.find("POSITION")->second];
+                const tinygltf::BufferView& pos_view = model.bufferViews[pos_accessor.bufferView];
+                pos_buffer = reinterpret_cast<const float*>(&(model.buffers[pos_view.buffer].data[pos_accessor.byteOffset + pos_view.byteOffset]));
+                pos_stride = pos_accessor.ByteStride(pos_view) ? (pos_accessor.ByteStride(pos_view) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
+                if (primitive.attributes.find("NORMAL") != primitive.attributes.end())
+                {
+                    const tinygltf::Accessor& normal_accessor = model.accessors[primitive.attributes.find("NORMAL")->second];
+                    const tinygltf::BufferView& normal_view = model.bufferViews[normal_accessor.bufferView];
+                    normal_buffer = reinterpret_cast<const float*>(&(model.buffers[normal_view.buffer].data[normal_accessor.byteOffset + normal_view.byteOffset]));
+                    normal_stride = normal_accessor.ByteStride(normal_view) ? (normal_accessor.ByteStride(normal_view) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
+                }
+                if (primitive.attributes.find("TEXCOORD_0") != primitive.attributes.end())
+                {
+                    const tinygltf::Accessor& tex_accessor = model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
+                    const tinygltf::BufferView& tex_view = model.bufferViews[tex_accessor.bufferView];
+                    tex_buffer = reinterpret_cast<const float*>(&(model.buffers[tex_view.buffer].data[tex_accessor.byteOffset + tex_view.byteOffset]));
+                    tex_stride = tex_accessor.ByteStride(tex_view) ? (tex_accessor.ByteStride(tex_view) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC2);
+                }
+                if (primitive.attributes.find("COLOR_0") != primitive.attributes.end())
+                {
+                    const tinygltf::Accessor& color_accessor = model.accessors[primitive.attributes.find("COLOR_0")->second];
+                    const tinygltf::BufferView& color_view = model.bufferViews[color_accessor.bufferView];
+                    color_buffer = reinterpret_cast<const float*>(&(model.buffers[color_view.buffer].data[color_accessor.byteOffset + color_view.byteOffset]));
+                    color_stride = color_accessor.ByteStride(color_view) ? (color_accessor.ByteStride(color_view) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
+                }
 
-                //v.color = glm::vec3(0.0f, 0.0f, 0.0f);
+                for (size_t i = 0; i < pos_accessor.count; ++i)
+                {
+                    Vertex vertex;
+                    glm::vec4 tmp_pos = matrix * glm::vec4(glm::make_vec3(&pos_buffer[i * pos_stride]), 1.0f);
+                    vertex.pos = glm::vec3(tmp_pos.x / tmp_pos.w, tmp_pos.y / tmp_pos.w, tmp_pos.z / tmp_pos.w);
+                    VE_ASSERT(normal_buffer, "No normals in this model!");
+                    vertex.normal = glm::normalize(glm::make_vec3(&normal_buffer[i * normal_stride]));
+                    if (color_buffer)
+                    {
+                        vertex.color = glm::make_vec4(&color_buffer[i * color_stride]);
+                    }
+                    else if (primitive.material > -1 && materials[primitive.material].base_color.length() > 0.0f)
+                    {
+                        vertex.color = glm::vec4(materials[primitive.material].base_color);
+                    }
+                    else
+                    {
+                        vertex.color = glm::vec4(1.0f);
+                    }
+                    vertex.tex = tex_buffer ? glm::make_vec2(&tex_buffer[i * tex_stride]) : glm::vec2(-1.0f);
+                    vertices.push_back(vertex);
+                }
             }
-            if (mesh->mTextureCoords[0])
+            // indices
+            const tinygltf::Accessor& accessor = model.accessors[primitive.indices > -1 ? primitive.indices : 0];
+            const tinygltf::BufferView& buffer_view = model.bufferViews[accessor.bufferView];
+            const void* raw_data = &(model.buffers[buffer_view.buffer].data[accessor.byteOffset + buffer_view.byteOffset]);
+
+            auto add_indices([&](const auto* buf) -> void {
+                for (size_t i = 0; i < accessor.count; ++i)
+                {
+                    indices.push_back(buf[i]);
+                }
+            });
+            switch (accessor.componentType)
             {
-                v.tex.x = mesh->mTextureCoords[0][i].x;
-                v.tex.y = mesh->mTextureCoords[0][i].y;
+                case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT:
+                    add_indices(static_cast<const uint32_t*>(raw_data));
+                    break;
+                case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT:
+                    add_indices(static_cast<const uint16_t*>(raw_data));
+                    break;
+                case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE:
+                    add_indices(static_cast<const uint8_t*>(raw_data));
+                    break;
+                default:
+                    VE_THROW("Index component type " << accessor.componentType << " not supported!");
             }
-            else
-            {
-                v.tex = glm::vec2(-1.0f, -1.0f);
-            }
-            vertices.push_back(v);
+            meshes.push_back(Mesh(vmc, vcc, vertices, indices, &(materials[std::max(primitive.material, 0)])));
         }
-        // process indices
-        for (uint32_t i = 0; i < mesh->mNumFaces; ++i)
-        {
-            aiFace face = mesh->mFaces[i];
-            for (uint32_t j = 0; j < face.mNumIndices; ++j)
-                indices.push_back(face.mIndices[j]);
-        }
-        // process material
-        std::vector<std::string> texture_names;
-        if (mesh->mMaterialIndex >= 0)
-        {
-            aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-
-            std::vector<std::string> diffuse_names = load_textures(material, aiTextureType_DIFFUSE, "texture_diffuse");
-            texture_names.insert(texture_names.end(), diffuse_names.begin(), diffuse_names.end());
-            //std::vector<Image> specular_textures = load_textures(material, aiTextureType_SPECULAR, "texture_specular");
-            //textures.insert(textures.end(), specular_textures.begin(), specular_textures.end());
-        }
-
-        return Mesh(vmc, vcc, vertices, indices, texture_names);
-    }
-
-    std::vector<std::string> Scene::load_textures(aiMaterial* mat, aiTextureType type, std::string typeName)
-    {
-        std::vector<std::string> filenames;
-        for (uint32_t i = 0; i < mat->GetTextureCount(type); ++i)
-        {
-            aiString ai_name;
-            mat->GetTexture(type, i, &ai_name);
-            filenames.push_back(ai_name.C_Str());
-            if (!textures.contains(filenames.back()))
-            {
-                std::string s = filenames.back();
-                std::replace(s.begin(), s.end(), '\\', '/');
-                Image texture(vmc, vcc, {uint32_t(vmc.queues_family_indices.graphics)}, dir + "/" + s);
-                textures.emplace(filenames.back(), texture);
-            }
-            return filenames;// we currently only can handle one texture
-        }
-        return {};
     }
 }// namespace ve

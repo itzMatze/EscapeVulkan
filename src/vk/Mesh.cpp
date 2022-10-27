@@ -2,10 +2,7 @@
 
 namespace ve
 {
-    Mesh::Mesh(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const std::vector<std::string>& texture_names) : vertex_buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc), index_buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc), texture_names(texture_names)
-    {}
-    
-    Mesh::Mesh(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices) : vertex_buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc), index_buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc)
+    Mesh::Mesh(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material) : vertex_buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc), index_buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc), mat(material)
     {}
 
     void Mesh::self_destruct()
@@ -14,16 +11,10 @@ namespace ve
         index_buffer.self_destruct();
     }
 
-    void Mesh::add_set_bindings(DescriptorSetHandler& dsh, const std::unordered_map<std::string, Image>& textures)
+    void Mesh::add_set_bindings(DescriptorSetHandler& dsh)
     {
         descriptor_set_indices.push_back(dsh.new_set());
-        dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, textures.find(/*texture_names[0]*/ "ANY")->second);
-    }
-
-    void Mesh::add_set_bindings(DescriptorSetHandler& dsh, const std::vector<Image>& textures)
-    {
-        descriptor_set_indices.push_back(dsh.new_set());
-        dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, textures[0]);
+        dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment, *(mat->base_texture));
     }
 
     void Mesh::draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, const std::vector<vk::DescriptorSet>& sets, uint32_t current_frame)
