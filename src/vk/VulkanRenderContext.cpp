@@ -6,34 +6,11 @@
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc), scene(vmc)
+    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc), scene(vmc, vcc)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
 
-        const std::vector<ve::Vertex> vertices_one = {
-                {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-                {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-                {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-                {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
-
-        const std::vector<ve::Vertex> vertices_two = {
-                {{-500.0f, -500.0f, -500.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-                {{500.0f, -500.0f, -500.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-                {{500.0f, -500.0f, 500.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-                {{-500.0f, -500.0f, 500.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}};
-
-        const std::vector<uint32_t> indices_one = {
-                0, 1, 2, 2, 3, 0};
-
-        const std::vector<uint32_t> indices_two = {
-                0, 1, 2, 2, 3, 0};
-
-        images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
-        Material m1{};
-        m1.base_texture = &(images[0]);
-
-        scene.add_model("floor", ModelHandle(ShaderFlavor::Basic, &vertices_two, &indices_two, nullptr));
         scene.load("../assets/scenes/default.json");
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
@@ -60,11 +37,6 @@ namespace ve
 
     void VulkanRenderContext::self_destruct()
     {
-        for (auto& image: images)
-        {
-            image.self_destruct();
-        }
-        images.clear();
         for (auto& buffer: uniform_buffers)
         {
             buffer.self_destruct();

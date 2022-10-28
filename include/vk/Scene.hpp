@@ -20,8 +20,11 @@ namespace ve
         void draw(vk::CommandBuffer& cb, uint32_t current_frame, const glm::mat4& vp);
 
     private:
+        const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
         std::unordered_map<ShaderFlavor, RenderObject> ros;
         std::unordered_map<std::string, ModelHandle> model_handles;
+        std::vector<Image> images;
+        std::vector<Material> materials;
     };
 }// namespace ve

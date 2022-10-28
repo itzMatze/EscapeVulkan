@@ -47,7 +47,6 @@ namespace ve
         VulkanCommandContext& vcc;
         std::vector<ve::Buffer> uniform_buffers;
         std::unordered_map<SyncNames, std::vector<uint32_t>> sync_indices;
-        std::vector<Image> images;
         Swapchain swapchain;
         Scene scene;
 
