@@ -1,39 +1,26 @@
 #pragma once
 
-#include <string>
-#include <vector>
-
-#include "tiny_gltf.h"
-
-#include "vk/Image.hpp"
-#include "vk/Mesh.hpp"
+#include "vk/RenderObject.hpp"
+#include "vk/Model.hpp"
+#include "common.hpp"
 
 namespace ve
 {
     class Scene
     {
     public:
-        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path);
-        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material);
+        Scene(const VulkanMainContext& vmc);
+        void construct_models(VulkanCommandContext& vcc);
+        void construct_render_objects(const vk::RenderPass& render_pass);
         void self_destruct();
-        void add_set_bindings(DescriptorSetHandler& dsh);
-        void draw(uint32_t current_frame, const vk::PipelineLayout& layout, const std::vector<vk::DescriptorSet>& sets, const glm::mat4& vp);
-        void translate(const glm::vec3& trans);
-        void scale(const glm::vec3& scale);
-        void rotate(float degree, const glm::vec3& axis);
-
+        void load(const std::string& path);
+        void add_model(const std::string& key, ModelHandle model_handle);
+        void add_bindings();
+        Model* get_model(const std::string& key);
+        DescriptorSetHandler& get_dsh(ShaderFlavor flavor);
+        void draw(vk::CommandBuffer& cb, uint32_t current_frame, const glm::mat4& vp);
     private:
-        const VulkanMainContext& vmc;
-        VulkanCommandContext& vcc;
-        std::vector<Mesh> meshes;
-        std::vector<Image> textures;
-        std::vector<Material> materials;
-        std::string name;
-        std::string dir;
-        glm::mat4 transformation;
-
-        void load_scene(const std::string& path);
-        void process_node(const tinygltf::Node& node, const tinygltf::Model& model, const glm::mat4 trans);
-        void process_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model, const glm::mat4 matrix);
+        std::unordered_map<ShaderFlavor, RenderObject> ros;
+        std::unordered_map<std::string, ModelHandle> model_handles;
     };
-}// namespace ve
+}

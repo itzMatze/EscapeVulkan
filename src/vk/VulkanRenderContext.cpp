@@ -6,7 +6,7 @@
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc)
+    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc), scene(vmc)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
@@ -32,10 +32,8 @@ namespace ve
         images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, "../assets/textures/white.png"));
         Material m1{};
         m1.base_texture = &(images[0]);
-        ros.emplace(ShaderFlavor::Default, vmc);
-        ros.emplace(ShaderFlavor::Basic, vmc);
 
-        scene_handles.emplace("floor", SceneHandle(ShaderFlavor::Basic, &vertices_two, &indices_two, nullptr));
+        scene.add_model("floor", ModelHandle(ShaderFlavor::Basic, &vertices_two, &indices_two, nullptr));
 
         for (auto& scene_handle: scene_handles)
         {
@@ -51,23 +49,19 @@ namespace ve
         ros.at(ShaderFlavor::Default).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Default).dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
 
-        ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
+        scene.construct_models(vcc);
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             uniform_buffers.push_back(Buffer(vmc, std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}));
-            ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(0, uniform_buffers.back());
-            ros.at(ShaderFlavor::Basic).dsh.apply_descriptor_to_new_sets(0, uniform_buffers.back());
-            for (auto& ro: ros)
-            {
-                ro.second.add_bindings();
-            }
-            ros.at(ShaderFlavor::Default).dsh.reset_auto_apply_bindings();
-            ros.at(ShaderFlavor::Basic).dsh.reset_auto_apply_bindings();
+            scene.get_dsh(ShaderFlavor::Default).apply_descriptor_to_new_sets(0, uniform_buffers.back());
+            scene.get_dsh(ShaderFlavor::Basic).apply_descriptor_to_new_sets(0, uniform_buffers.back());
+            scene.add_bindings();
+            scene.get_dsh(ShaderFlavor::Default).reset_auto_apply_bindings();
+            scene.get_dsh(ShaderFlavor::Basic).reset_auto_apply_bindings();
         }
 
-        ros.at(ShaderFlavor::Default).construct(swapchain.get_render_pass(), {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("default.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
-        ros.at(ShaderFlavor::Basic).construct(swapchain.get_render_pass(), {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("basic.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
+        scene.construct_render_objects(swapchain.get_render_pass());
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -90,11 +84,7 @@ namespace ve
         {
             buffer.self_destruct();
         }
-        for (auto& ro: ros)
-        {
-            ro.second.self_destruct();
-        }
-        ros.clear();
+        scene.self_destruct();
         uniform_buffers.clear();
         swapchain.self_destruct(true);
         VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed VulkanRenderContext\n");
@@ -103,7 +93,7 @@ namespace ve
     void VulkanRenderContext::draw_frame(const Camera& camera, float time_diff)
     {
         ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        get_scene("floor")->rotate(time_diff * 90.f, glm::vec3(0.0f, 0.0f, 1.0f));
+        scene.get_model("floor")->rotate(time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
         pc.MVP = camera.getVP() * ubo.M;
         uniform_buffers[current_frame].update_data(ubo);
 
@@ -112,7 +102,7 @@ namespace ve
         vcc.sync.wait_for_fence(sync_indices[SyncNames::FRenderFinished][current_frame]);
         vcc.sync.reset_fence(sync_indices[SyncNames::FRenderFinished][current_frame]);
         record_graphics_command_buffer(image_idx.value, camera.getVP());
-        submit_graphics(vk::PipelineStageFlagBits::eColorAttachmentOutput, image_idx.value);
+        submit_graphics(image_idx.value);
         current_frame = (current_frame + 1) % frames_in_flight;
     }
 
@@ -122,15 +112,6 @@ namespace ve
         swapchain.self_destruct(false);
         swapchain.create_swapchain();
         return swapchain.get_extent();
-    }
-
-    Scene* VulkanRenderContext::get_scene(const std::string& key)
-    {
-        if (scene_handles.contains(key))
-        {
-            return ros.at(scene_handles.at(key).shader_flavor).get_scene(scene_handles.at(key).idx);
-        }
-        return nullptr;
     }
 
     void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp)
@@ -165,17 +146,15 @@ namespace ve
 
         std::vector<vk::DeviceSize> offsets(1, 0);
 
-        for (auto& ro: ros)
-        {
-            ro.second.draw(vcc.graphics_cb[current_frame], current_frame, vp);
-        }
+        scene.draw(vcc.graphics_cb[current_frame], current_frame, vp);
 
         vcc.graphics_cb[current_frame].endRenderPass();
         vcc.graphics_cb[current_frame].end();
     }
 
-    void VulkanRenderContext::submit_graphics(vk::PipelineStageFlags wait_stage, uint32_t image_idx)
+    void VulkanRenderContext::submit_graphics(uint32_t image_idx)
     {
+        vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
         vk::SubmitInfo si{};
         si.sType = vk::StructureType::eSubmitInfo;
         si.waitSemaphoreCount = 1;

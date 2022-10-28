@@ -7,54 +7,54 @@ namespace ve
 
     void RenderObject::self_destruct()
     {
-        for (auto& scene: scenes)
+        for (auto& model: models)
         {
-            scene.self_destruct();
+            model.self_destruct();
         }
-        scenes.clear();
+        models.clear();
         pipeline.self_destruct();
         dsh.self_destruct();
     }
 
-    uint32_t RenderObject::add_scene(VulkanCommandContext& vcc, const std::string& path)
+    uint32_t RenderObject::add_model(VulkanCommandContext& vcc, const std::string& path)
     {
-        scenes.emplace_back(Scene(vmc, vcc, path));
-        return (scenes.size() - 1);
+        models.emplace_back(Model(vmc, vcc, path));
+        return (models.size() - 1);
     }
 
-    uint32_t RenderObject::add_scene(VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material)
+    uint32_t RenderObject::add_model(VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material)
     {
-        scenes.emplace_back(vmc, vcc, vertices, indices, material);
-        return (scenes.size() - 1);
+        models.emplace_back(vmc, vcc, vertices, indices, material);
+        return (models.size() - 1);
     }
 
-    Scene* RenderObject::get_scene(uint32_t idx)
+    Model* RenderObject::get_model(uint32_t idx)
     {
-        return &scenes[idx];
+        return &models[idx];
     }
 
     void RenderObject::add_bindings()
     {
-        for (auto& scene: scenes)
+        for (auto& model: models)
         {
-            scene.add_set_bindings(dsh);
+            model.add_set_bindings(dsh);
         }
     }
 
     void RenderObject::construct(const vk::RenderPass render_pass, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names, vk::PolygonMode polygon_mode)
     {
-        if (scenes.empty()) return;
+        if (models.empty()) return;
         dsh.construct();
         pipeline.construct(render_pass, dsh.get_layouts()[0], shader_names, polygon_mode);
     }
 
     void RenderObject::draw(vk::CommandBuffer& cb, uint32_t current_frame, const glm::mat4& vp)
     {
-        if (scenes.empty()) return;
+        if (models.empty()) return;
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
-        for (auto& scene: scenes)
+        for (auto& model: models)
         {
-            scene.draw(current_frame, pipeline.get_layout(), dsh.get_sets(), vp);
+            model.draw(current_frame, pipeline.get_layout(), dsh.get_sets(), vp);
         }
     }
 }// namespace ve
