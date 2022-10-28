@@ -62,9 +62,6 @@ namespace ve
         std::vector<ve::Buffer> uniform_buffers;
         std::unordered_map<SyncNames, std::vector<uint32_t>> sync_indices;
         std::vector<Image> images;
-        vk::SurfaceFormatKHR surface_format;
-        vk::Format depth_format;
-        RenderPass render_pass;
         Swapchain swapchain;
         std::unordered_map<ShaderFlavor, RenderObject> ros;
         std::unordered_map<std::string, SceneHandle> scene_handles;

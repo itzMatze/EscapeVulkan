@@ -6,7 +6,7 @@
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), swapchain(vmc, surface_format, depth_format, render_pass.get())
+    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
@@ -66,8 +66,8 @@ namespace ve
             ros.at(ShaderFlavor::Basic).dsh.reset_auto_apply_bindings();
         }
 
-        ros.at(ShaderFlavor::Default).construct(render_pass.get(), {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("default.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
-        ros.at(ShaderFlavor::Basic).construct(render_pass.get(), {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("basic.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
+        ros.at(ShaderFlavor::Default).construct(swapchain.get_render_pass(), {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("default.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
+        ros.at(ShaderFlavor::Basic).construct(swapchain.get_render_pass(), {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("basic.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -96,8 +96,7 @@ namespace ve
         }
         ros.clear();
         uniform_buffers.clear();
-        swapchain.self_destruct();
-        render_pass.self_destruct();
+        swapchain.self_destruct(true);
         VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed VulkanRenderContext\n");
     }
 
@@ -120,34 +119,9 @@ namespace ve
     vk::Extent2D VulkanRenderContext::recreate_swapchain()
     {
         vcc.sync.wait_idle();
-        swapchain.self_destruct();
-        swapchain.create_swapchain(surface_format, depth_format, render_pass.get());
+        swapchain.self_destruct(false);
+        swapchain.create_swapchain();
         return swapchain.get_extent();
-    }
-
-    vk::SurfaceFormatKHR VulkanRenderContext::choose_surface_format()
-    {
-        std::vector<vk::SurfaceFormatKHR> formats = vmc.get_surface_formats();
-        for (const auto& format: formats)
-        {
-            if (format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) return format;
-        }
-        VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Desired format not found. Using first available.");
-        return formats[0];
-    }
-
-    vk::Format VulkanRenderContext::choose_depth_format()
-    {
-        std::vector<vk::Format> candidates{vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint}; 
-        for (vk::Format format: candidates)
-        {
-            vk::FormatProperties props = vmc.physical_device.get().getFormatProperties(format);
-            if ((props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) == vk::FormatFeatureFlagBits::eDepthStencilAttachment)
-            {
-                return format;
-            }
-        }
-        VE_THROW("Failed to find supported format!");
     }
 
     Scene* VulkanRenderContext::get_scene(const std::string& key)
@@ -164,7 +138,7 @@ namespace ve
         vcc.begin(vcc.graphics_cb[current_frame]);
         vk::RenderPassBeginInfo rpbi{};
         rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
-        rpbi.renderPass = render_pass.get();
+        rpbi.renderPass = swapchain.get_render_pass();
         rpbi.framebuffer = swapchain.get_framebuffer(image_idx);
         rpbi.renderArea.offset = vk::Offset2D(0, 0);
         rpbi.renderArea.extent = swapchain.get_extent();

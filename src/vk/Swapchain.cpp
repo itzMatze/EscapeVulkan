@@ -4,14 +4,19 @@
 
 namespace ve
 {
-    Swapchain::Swapchain(const VulkanMainContext& vmc, const vk::SurfaceFormatKHR& surface_format, const vk::Format& depth_format, const vk::RenderPass& render_pass) : vmc(vmc), depth_buffer(vmc, "Depth Buffer")
+    Swapchain::Swapchain(const VulkanMainContext& vmc) : vmc(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), depth_buffer(vmc, "Depth Buffer")
     {
-        create_swapchain(surface_format, depth_format, render_pass);
+        create_swapchain();
     }
 
     const vk::SwapchainKHR& Swapchain::get() const
     {
         return swapchain;
+    }
+
+    const vk::RenderPass Swapchain::get_render_pass() const
+    {
+        return render_pass.get();
     }
 
     vk::Extent2D Swapchain::get_extent() const
@@ -24,7 +29,7 @@ namespace ve
         return framebuffers[idx];
     }
 
-    void Swapchain::create_swapchain(const vk::SurfaceFormatKHR& surface_format, const vk::Format& depth_format, const vk::RenderPass& render_pass)
+    void Swapchain::create_swapchain()
     {
         std::vector<vk::PresentModeKHR> present_modes = vmc.get_surface_present_modes();
         vk::SurfaceCapabilitiesKHR capabilities = vmc.get_surface_capabilities();
@@ -89,7 +94,7 @@ namespace ve
             std::array<vk::ImageView, 2> attachments{image_view, depth_buffer.get_view()};
             vk::FramebufferCreateInfo fbci{};
             fbci.sType = vk::StructureType::eFramebufferCreateInfo;
-            fbci.renderPass = render_pass;
+            fbci.renderPass = render_pass.get();
             fbci.attachmentCount = attachments.size();
             fbci.pAttachments = attachments.data();
             fbci.width = extent.width;
@@ -100,7 +105,7 @@ namespace ve
         }
     }
 
-    void Swapchain::self_destruct()
+    void Swapchain::self_destruct(bool full)
     {
         for (auto& framebuffer: framebuffers)
         {
@@ -114,6 +119,7 @@ namespace ve
         image_views.clear();
         depth_buffer.self_destruct();
         vmc.logical_device.get().destroySwapchainKHR(swapchain);
+        if (full) render_pass.self_destruct();
     }
 
     vk::PresentModeKHR Swapchain::choose_present_mode(const std::vector<vk::PresentModeKHR>& available_present_modes)
@@ -145,5 +151,30 @@ namespace ve
             extent.width = std::clamp(extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
             extent.height = std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         }
+    }
+
+    vk::SurfaceFormatKHR Swapchain::choose_surface_format()
+    {
+        std::vector<vk::SurfaceFormatKHR> formats = vmc.get_surface_formats();
+        for (const auto& format: formats)
+        {
+            if (format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) return format;
+        }
+        VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Desired format not found. Using first available.");
+        return formats[0];
+    }
+
+    vk::Format Swapchain::choose_depth_format()
+    {
+        std::vector<vk::Format> candidates{vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint};
+        for (vk::Format format: candidates)
+        {
+            vk::FormatProperties props = vmc.physical_device.get().getFormatProperties(format);
+            if ((props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) == vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+            {
+                return format;
+            }
+        }
+        VE_THROW("Failed to find supported format!");
     }
 }// namespace ve
