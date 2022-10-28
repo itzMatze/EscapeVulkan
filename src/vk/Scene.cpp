@@ -7,19 +7,20 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "tiny_gltf.h"
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/transform.hpp>
 
 #include "vk/DescriptorSetHandler.hpp"
 #include "vk/common.hpp"
 
 namespace ve
 {
-    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path, const glm::mat4& transformation) : vmc(vmc), vcc(vcc), name(path.substr(path.find_last_of('/'), path.length())), dir(path.substr(0, path.find_last_of('/'))), transformation(transformation)
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path) : vmc(vmc), vcc(vcc), name(path.substr(path.find_last_of('/'), path.length())), dir(path.substr(0, path.find_last_of('/'))), transformation(glm::mat4(1.0f))
     {
         VE_LOG_CONSOLE(VE_INFO, "Loading glb: \"" << path << "\"\n");
         load_scene(path);
     }
 
-    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material, const glm::mat4& transformation) : vmc(vmc), vcc(vcc), name("custom scene"), transformation(transformation)
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material) : vmc(vmc), vcc(vcc), name("custom scene"), transformation(glm::mat4(1.0f))
     {
         meshes.emplace_back(Mesh(vmc, vcc, vertices, indices, material));
     }
@@ -56,14 +57,43 @@ namespace ve
         }
     }
 
-    void Scene::change_transformation(const glm::mat4& trans)
+    void Scene::translate(const glm::vec3& trans)
     {
-        transformation *= trans;
+        if (this)
+        {
+            transformation = glm::translate(trans) * transformation;
+        }
+        else
+        {
+            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying translation to not existing scene!\n");
+        }
     }
 
-    void Scene::set_transformation(const glm::mat4& trans)
+    void Scene::scale(const glm::vec3& scale)
     {
-        transformation = trans;
+        if (this)
+        {
+            transformation = glm::scale(scale) * transformation;
+        }
+        else
+        {
+            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying scale to not existing scene!\n");
+        }
+    }
+
+    void Scene::rotate(float degree, const glm::vec3& axis)
+    {
+        if (this)
+        {
+            glm::vec3 translation = transformation[3];
+            transformation[3] = glm::vec4(0.0f, 0.0f, 0.0f, transformation[3].w);
+            transformation = glm::rotate(glm::radians(degree), axis) * transformation;
+            translate(translation);
+        }
+        else
+        {
+            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying rotation to not existing scene!\n");
+        }
     }
 
     void Scene::load_scene(const std::string& path)

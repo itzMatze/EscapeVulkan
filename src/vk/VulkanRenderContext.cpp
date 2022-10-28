@@ -1,7 +1,6 @@
 #include "vk/VulkanRenderContext.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/transform.hpp>
 
 #include "vk/common.hpp"
 
@@ -36,9 +35,19 @@ namespace ve
         ros.emplace(ShaderFlavor::Default, vmc);
         ros.emplace(ShaderFlavor::Basic, vmc);
 
-        ros.at(ShaderFlavor::Default).add_scene(vcc, vertices_one, indices_one, &m1, glm::mat4(1.0f));
-        ros.at(ShaderFlavor::Basic).add_scene(vcc, vertices_two, indices_two, nullptr, glm::mat4(1.0f));
+        scene_handles.emplace("floor", SceneHandle(ShaderFlavor::Basic, &vertices_two, &indices_two, nullptr));
 
+        for (auto& scene_handle: scene_handles)
+        {
+            if (scene_handle.second.filename != "none")
+            {
+                scene_handle.second.idx = ros.at(scene_handle.second.shader_flavor).add_scene(vcc, scene_handle.second.filename);
+            }
+            else
+            {
+                scene_handle.second.idx = ros.at(scene_handle.second.shader_flavor).add_scene(vcc, *scene_handle.second.vertices, *scene_handle.second.indices, scene_handle.second.material);
+            }
+        }
         ros.at(ShaderFlavor::Default).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Default).dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
 
@@ -95,7 +104,7 @@ namespace ve
     void VulkanRenderContext::draw_frame(const Camera& camera, float time_diff)
     {
         ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ros.at(ShaderFlavor::Default).change_transformation(0, glm::rotate(time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f)));
+        get_scene("floor")->rotate(time_diff * 90.f, glm::vec3(0.0f, 0.0f, 1.0f));
         pc.MVP = camera.getVP() * ubo.M;
         uniform_buffers[current_frame].update_data(ubo);
 
@@ -139,6 +148,15 @@ namespace ve
             }
         }
         VE_THROW("Failed to find supported format!");
+    }
+
+    Scene* VulkanRenderContext::get_scene(const std::string& key)
+    {
+        if (scene_handles.contains(key))
+        {
+            return ros.at(scene_handles.at(key).shader_flavor).get_scene(scene_handles.at(key).idx);
+        }
+        return nullptr;
     }
 
     void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp)

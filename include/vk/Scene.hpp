@@ -13,13 +13,14 @@ namespace ve
     class Scene
     {
     public:
-        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path, const glm::mat4& transformation);
-        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material, const glm::mat4& transformation);
+        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path);
+        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material);
         void self_destruct();
         void add_set_bindings(DescriptorSetHandler& dsh);
         void draw(uint32_t current_frame, const vk::PipelineLayout& layout, const std::vector<vk::DescriptorSet>& sets, const glm::mat4& vp);
-        void change_transformation(const glm::mat4& trans);
-        void set_transformation(const glm::mat4& trans);
+        void translate(const glm::vec3& trans);
+        void scale(const glm::vec3& scale);
+        void rotate(float degree, const glm::vec3& axis);
 
     private:
         const VulkanMainContext& vmc;
