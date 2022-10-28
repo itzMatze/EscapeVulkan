@@ -34,22 +34,7 @@ namespace ve
         m1.base_texture = &(images[0]);
 
         scene.add_model("floor", ModelHandle(ShaderFlavor::Basic, &vertices_two, &indices_two, nullptr));
-
-        for (auto& scene_handle: scene_handles)
-        {
-            if (scene_handle.second.filename != "none")
-            {
-                scene_handle.second.idx = ros.at(scene_handle.second.shader_flavor).add_scene(vcc, scene_handle.second.filename);
-            }
-            else
-            {
-                scene_handle.second.idx = ros.at(scene_handle.second.shader_flavor).add_scene(vcc, *scene_handle.second.vertices, *scene_handle.second.indices, scene_handle.second.material);
-            }
-        }
-        ros.at(ShaderFlavor::Default).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
-        ros.at(ShaderFlavor::Default).dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
-
-        scene.construct_models(vcc);
+        scene.load("../assets/scenes/default.json");
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -61,7 +46,7 @@ namespace ve
             scene.get_dsh(ShaderFlavor::Basic).reset_auto_apply_bindings();
         }
 
-        scene.construct_render_objects(swapchain.get_render_pass());
+        scene.construct(swapchain.get_render_pass());
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -92,8 +77,9 @@ namespace ve
 
     void VulkanRenderContext::draw_frame(const Camera& camera, float time_diff)
     {
+        total_time += time_diff;
         ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        scene.get_model("floor")->rotate(time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
+        scene.get_model("bunny")->rotate(time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
         pc.MVP = camera.getVP() * ubo.M;
         uniform_buffers[current_frame].update_data(ubo);
 

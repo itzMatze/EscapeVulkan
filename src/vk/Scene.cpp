@@ -1,8 +1,12 @@
 #include "vk/Scene.hpp"
 
+#include <fstream>
+
+#include "json.hpp"
+
 namespace ve
 {
-    Scene::Scene(const VulkanMainContext& vmc)
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vcc(vcc)
     {
         ros.emplace(ShaderFlavor::Default, vmc);
         ros.emplace(ShaderFlavor::Basic, vmc);
@@ -13,22 +17,7 @@ namespace ve
         ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
     }
 
-    void Scene::construct_models(VulkanCommandContext& vcc)
-    {
-        for (auto& model_handle: model_handles)
-        {
-            if (model_handle.second.filename != "none")
-            {
-                model_handle.second.idx = ros.at(model_handle.second.shader_flavor).add_model(vcc, model_handle.second.filename);
-            }
-            else
-            {
-                model_handle.second.idx = ros.at(model_handle.second.shader_flavor).add_model(vcc, *model_handle.second.vertices, *model_handle.second.indices, model_handle.second.material);
-            }
-        }
-    }
-
-    void Scene::construct_render_objects(const vk::RenderPass& render_pass)
+    void Scene::construct(const vk::RenderPass& render_pass)
     {
         ros.at(ShaderFlavor::Default).construct(render_pass, {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("default.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
         ros.at(ShaderFlavor::Basic).construct(render_pass, {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("basic.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
@@ -45,10 +34,44 @@ namespace ve
 
     void Scene::load(const std::string& path)
     {
+        using json = nlohmann::json;
+        std::ifstream file(path);
+        json data = json::parse(file);
+        for (auto& d: data)
+        {
+            ShaderFlavor flavor;
+            if (d.value("ShaderFlavor", "") == "Basic") flavor = ShaderFlavor::Basic;
+            if (d.value("ShaderFlavor", "") == "Default") flavor = ShaderFlavor::Default;
+            add_model(d.value("name", ""), ModelHandle(flavor, std::string("../assets/models/") + std::string(d.value("file", ""))));
+
+            if (d.contains("scale"))
+            {
+                glm::vec3 scale(d["scale"][0], d["scale"][1], d["scale"][2]);
+                get_model(d.value("name", ""))->scale(scale);
+            }
+            if (d.contains("translation"))
+            {
+                glm::vec3 translation(d["translation"][0], d["translation"][1], d["translation"][2]);
+                get_model(d.value("name", ""))->translate(translation);
+            }
+            if (d.contains("rotation"))
+            {
+                glm::vec3 rotation(d["rotation"][1], d["rotation"][2], d["rotation"][3]);
+                get_model(d.value("name", ""))->rotate(d["rotation"][0], rotation);
+            }
+        }
     }
 
     void Scene::add_model(const std::string& key, ModelHandle model_handle)
     {
+        if (model_handle.filename != "none")
+        {
+            model_handle.idx = ros.at(model_handle.shader_flavor).add_model(vcc, model_handle.filename);
+        }
+        else
+        {
+            model_handle.idx = ros.at(model_handle.shader_flavor).add_model(vcc, *model_handle.vertices, *model_handle.indices, model_handle.material);
+        }
         model_handles.emplace(key, model_handle);
     }
 
