@@ -50,7 +50,7 @@ public:
         SDL_Event e;
         while (!quit)
         {
-            move_amount = duration * 0.0125f;
+            move_amount = duration * move_speed;
             dispatch_pressed_keys();
             try
             {
@@ -82,6 +82,7 @@ private:
     Camera camera;
     EventHandler eh;
     float move_amount;
+    float move_speed = 0.02f;
 
     void dispatch_pressed_keys()
     {
@@ -94,12 +95,12 @@ private:
 
         if (eh.pressed_keys.contains(Key::Plus))
         {
-            move_amount += 0.05f;
+            move_speed += 0.01f;
             eh.pressed_keys.erase(Key::Plus);
         }
         if (eh.pressed_keys.contains(Key::Minus))
         {
-            move_amount -= 0.05f;
+            move_speed -= 0.01f;
             eh.pressed_keys.erase(Key::Minus);
         }
         if (eh.pressed_keys.contains(Key::MouseLeft))
