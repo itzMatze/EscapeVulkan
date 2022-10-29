@@ -83,9 +83,9 @@ namespace ve
 
         vk::PipelineMultisampleStateCreateInfo pmssci{};
         pmssci.sType = vk::StructureType::ePipelineMultisampleStateCreateInfo;
-        pmssci.sampleShadingEnable = VK_FALSE;
+        pmssci.sampleShadingEnable = VK_TRUE;
         pmssci.rasterizationSamples = render_pass.get_sample_count();
-        pmssci.minSampleShading = 1.0f;
+        pmssci.minSampleShading = 0.4f;
         pmssci.pSampleMask = nullptr;
         pmssci.alphaToCoverageEnable = VK_FALSE;
         pmssci.alphaToOneEnable = VK_FALSE;

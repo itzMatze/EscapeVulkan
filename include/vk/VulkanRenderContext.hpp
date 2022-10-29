@@ -56,8 +56,8 @@ namespace ve
     private:
         float total_time = 0.0f;
 
-        vk::SampleCountFlagBits choose_sample_count();
         void record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp);
         void submit_graphics(uint32_t image_idx);
+        vk::SampleCountFlagBits choose_sample_count();
     };
 }// namespace ve
