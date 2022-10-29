@@ -12,8 +12,8 @@ namespace ve
         Image(const VulkanMainContext& vmc, const std::string& name, bool use_mip_maps);
         Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const unsigned char* data, uint32_t width, uint32_t height, bool use_mip_maps);
         Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename, bool use_mip_maps);
-        void create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format, uint32_t width, uint32_t height);
-        void create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format);
+        void create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format, uint32_t width, uint32_t height, vk::SampleCountFlagBits sample_count);
+        void create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format, vk::SampleCountFlagBits sample_count);
         void create_image_view(vk::Format format, vk::ImageAspectFlags aspects);
         void self_destruct();
         void transition_image_layout(vk::Format format, vk::ImageLayout new_layout, const VulkanCommandContext& vcc);

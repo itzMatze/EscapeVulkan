@@ -11,10 +11,10 @@ namespace ve
     class Swapchain
     {
     public:
-        Swapchain(const VulkanMainContext& vmc);
+        Swapchain(const VulkanMainContext& vmc, vk::SampleCountFlagBits sample_count);
         void self_destruct(bool full);
         const vk::SwapchainKHR& get() const;
-        const vk::RenderPass get_render_pass() const;
+        const RenderPass& get_render_pass() const;
         vk::Extent2D get_extent() const;
         vk::Framebuffer get_framebuffer(uint32_t idx) const;
         void create_swapchain();
@@ -29,6 +29,7 @@ namespace ve
         std::vector<vk::Image> images;
         std::vector<vk::ImageView> image_views;
         Image depth_buffer;
+        Image color_image;
         std::vector<vk::Framebuffer> framebuffers;
 
         vk::PresentModeKHR choose_present_mode(const std::vector<vk::PresentModeKHR>& available_present_modes);

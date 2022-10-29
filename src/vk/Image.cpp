@@ -30,7 +30,7 @@ namespace ve
         Buffer buffer(vmc, data, byte_size, vk::BufferUsageFlagBits::eTransferSrc, {uint32_t(vmc.queues_family_indices.transfer)});
 
         constexpr vk::Format format = vk::Format::eR8G8B8A8Srgb;
-        create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, format);
+        create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, format, vk::SampleCountFlagBits::e1);
 
         transition_image_layout(format, vk::ImageLayout::eTransferDstOptimal, vcc);
         copy_buffer_to_image(vcc, buffer);
@@ -64,14 +64,14 @@ namespace ve
         sampler = vmc.logical_device.get().createSampler(sci);
     }
 
-    void Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format, uint32_t width, uint32_t height)
+    void Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format, uint32_t width, uint32_t height, vk::SampleCountFlagBits sample_count)
     {
         w = width;
         h = height;
-        create_image(queue_family_indices, usage, format);
+        create_image(queue_family_indices, usage, format, sample_count);
     }
 
-    void Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format)
+    void Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format, vk::SampleCountFlagBits sample_count)
     {
         mip_levels = mip_levels > 1 ? std::floor(std::log2(std::max(w, h))) + 1 : 1;
         if (mip_levels > 1) usage |= vk::ImageUsageFlagBits::eTransferSrc;
@@ -91,7 +91,7 @@ namespace ve
         ici.sharingMode = queue_family_indices.size() == 1 ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
         ici.queueFamilyIndexCount = queue_family_indices.size();
         ici.pQueueFamilyIndices = queue_family_indices.data();
-        ici.samples = vk::SampleCountFlagBits::e1;
+        ici.samples = sample_count;
         ici.flags = {};
 
         VmaAllocationCreateInfo vaci{};

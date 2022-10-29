@@ -41,7 +41,7 @@ namespace ve
         }
     }
 
-    void RenderObject::construct(const vk::RenderPass render_pass, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names, vk::PolygonMode polygon_mode)
+    void RenderObject::construct(const RenderPass& render_pass, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names, vk::PolygonMode polygon_mode)
     {
         if (models.empty()) return;
         dsh.construct();

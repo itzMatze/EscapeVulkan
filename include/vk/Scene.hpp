@@ -10,7 +10,7 @@ namespace ve
     {
     public:
         Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc);
-        void construct(const vk::RenderPass& render_pass);
+        void construct(const RenderPass& render_pass);
         void self_destruct();
         void load(const std::string& path);
         void add_model(const std::string& key, ModelHandle model_handle);

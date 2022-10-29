@@ -4,7 +4,7 @@
 
 namespace ve
 {
-    Swapchain::Swapchain(const VulkanMainContext& vmc) : vmc(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), depth_buffer(vmc, "Depth Buffer", false)
+    Swapchain::Swapchain(const VulkanMainContext& vmc, vk::SampleCountFlagBits sample_count) : vmc(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format, sample_count), depth_buffer(vmc, "Depth Buffer", false), color_image(vmc, "Color Buffer", false)
     {
         create_swapchain();
     }
@@ -14,9 +14,9 @@ namespace ve
         return swapchain;
     }
 
-    const vk::RenderPass Swapchain::get_render_pass() const
+    const RenderPass& Swapchain::get_render_pass() const
     {
-        return render_pass.get();
+        return render_pass;
     }
 
     vk::Extent2D Swapchain::get_extent() const
@@ -36,8 +36,13 @@ namespace ve
         choose_extent(capabilities);
         uint32_t image_count = capabilities.maxImageCount > 0 ? std::min(capabilities.minImageCount + 1, capabilities.maxImageCount) : capabilities.minImageCount + 1;
 
-        depth_buffer.create_image({uint32_t(vmc.queues_family_indices.graphics)}, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_format, extent.width, extent.height);
+        depth_buffer.create_image({uint32_t(vmc.queues_family_indices.graphics)}, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_format, extent.width, extent.height, render_pass.get_sample_count());
         depth_buffer.create_image_view(depth_format, vk::ImageAspectFlagBits::eDepth);
+        if (render_pass.get_sample_count() != vk::SampleCountFlagBits::e1)
+        {
+            color_image.create_image({uint32_t(vmc.queues_family_indices.graphics)}, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment, surface_format.format, extent.width, extent.height, render_pass.get_sample_count());
+            color_image.create_image_view(surface_format.format, vk::ImageAspectFlagBits::eColor);
+        }
 
         vk::SwapchainCreateInfoKHR sci{};
         sci.sType = vk::StructureType::eSwapchainCreateInfoKHR;
@@ -91,7 +96,9 @@ namespace ve
 
         for (const auto& image_view: image_views)
         {
-            std::array<vk::ImageView, 2> attachments{image_view, depth_buffer.get_view()};
+            std::vector<vk::ImageView> attachments;
+            if (render_pass.get_sample_count() != vk::SampleCountFlagBits::e1) attachments = {color_image.get_view(), depth_buffer.get_view(), image_view};
+            else attachments = {image_view, depth_buffer.get_view()};
             vk::FramebufferCreateInfo fbci{};
             fbci.sType = vk::StructureType::eFramebufferCreateInfo;
             fbci.renderPass = render_pass.get();
@@ -118,6 +125,7 @@ namespace ve
         }
         image_views.clear();
         depth_buffer.self_destruct();
+        if (render_pass.get_sample_count() != vk::SampleCountFlagBits::e1) color_image.self_destruct();
         vmc.logical_device.get().destroySwapchainKHR(swapchain);
         if (full) render_pass.self_destruct();
     }

@@ -16,7 +16,7 @@ namespace ve
         vmc.logical_device.get().destroyPipelineLayout(pipeline_layout);
     }
 
-    void Pipeline::construct(const vk::RenderPass& render_pass, vk::DescriptorSetLayout set_layout, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names, vk::PolygonMode polygon_mode)
+    void Pipeline::construct(const RenderPass& render_pass, vk::DescriptorSetLayout set_layout, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names, vk::PolygonMode polygon_mode)
     {
         std::vector<Shader> shaders;
         std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
@@ -84,7 +84,7 @@ namespace ve
         vk::PipelineMultisampleStateCreateInfo pmssci{};
         pmssci.sType = vk::StructureType::ePipelineMultisampleStateCreateInfo;
         pmssci.sampleShadingEnable = VK_FALSE;
-        pmssci.rasterizationSamples = vk::SampleCountFlagBits::e1;
+        pmssci.rasterizationSamples = render_pass.get_sample_count();
         pmssci.minSampleShading = 1.0f;
         pmssci.pSampleMask = nullptr;
         pmssci.alphaToCoverageEnable = VK_FALSE;
@@ -150,7 +150,7 @@ namespace ve
         gpci.pColorBlendState = &pcbsci;
         gpci.pDynamicState = &pdsci;
         gpci.layout = pipeline_layout;
-        gpci.renderPass = render_pass;
+        gpci.renderPass = render_pass.get();
         gpci.subpass = 0;
         // it is possible to create a new pipeline by deriving from an existing one
         gpci.basePipelineHandle = VK_NULL_HANDLE;

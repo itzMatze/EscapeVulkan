@@ -6,7 +6,20 @@
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc), scene(vmc, vcc)
+    vk::SampleCountFlagBits VulkanRenderContext::choose_sample_count()
+    {
+        vk::PhysicalDeviceProperties pdp = vmc.physical_device.get().getProperties();
+        vk::Flags<vk::SampleCountFlagBits> counts = (pdp.limits.framebufferColorSampleCounts & pdp.limits.framebufferDepthSampleCounts);
+        if (counts & vk::SampleCountFlagBits::e4) return vk::SampleCountFlagBits::e4;
+        if (counts & vk::SampleCountFlagBits::e2) return vk::SampleCountFlagBits::e2;
+        if (counts & vk::SampleCountFlagBits::e8) return vk::SampleCountFlagBits::e8;
+        if (counts & vk::SampleCountFlagBits::e16) return vk::SampleCountFlagBits::e16;
+        if (counts & vk::SampleCountFlagBits::e32) return vk::SampleCountFlagBits::e32;
+        if (counts & vk::SampleCountFlagBits::e64) return vk::SampleCountFlagBits::e64;
+        return vk::SampleCountFlagBits::e1;
+    }
+
+    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc, choose_sample_count()), scene(vmc, vcc)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
@@ -77,14 +90,15 @@ namespace ve
         vcc.begin(vcc.graphics_cb[current_frame]);
         vk::RenderPassBeginInfo rpbi{};
         rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
-        rpbi.renderPass = swapchain.get_render_pass();
+        rpbi.renderPass = swapchain.get_render_pass().get();
         rpbi.framebuffer = swapchain.get_framebuffer(image_idx);
         rpbi.renderArea.offset = vk::Offset2D(0, 0);
         rpbi.renderArea.extent = swapchain.get_extent();
-        std::array<vk::ClearValue, 2> clear_values{};
+        std::vector<vk::ClearValue> clear_values(2);
         clear_values[0].color = std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};
         clear_values[1].depthStencil.depth = 1.0f;
         clear_values[1].depthStencil.stencil = 0;
+        if (swapchain.get_render_pass().get_sample_count() != vk::SampleCountFlagBits::e1) clear_values.push_back(vk::ClearValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
         rpbi.clearValueCount = clear_values.size();
         rpbi.pClearValues = clear_values.data();
         vcc.graphics_cb[current_frame].beginRenderPass(rpbi, vk::SubpassContents::eInline);
