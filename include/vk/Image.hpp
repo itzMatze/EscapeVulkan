@@ -9,10 +9,9 @@ namespace ve
     class Image
     {
     public:
-        Image(const VulkanMainContext& vmc, const std::string& name);
-        Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const unsigned char* data, uint32_t width, uint32_t height);
-        Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename);
-        void create_image_from_data(const unsigned char* data, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices);
+        Image(const VulkanMainContext& vmc, const std::string& name, bool use_mip_maps);
+        Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const unsigned char* data, uint32_t width, uint32_t height, bool use_mip_maps);
+        Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename, bool use_mip_maps);
         void create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format, uint32_t width, uint32_t height);
         void create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format);
         void create_image_view(vk::Format format, vk::ImageAspectFlags aspects);
@@ -26,6 +25,7 @@ namespace ve
         const VulkanMainContext& vmc;
         const std::string name;
         int w, h, c;
+        uint32_t mip_levels;
         vk::DeviceSize byte_size;
         vk::ImageLayout layout;
         vk::Image image;
@@ -33,6 +33,8 @@ namespace ve
         vk::ImageView view;
         vk::Sampler sampler;
 
+        void create_image_from_data(const unsigned char* data, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices);
         void copy_buffer_to_image(const VulkanCommandContext& vcc, const Buffer& buffer);
+        void generate_mipmaps(const VulkanCommandContext& vcc);
     };
 }// namespace ve

@@ -4,7 +4,7 @@
 
 namespace ve
 {
-    Swapchain::Swapchain(const VulkanMainContext& vmc) : vmc(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), depth_buffer(vmc, "Depth Buffer")
+    Swapchain::Swapchain(const VulkanMainContext& vmc) : vmc(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), depth_buffer(vmc, "Depth Buffer", false)
     {
         create_swapchain();
     }

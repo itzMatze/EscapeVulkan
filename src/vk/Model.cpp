@@ -109,10 +109,10 @@ namespace ve
         // load textures
         for (tinygltf::Texture& tex: model.textures)
         {
-            textures.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height));
+            textures.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true));
         }
         std::vector<unsigned char> black{0, 0, 0, 0};
-        textures.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, black.data(), 1, 1));
+        textures.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, black.data(), 1, 1, false));
 
         // load materials
         for (tinygltf::Material& mat: model.materials)

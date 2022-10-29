@@ -95,7 +95,7 @@ namespace ve
                 Material m;
                 if (d.contains("base_texture"))
                 {
-                    images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, std::string("../assets/textures/") + std::string(d.value("base_texture", ""))));
+                    images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, std::string("../assets/textures/") + std::string(d.value("base_texture", "")), true));
                     m.base_texture = &images.back();
                 }
                 materials.push_back(m);

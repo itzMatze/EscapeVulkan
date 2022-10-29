@@ -7,15 +7,15 @@
 
 namespace ve
 {
-    Image::Image(const VulkanMainContext& vmc, const std::string& name) : vmc(vmc), name(name)
+    Image::Image(const VulkanMainContext& vmc, const std::string& name, bool use_mip_maps) : vmc(vmc), name(name), mip_levels(use_mip_maps ? 2 : 1)
     {}
 
-    Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const unsigned char* data, uint32_t width, uint32_t height) : vmc(vmc), w(width), h(height), byte_size(width * height * 4)
+    Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const unsigned char* data, uint32_t width, uint32_t height, bool use_mip_maps) : vmc(vmc), w(width), h(height), byte_size(width * height * 4), mip_levels(use_mip_maps ? 2 : 1)
     {
         create_image_from_data(data, vcc, queue_family_indices);
     }
 
-    Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename) : vmc(vmc), name(filename)
+    Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename, bool use_mip_maps) : vmc(vmc), name(filename), mip_levels(use_mip_maps ? 2 : 1)
     {
         stbi_uc* pixels = stbi_load(filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
         VE_ASSERT(pixels, "Failed to load image \"" << filename << "\"!\n");
@@ -29,11 +29,16 @@ namespace ve
     {
         Buffer buffer(vmc, data, byte_size, vk::BufferUsageFlagBits::eTransferSrc, {uint32_t(vmc.queues_family_indices.transfer)});
 
-        create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::Format::eR8G8B8A8Srgb);
+        constexpr vk::Format format = vk::Format::eR8G8B8A8Srgb;
+        create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, format);
 
-        transition_image_layout(vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eTransferDstOptimal, vcc);
+        transition_image_layout(format, vk::ImageLayout::eTransferDstOptimal, vcc);
         copy_buffer_to_image(vcc, buffer);
-        transition_image_layout(vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eShaderReadOnlyOptimal, vcc);
+
+        vk::FormatProperties format_properties = vmc.physical_device.get().getFormatProperties(format);
+        if (!(format_properties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear)) mip_levels = 1;
+
+        mip_levels > 1 ? generate_mipmaps(vcc) : transition_image_layout(vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eShaderReadOnlyOptimal, vcc);
 
         buffer.self_destruct();
 
@@ -55,7 +60,7 @@ namespace ve
         sci.mipmapMode = vk::SamplerMipmapMode::eLinear;
         sci.mipLodBias = 0.0f;
         sci.minLod = 0.0f;
-        sci.maxLod = 0.0f;
+        sci.maxLod = mip_levels;
         sampler = vmc.logical_device.get().createSampler(sci);
     }
 
@@ -68,13 +73,15 @@ namespace ve
 
     void Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::Format format)
     {
+        mip_levels = mip_levels > 1 ? std::floor(std::log2(std::max(w, h))) + 1 : 1;
+        if (mip_levels > 1) usage |= vk::ImageUsageFlagBits::eTransferSrc;
         vk::ImageCreateInfo ici{};
         ici.sType = vk::StructureType::eImageCreateInfo;
         ici.imageType = vk::ImageType::e2D;
         ici.extent.width = static_cast<uint32_t>(w);
         ici.extent.height = static_cast<uint32_t>(h);
         ici.extent.depth = 1;
-        ici.mipLevels = 1;
+        ici.mipLevels = mip_levels;
         ici.arrayLayers = 1;
         ici.format = format;
         ici.tiling = vk::ImageTiling::eOptimal;
@@ -103,7 +110,7 @@ namespace ve
         ivci.format = format;
         ivci.subresourceRange.aspectMask = aspects;
         ivci.subresourceRange.baseMipLevel = 0;
-        ivci.subresourceRange.levelCount = 1;
+        ivci.subresourceRange.levelCount = mip_levels;
         ivci.subresourceRange.baseArrayLayer = 0;
         ivci.subresourceRange.layerCount = 1;
         view = vmc.logical_device.get().createImageView(ivci);
@@ -130,7 +137,7 @@ namespace ve
         imb.image = image;
         imb.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
         imb.subresourceRange.baseMipLevel = 0;
-        imb.subresourceRange.levelCount = 1;
+        imb.subresourceRange.levelCount = mip_levels;
         imb.subresourceRange.baseArrayLayer = 0;
         imb.subresourceRange.layerCount = 1;
         if (layout == vk::ImageLayout::eUndefined && new_layout == vk::ImageLayout::eTransferDstOptimal)
@@ -188,5 +195,65 @@ namespace ve
 
         cb.copyBufferToImage(buffer.get(), image, layout, copy_region);
         vcc.submit_transfer(cb, true);
+    }
+
+    void Image::generate_mipmaps(const VulkanCommandContext& vcc)
+    {
+        const vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[0]);
+
+        vk::ImageMemoryBarrier imb{};
+        imb.sType = vk::StructureType::eImageMemoryBarrier;
+        imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imb.image = image;
+        imb.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+        imb.subresourceRange.levelCount = 1;
+        imb.subresourceRange.baseArrayLayer = 0;
+        imb.subresourceRange.layerCount = 1;
+
+        uint32_t mip_w = w;
+        uint32_t mip_h = h;
+        for (uint32_t i = 1; i < mip_levels; ++i)
+        {
+            imb.subresourceRange.baseMipLevel = i - 1;
+            imb.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+            imb.newLayout = vk::ImageLayout::eTransferSrcOptimal;
+            imb.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+            imb.dstAccessMask = vk::AccessFlagBits::eTransferRead;
+            cb.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, nullptr, nullptr, imb);
+
+            vk::ImageBlit blit{};
+            blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
+            blit.srcOffsets[1] = vk::Offset3D(mip_w, mip_h, 1);
+            blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+            blit.srcSubresource.mipLevel = i - 1;
+            blit.srcSubresource.baseArrayLayer = 0;
+            blit.srcSubresource.layerCount = 1;
+            blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
+            blit.dstOffsets[1] = vk::Offset3D(mip_w > 1 ? mip_w / 2 : 1, mip_h > 1 ? mip_h / 2 : 1, 1);
+            blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+            blit.dstSubresource.mipLevel = i;
+            blit.dstSubresource.baseArrayLayer = 0;
+            blit.dstSubresource.layerCount = 1;
+            cb.blitImage(image, vk::ImageLayout::eTransferSrcOptimal, image, vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear);
+
+            imb.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
+            imb.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            imb.srcAccessMask = vk::AccessFlagBits::eTransferRead;
+            imb.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+            cb.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, nullptr, nullptr, imb);
+
+            if (mip_w > 1) mip_w /= 2;
+            if (mip_h > 1) mip_h /= 2;
+        }
+
+        imb.subresourceRange.baseMipLevel = mip_levels - 1;
+        imb.oldLayout = vk::ImageLayout::eTransferDstOptimal;
+        imb.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        imb.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        imb.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+        cb.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, nullptr, nullptr, imb);
+
+        vcc.submit_graphics(cb, true);
     }
 }// namespace ve
