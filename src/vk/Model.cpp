@@ -59,41 +59,20 @@ namespace ve
 
     void Model::translate(const glm::vec3& trans)
     {
-        if (this)
-        {
-            transformation = glm::translate(trans) * transformation;
-        }
-        else
-        {
-            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying translation to not existing model!\n");
-        }
+        transformation = glm::translate(trans) * transformation;
     }
 
     void Model::scale(const glm::vec3& scale)
     {
-        if (this)
-        {
-            transformation = glm::scale(scale) * transformation;
-        }
-        else
-        {
-            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying scale to not existing model!\n");
-        }
+        transformation = glm::scale(scale) * transformation;
     }
 
     void Model::rotate(float degree, const glm::vec3& axis)
     {
-        if (this)
-        {
-            glm::vec3 translation = transformation[3];
-            transformation[3] = glm::vec4(0.0f, 0.0f, 0.0f, transformation[3].w);
-            transformation = glm::rotate(glm::radians(degree), axis) * transformation;
-            translate(translation);
-        }
-        else
-        {
-            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying rotation to not existing model!\n");
-        }
+        glm::vec3 translation = transformation[3];
+        transformation[3] = glm::vec4(0.0f, 0.0f, 0.0f, transformation[3].w);
+        transformation = glm::rotate(glm::radians(degree), axis) * transformation;
+        translate(translation);
     }
 
     void Model::load_model(const std::string& path)

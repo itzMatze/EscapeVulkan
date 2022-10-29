@@ -54,18 +54,18 @@ namespace ve
 
                 if (d.contains("scale"))
                 {
-                    glm::vec3 scale(d["scale"][0], d["scale"][1], d["scale"][2]);
-                    get_model(name)->scale(scale);
+                    glm::vec3 scaling(d["scale"][0], d["scale"][1], d["scale"][2]);
+                    scale(name, scaling);
                 }
                 if (d.contains("translation"))
                 {
                     glm::vec3 translation(d["translation"][0], d["translation"][1], d["translation"][2]);
-                    get_model(name)->translate(translation);
+                    translate(name, translation);
                 }
                 if (d.contains("rotation"))
                 {
                     glm::vec3 rotation(d["rotation"][1], d["rotation"][2], d["rotation"][3]);
-                    get_model(name)->rotate(d["rotation"][0], rotation);
+                    rotate(name, d["rotation"][0], rotation);
                 }
             }
         }
@@ -126,13 +126,40 @@ namespace ve
         }
     }
 
-    Model* Scene::get_model(const std::string& key)
+    void Scene::translate(const std::string& model, const glm::vec3& trans)
     {
-        if (model_handles.contains(key))
+        if (model_handles.contains(model))
         {
-            return ros.at(model_handles.at(key).shader_flavor).get_model(model_handles.at(key).idx);
+            ros.at(model_handles.at(model).shader_flavor).get_model(model_handles.at(model).idx)->translate(trans);
         }
-        return nullptr;
+        else
+        {
+            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying translation to not existing model!\n");
+        }
+    }
+
+    void Scene::scale(const std::string& model, const glm::vec3& scale)
+    {
+        if (model_handles.contains(model))
+        {
+            ros.at(model_handles.at(model).shader_flavor).get_model(model_handles.at(model).idx)->scale(scale);
+        }
+        else
+        {
+            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying scale to not existing model!\n");
+        }
+    }
+
+    void Scene::rotate(const std::string& model, float degree, const glm::vec3& axis)
+    {
+        if (model_handles.contains(model))
+        {
+            ros.at(model_handles.at(model).shader_flavor).get_model(model_handles.at(model).idx)->rotate(degree, axis);
+        }
+        else
+        {
+            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying rotation to not existing model!\n");
+        }
     }
 
     DescriptorSetHandler& Scene::get_dsh(ShaderFlavor flavor)

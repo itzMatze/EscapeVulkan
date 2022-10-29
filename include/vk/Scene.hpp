@@ -15,7 +15,9 @@ namespace ve
         void load(const std::string& path);
         void add_model(const std::string& key, ModelHandle model_handle);
         void add_bindings();
-        Model* get_model(const std::string& key);
+        void translate(const std::string& model, const glm::vec3& trans);
+        void scale(const std::string& model, const glm::vec3& scale);
+        void rotate(const std::string& model, float degree, const glm::vec3& axis);
         DescriptorSetHandler& get_dsh(ShaderFlavor flavor);
         void draw(vk::CommandBuffer& cb, uint32_t current_frame, const glm::mat4& vp);
 

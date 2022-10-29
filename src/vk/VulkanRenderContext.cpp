@@ -51,7 +51,7 @@ namespace ve
     {
         total_time += time_diff;
         ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        scene.get_model("bunny")->rotate(time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
+        scene.rotate("bunny", time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
         pc.MVP = camera.getVP() * ubo.M;
         uniform_buffers[current_frame].update_data(ubo);
 
