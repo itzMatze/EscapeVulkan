@@ -10,5 +10,5 @@ layout(binding = 1) uniform sampler2D tex_sampler;
 
 void main()
 {
-    out_color = max(0.01, dot(vec3(1.0, 1.0, -1.0), frag_normal)) * (frag_tex.x > -0.9 ? texture(tex_sampler, frag_tex) : vec4(frag_color, 1.0));
+    out_color = max(0.01, dot(vec3(1.0, 1.0, -1.0), frag_normal)) * texture(tex_sampler, frag_tex);
 }
