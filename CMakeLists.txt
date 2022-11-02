@@ -10,6 +10,8 @@ src/vk/Shader.cpp src/vk/Swapchain.cpp src/vk/Synchronization.cpp
 src/vk/RenderObject.cpp src/vk/Scene.cpp src/vk/Model.cpp src/vk/Mesh.cpp 
 src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/vk/VulkanRenderContext.cpp)
 
+set(SHADER_FILES default.vert default.frag basic.frag)
+
 add_executable(Vulkan_Engine ${SOURCE_FILES})
 include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/dependencies/VulkanMemoryAllocator-3.0.1/include" "${PROJECT_SOURCE_DIR}/dependencies/tinygltf-2.6.3/")
 
@@ -38,8 +40,6 @@ function(add_shader TARGET SHADER)
     target_sources(${TARGET} PRIVATE ${current-output-path})
 endfunction(add_shader)
 
-file(GLOB_RECURSE SHADER_FILES RELATIVE "${SHADER_DIR}" "${SHADER_DIR}/*")
-list(FILTER SHADER_FILES EXCLUDE REGEX ".*spv")
-foreach(SHADER_FILE "${SHADER_FILES}")
-    add_shader(Vulkan_Engine ${SHADER_FILE})
+foreach(SHADER_FILE ${SHADER_FILES})
+    add_shader(Vulkan_Engine "${SHADER_FILE}")
 endforeach()
