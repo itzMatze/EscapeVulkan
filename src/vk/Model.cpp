@@ -42,7 +42,7 @@ namespace ve
         meshes.clear();
         for (auto& texture: textures)
         {
-            texture.self_destruct();
+            if (texture.has_value()) texture.value().self_destruct();
         }
         textures.clear();
     }
@@ -85,56 +85,64 @@ namespace ve
         if (!warn.empty()) VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << warn << "\n");
         if (!err.empty()) VE_THROW(err);
 
-        // load textures
-        for (tinygltf::Texture& tex: model.textures)
-        {
-            Image image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer)}, model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true);
-            textures.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, image, 1));
-            image.self_destruct();
-        }
-        std::vector<unsigned char> black{0, 0, 0, 0};
-        textures.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, black.data(), 1, 1, false));
-
-        // load materials
-        for (tinygltf::Material& mat: model.materials)
-        {
-            Material material{};
-            material.base_texture = (mat.values.find("baseColorTexture") != mat.values.end()) ? &textures[mat.values["baseColorTexture"].TextureIndex()] : nullptr;
-            material.metallic_roughness_texture = (mat.values.find("metallicRoughnessTexture") != mat.values.end()) ? &textures[mat.values["metallicRoughnessTexture"].TextureIndex()] : nullptr;
-            material.normal_texture = (mat.additionalValues.find("normalTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["normalTexture"].TextureIndex()] : nullptr;
-            material.emissive_texture = (mat.additionalValues.find("emissiveTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["emissiveTexture"].TextureIndex()] : nullptr;
-            material.occlusion_texture = (mat.additionalValues.find("occlusionTexture") != mat.additionalValues.end()) ? &textures[mat.additionalValues["occlusionTexture"].TextureIndex()] : nullptr;
-            if (mat.values.find("baseColorFactor") != mat.values.end())
-            {
-                material.base_color = glm::make_vec4(mat.values["baseColorFactor"].ColorFactor().data());
-            }
-            if (mat.values.find("metallicFactor") != mat.values.end())
-            {
-                material.metallic = static_cast<float>(mat.values["metallicFactor"].Factor());
-            }
-            if (mat.values.find("roughnessFactor") != mat.values.end())
-            {
-                material.roughness = static_cast<float>(mat.values["roughnessFactor"].Factor());
-            }
-            if (mat.additionalValues.find("emissiveFactor") != mat.additionalValues.end())
-            {
-                material.emission = glm::vec4(glm::make_vec3(mat.additionalValues["emissiveFactor"].ColorFactor().data()), 1.0);
-            }
-            materials.push_back(material);
-        }
+        textures.resize(model.textures.size());
+        materials.resize(model.materials.size() + 1);
         Material default_mat;
         default_mat.base_texture = nullptr;
         default_mat.metallic_roughness_texture = nullptr;
         default_mat.normal_texture = nullptr;
         default_mat.emissive_texture = nullptr;
         default_mat.occlusion_texture = nullptr;
-        materials.push_back(default_mat);
+        materials.back().emplace(default_mat);
+
         const tinygltf::Scene& scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
         // traverse scene nodes
         for (auto& node_idx: scene.nodes)
         {
             process_node(model.nodes[node_idx], model, glm::mat4(1.0f));
         }
+    }
+
+    Material* Model::load_material(int mat_idx, const tinygltf::Model& model)
+    {
+        if (mat_idx < 0) return &materials.back().value();
+        const tinygltf::Material& mat = model.materials[mat_idx];
+
+        auto get_texture = [&](const std::string& name, uint32_t base_mip_level) -> Image* {
+            if (mat.values.find(name) == mat.values.end()) return nullptr;
+            int texture_idx = mat.values.at(name).TextureIndex();
+            if (textures[texture_idx].has_value()) return &textures[texture_idx].value();
+            const tinygltf::Texture& tex = model.textures[texture_idx];
+            Image base_image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer)}, model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true);
+            textures[texture_idx].emplace(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, base_image, base_mip_level));
+            base_image.self_destruct();
+            return &textures[texture_idx].value();
+        };
+
+        Material material{};
+        material.base_texture = get_texture("baseColorTexture", 1);
+        material.metallic_roughness_texture = get_texture("metallicRoughnessTexture", 1);
+        material.normal_texture = get_texture("normalTexture", 1);
+        material.emissive_texture = get_texture("emissiveTexture", 1);
+        material.occlusion_texture = get_texture("occlusionTexture", 1);
+        if (mat.values.find("baseColorFactor") != mat.values.end())
+        {
+            material.base_color = glm::make_vec4(mat.values.at("baseColorFactor").ColorFactor().data());
+        }
+        if (mat.values.find("metallicFactor") != mat.values.end())
+        {
+            material.metallic = static_cast<float>(mat.values.at("metallicFactor").Factor());
+        }
+        if (mat.values.find("roughnessFactor") != mat.values.end())
+        {
+            material.roughness = static_cast<float>(mat.values.at("roughnessFactor").Factor());
+        }
+        if (mat.additionalValues.find("emissiveFactor") != mat.additionalValues.end())
+        {
+            material.emission = glm::vec4(glm::make_vec3(mat.additionalValues.at("emissiveFactor").ColorFactor().data()), 1.0);
+        }
+        materials[mat_idx].emplace(material);
+        return &(materials[mat_idx].value());
     }
 
     void Model::process_node(const tinygltf::Node& node, const tinygltf::Model& model, const glm::mat4 trans)
@@ -155,6 +163,7 @@ namespace ve
     {
         for (const tinygltf::Primitive& primitive: mesh.primitives)
         {
+            Material* mat = load_material(primitive.material, model);
             std::vector<Vertex> vertices;
             std::vector<uint32_t> indices;
             // vertices
@@ -206,9 +215,9 @@ namespace ve
                     {
                         vertex.color = glm::make_vec4(&color_buffer[i * color_stride]);
                     }
-                    else if (primitive.material > -1 && materials[primitive.material].base_color.length() > 0.0f)
+                    else if (primitive.material > -1 && mat->base_color.length() > 0.0f)
                     {
-                        vertex.color = glm::vec4(materials[primitive.material].base_color);
+                        vertex.color = glm::vec4(mat->base_color);
                     }
                     else
                     {
@@ -243,7 +252,7 @@ namespace ve
                 default:
                     VE_THROW("Index component type " << accessor.componentType << " not supported!");
             }
-            meshes.emplace_back(Mesh(vmc, vcc, vertices, indices, &(materials[std::max(primitive.material, 0)])));
+            meshes.emplace_back(Mesh(vmc, vcc, vertices, indices, mat));
         }
     }
 }// namespace ve

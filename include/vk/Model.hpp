@@ -26,13 +26,14 @@ namespace ve
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
         std::vector<Mesh> meshes;
-        std::vector<Image> textures;
-        std::vector<Material> materials;
+        std::vector<std::optional<Image>> textures;
+        std::vector<std::optional<Material>> materials;
         std::string name;
         std::string dir;
         glm::mat4 transformation;
 
         void load_model(const std::string& path);
+        Material* load_material(int mat_idx, const tinygltf::Model& model);
         void process_node(const tinygltf::Node& node, const tinygltf::Model& model, const glm::mat4 trans);
         void process_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model, const glm::mat4 matrix);
     };
