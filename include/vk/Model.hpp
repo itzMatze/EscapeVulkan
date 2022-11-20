@@ -25,11 +25,15 @@ namespace ve
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
+        std::vector<Vertex> vertices;
+        uint32_t vertex_count = 0;
+        std::vector<uint32_t> indices;
+        Buffer vertex_buffer;
+        Buffer index_buffer;
         std::vector<Mesh> meshes;
         std::vector<std::optional<Image>> textures;
         std::vector<std::optional<Material>> materials;
         std::string name;
-        std::string dir;
         glm::mat4 transformation;
 
         void load_model(const std::string& path);

@@ -14,7 +14,7 @@
 
 namespace ve
 {
-    Model::Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path) : vmc(vmc), vcc(vcc), name(path.substr(path.find_last_of('/'), path.length())), dir(path.substr(0, path.find_last_of('/'))), transformation(glm::mat4(1.0f))
+    Model::Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path) : vmc(vmc), vcc(vcc), name(path.substr(path.find_last_of('/'), path.length())), transformation(glm::mat4(1.0f))
     {
         VE_LOG_CONSOLE(VE_INFO, "Loading glb: \"" << path << "\"\n");
         load_model(path);
@@ -22,7 +22,9 @@ namespace ve
 
     Model::Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material) : vmc(vmc), vcc(vcc), name("custom model"), transformation(glm::mat4(1.0f))
     {
-        meshes.emplace_back(Mesh(vmc, vcc, vertices, indices, material));
+        vertex_buffer = Buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc);
+        index_buffer = Buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc);
+        meshes.emplace_back(Mesh(vmc, vcc, material, 0, indices.size()));
     }
 
     void Model::add_set_bindings(DescriptorSetHandler& dsh)
@@ -35,6 +37,8 @@ namespace ve
 
     void Model::self_destruct()
     {
+        vertex_buffer.self_destruct();
+        index_buffer.self_destruct();
         for (auto& mesh: meshes)
         {
             mesh.self_destruct();
@@ -51,6 +55,8 @@ namespace ve
     {
         PushConstants pc{vp * transformation};
         vcc.graphics_cb[current_frame].pushConstants(layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &pc);
+        vcc.graphics_cb[current_frame].bindVertexBuffers(0, vertex_buffer.get(), {0});
+        vcc.graphics_cb[current_frame].bindIndexBuffer(index_buffer.get(), 0, vk::IndexType::eUint32);
         for (auto& mesh: meshes)
         {
             mesh.draw(vcc.graphics_cb[current_frame], layout, sets, current_frame);
@@ -101,6 +107,11 @@ namespace ve
         {
             process_node(model.nodes[node_idx], model, glm::mat4(1.0f));
         }
+        vertex_buffer = Buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc);
+        index_buffer = Buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc);
+        // delete vertices and indices on host
+        indices.clear();
+        vertices.clear();
     }
 
     Material* Model::load_material(int mat_idx, const tinygltf::Model& model)
@@ -163,9 +174,8 @@ namespace ve
     {
         for (const tinygltf::Primitive& primitive: mesh.primitives)
         {
+            uint32_t idx_count = indices.size();
             Material* mat = load_material(primitive.material, model);
-            std::vector<Vertex> vertices;
-            std::vector<uint32_t> indices;
             // vertices
             {
                 const float* pos_buffer = nullptr;
@@ -235,7 +245,7 @@ namespace ve
             auto add_indices([&](const auto* buf) -> void {
                 for (size_t i = 0; i < accessor.count; ++i)
                 {
-                    indices.push_back(buf[i]);
+                    indices.push_back(buf[i] + vertex_count);
                 }
             });
             switch (accessor.componentType)
@@ -252,7 +262,8 @@ namespace ve
                 default:
                     VE_THROW("Index component type " << accessor.componentType << " not supported!");
             }
-            meshes.emplace_back(Mesh(vmc, vcc, vertices, indices, mat));
+            vertex_count = vertices.size();
+            meshes.emplace_back(Mesh(vmc, vcc, mat, idx_count, indices.size() - idx_count));
         }
     }
 }// namespace ve

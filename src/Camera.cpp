@@ -59,7 +59,7 @@ void Camera::moveRight(float amount)
 
 void Camera::moveDown(float amount)
 {
-    translate(v * amount);
+    translate(up * amount);
 }
 
 void Camera::updateScreenSize(float width, float height)
