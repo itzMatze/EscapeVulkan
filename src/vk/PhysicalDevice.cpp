@@ -34,7 +34,7 @@ namespace ve
         }
         else if (suitable_p_devices.size() == 1)
         {
-            VE_CONSOLE_ADD(VE_DEBUG, "Only one suitable GPU. Using that one.\n");
+            VE_CONSOLE_ADD(VE_DEBUG, "Only one suitable GPU. Using this one.\n");
             physical_device = physical_devices[*(suitable_p_devices.begin())];
         }
         else
@@ -70,6 +70,7 @@ namespace ve
     void PhysicalDevice::find_queue_families(const std::optional<vk::SurfaceKHR>& surface)
     {
         std::vector<vk::QueueFamilyProperties> queue_families = physical_device.getQueueFamilyProperties();
+        // use scores to determine how good a queue family fits for a task
         QueueFamilyIndices scores;
         for (uint32_t i = 0; i < queue_families.size(); ++i)
         {

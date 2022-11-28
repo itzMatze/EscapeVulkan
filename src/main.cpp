@@ -44,6 +44,7 @@ public:
         constexpr double min_frametime = 5.0;
         auto t1 = std::chrono::high_resolution_clock::now();
         auto t2 = std::chrono::high_resolution_clock::now();
+        // keep time measurement and frametime separate to be able to use a frame limiter
         double duration = 0.0;
         double frametime = 0.0;
         bool quit = false;
@@ -69,6 +70,7 @@ public:
             }
             t2 = std::chrono::high_resolution_clock::now();
             duration = std::chrono::duration<double, std::milli>(t2 - t1).count();
+            // calculate actual frametime by subtracting the waiting time
             frametime = duration - std::max(0.0, min_frametime - frametime);
             vmc.window->set_title(ve::to_string(duration, 4) + " ms; FPS: " + ve::to_string(1000.0 / duration) + " (" + ve::to_string(frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / frametime) + ")");
             t1 = t2;
@@ -93,6 +95,7 @@ private:
         if (eh.pressed_keys.contains(Key::Q)) camera.moveDown(move_amount);
         if (eh.pressed_keys.contains(Key::E)) camera.moveDown(-move_amount);
 
+        // reset state of keys that are used to execute a one time action
         if (eh.pressed_keys.contains(Key::Plus))
         {
             move_speed += 0.01f;

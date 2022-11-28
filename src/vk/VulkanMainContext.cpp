@@ -6,12 +6,14 @@
 
 namespace ve
 {
+    // create VulkanMainContext without window for non graphical applications
     VulkanMainContext::VulkanMainContext() : instance({}), physical_device(instance, surface), logical_device(physical_device, queues_family_indices, queues)
     {
         create_vma_allocator();
         VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created VulkanMainContext\n");
     }
 
+    // create VulkanMainContext with window for graphical applications
     VulkanMainContext::VulkanMainContext(const uint32_t width, const uint32_t height) : window(std::make_optional<Window>(width, height)), instance(window->get_required_extensions()), surface(window->create_surface(instance.get())), physical_device(instance, surface), logical_device(physical_device, queues_family_indices, queues)
     {
         create_vma_allocator();

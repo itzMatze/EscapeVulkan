@@ -7,6 +7,7 @@
 
 namespace ve
 {
+    // contains models and a set of shaders that are used for those models
     class RenderObject
     {
     public:

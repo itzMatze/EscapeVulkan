@@ -39,11 +39,13 @@ namespace ve
 
     void Scene::load(const std::string& path)
     {
+        // load scene from custom json file
         using json = nlohmann::json;
         std::ifstream file(path);
         json data = json::parse(file);
         if (data.contains("model_files"))
         {
+            // load referenced model files
             for (auto& d: data["model_files"])
             {
                 ShaderFlavor flavor;
@@ -69,6 +71,7 @@ namespace ve
                 }
             }
         }
+        // load custom models (vertices and indices directly contained in json file)
         if (data.contains("custom_models"))
         {
             for (auto& d: data["custom_models"])

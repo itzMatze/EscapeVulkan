@@ -19,6 +19,7 @@ namespace ve
         ai.engineVersion = VK_MAKE_VERSION(1, 0, 0);
         ai.apiVersion = VK_API_VERSION_1_3;
 
+        // use ExtensionHandler class to check if extensions and validation layers are available
         std::vector<vk::ExtensionProperties> available_extensions = vk::enumerateInstanceExtensionProperties();
         std::vector<const char*> avail_ext_names;
         for (const auto& ext: available_extensions) avail_ext_names.push_back(ext.extensionName);
