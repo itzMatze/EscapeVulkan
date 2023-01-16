@@ -62,14 +62,14 @@ namespace ve
         uint32_t queue_family_indices[] = {static_cast<uint32_t>(indices.graphics), static_cast<uint32_t>(indices.present)};
         if (indices.graphics != indices.present)
         {
-            VE_LOG_CONSOLE(VE_DEBUG, "Graphics and Presentation queue are two distinct queues. Using Concurrent sharing mode on swapchain.\n");
+            spdlog::debug("Graphics and Presentation queue are two distinct queues. Using Concurrent sharing mode on swapchain.");
             sci.imageSharingMode = vk::SharingMode::eConcurrent;
             sci.queueFamilyIndexCount = 2;
             sci.pQueueFamilyIndices = queue_family_indices;
         }
         else
         {
-            VE_LOG_CONSOLE(VE_DEBUG, "Graphics and Presentation queue are the same queue. Using Exclusive sharing mode on swapchain.\n");
+            spdlog::debug("Graphics and Presentation queue are the same queue. Using Exclusive sharing mode on swapchain.");
             sci.imageSharingMode = vk::SharingMode::eExclusive;
         }
         swapchain = vmc.logical_device.get().createSwapchainKHR(sci);
@@ -136,7 +136,7 @@ namespace ve
         {
             if (pm == vk::PresentModeKHR::eImmediate) return pm;
         }
-        VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Desired present mode not found. Using FIFO.\n");
+        spdlog::warn("Desired present mode not found. Using FIFO.");
         return vk::PresentModeKHR::eFifo;
     }
 
@@ -168,7 +168,7 @@ namespace ve
         {
             if (format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) return format;
         }
-        VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Desired format not found. Using first available.");
+        spdlog::warn("Desired format not found. Using first available.");
         return formats[0];
     }
 

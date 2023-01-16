@@ -137,7 +137,7 @@ namespace ve
         }
         else
         {
-            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying translation to not existing model!\n");
+            spdlog::warn("Applying translation to not existing model!");
         }
     }
 
@@ -149,7 +149,7 @@ namespace ve
         }
         else
         {
-            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying scale to not existing model!\n");
+            spdlog::warn("Applying scale to not existing model!");
         }
     }
 
@@ -161,7 +161,7 @@ namespace ve
         }
         else
         {
-            VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << "Applying rotation to not existing model!\n");
+            spdlog::warn("Applying rotation to not existing model!");
         }
     }
 

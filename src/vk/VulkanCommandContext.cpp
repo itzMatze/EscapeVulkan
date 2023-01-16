@@ -9,7 +9,7 @@ namespace ve
             command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queues_family_indices.graphics));
             command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queues_family_indices.compute));
             command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queues_family_indices.transfer));
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created VulkanCommandContext\n");
+            spdlog::info("Created VulkanCommandContext");
         }
 
         void VulkanCommandContext::add_graphics_buffers(uint32_t count)
@@ -63,7 +63,7 @@ namespace ve
             }
             command_pools.clear();
             sync.self_destruct();
-            VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed VulkanCommandContext\n");
+            spdlog::info("Destroyed VulkanCommandContext");
         }
 
         void VulkanCommandContext::submit(const vk::CommandBuffer& cb, const vk::Queue& queue, bool wait_idle) const

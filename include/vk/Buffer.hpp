@@ -61,8 +61,8 @@ namespace ve
         template<class T>
         void update_data(const T* data, std::size_t elements)
         {
-            VE_ASSERT(sizeof(T) * elements <= byte_size, "Data is larger than buffer!\n");
-            VE_ASSERT(!device_local, "Trying to update data to a buffer that is device local but it should not!\n");
+            VE_ASSERT(sizeof(T) * elements <= byte_size, "Data is larger than buffer!");
+            VE_ASSERT(!device_local, "Trying to update data to a buffer that is device local but it should not!");
 
             void* mapped_mem;
             vmaMapMemory(vmc->va, vmaa, &mapped_mem);
@@ -85,8 +85,8 @@ namespace ve
         template<class T>
         void update_data(const std::vector<T>& data, const VulkanCommandContext& vcc)
         {
-            VE_ASSERT(sizeof(T) * data.size() <= byte_size, "Data is larger than buffer!\n");
-            VE_ASSERT(device_local, "Trying to update data to a buffer that is not device local but it should!\n");
+            VE_ASSERT(sizeof(T) * data.size() <= byte_size, "Data is larger than buffer!");
+            VE_ASSERT(device_local, "Trying to update data to a buffer that is not device local but it should!");
 
             auto [staging_buffer, staging_vmaa] = create_buffer((vk::BufferUsageFlagBits::eTransferSrc), VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, {uint32_t(vmc->queues_family_indices.transfer)});
             void* mapped_data;

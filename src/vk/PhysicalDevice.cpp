@@ -27,24 +27,26 @@ namespace ve
             uint32_t pd_idx = 0;
             do
             {
-                VE_TO_USER("Select one of the suitable GPUs by typing the number\n");
+                std::cout << "Select one of the suitable GPUs by typing the number" << std::endl;
                 std::cin >> pd_idx;
             } while (!suitable_p_devices.contains(pd_idx));
             physical_device = physical_devices[pd_idx];
         }
         else if (suitable_p_devices.size() == 1)
         {
-            VE_CONSOLE_ADD(VE_DEBUG, "Only one suitable GPU. Using this one.\n");
+            spdlog::info("Only one suitable GPU. Using this one.");
             physical_device = physical_devices[*(suitable_p_devices.begin())];
         }
         else
         {
             VE_THROW("No suitable GPUs found!");
         }
+        vk::PhysicalDeviceProperties pdp = physical_device.getProperties();
+        spdlog::info("GPU: {}", pdp.deviceName);
         extensions_handler.remove_missing_extensions();
 
         find_queue_families(surface);
-        VE_LOG_CONSOLE(VE_DEBUG, "Queue family indices: \n    Graphics: " << queue_family_indices.graphics << "\n    Compute:  " << queue_family_indices.compute << "\n    Transfer: " << queue_family_indices.transfer << "\n    Present:  " << queue_family_indices.present << "\n");
+        spdlog::debug("Queue family indices: \n    Graphics: {}\n    Compute:  {}\n    Transfer: {}\n    Present:  {}", queue_family_indices.graphics, queue_family_indices.compute, queue_family_indices.transfer, queue_family_indices.present);
     }
 
     vk::PhysicalDevice PhysicalDevice::get() const
@@ -116,14 +118,14 @@ namespace ve
         std::vector<vk::ExtensionProperties> available_extensions = p_device.enumerateDeviceExtensionProperties();
         std::vector<const char*> avail_ext_names;
         for (const auto& ext: available_extensions) avail_ext_names.push_back(ext.extensionName);
-        VE_TO_USER("    " << idx << " " << pdp.deviceName << " ");
+        std::cout << "    " << idx << " " << pdp.deviceName << " ";
         int32_t missing_extensions = extensions_handler.check_extension_availability(avail_ext_names);
         if (missing_extensions == -1 || !p_device_features.samplerAnisotropy || (surface.has_value() && extensions_handler.find_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME) && !is_swapchain_supported(p_device, surface.value())))
         {
-            VE_TO_USER("(not suitable)\n");
+            std::cout << "(not suitable)\n";
             return false;
         }
-        VE_TO_USER("(suitable, " << missing_extensions << " missing optional extensions)\n");
+        std::cout << "(suitable, " << missing_extensions << " missing optional extensions)\n";
         return true;
     }
 

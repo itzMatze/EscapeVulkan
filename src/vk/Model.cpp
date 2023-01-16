@@ -16,7 +16,7 @@ namespace ve
 {
     Model::Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path) : vmc(vmc), vcc(vcc), name(path.substr(path.find_last_of('/'), path.length())), transformation(glm::mat4(1.0f))
     {
-        VE_LOG_CONSOLE(VE_INFO, "Loading glb: \"" << path << "\"\n");
+        spdlog::info("Loading glb: \"{}\"", path);
         load_model(path);
     }
 
@@ -87,8 +87,8 @@ namespace ve
         tinygltf::Model model;
         std::string err;
         std::string warn;
-        if (!loader.LoadBinaryFromFile(&model, &err, &warn, path)) VE_THROW("Failed to load glb: \"" << path << "\"\n");
-        if (!warn.empty()) VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << warn << "\n");
+        if (!loader.LoadBinaryFromFile(&model, &err, &warn, path)) VE_THROW("Failed to load glb: \"{}\"", path);
+        if (!warn.empty()) spdlog::warn(warn);
         if (!err.empty()) VE_THROW(err);
 
         textures.resize(model.textures.size());
@@ -260,7 +260,7 @@ namespace ve
                     add_indices(static_cast<const uint8_t*>(raw_data));
                     break;
                 default:
-                    VE_THROW("Index component type " << accessor.componentType << " not supported!");
+                    VE_THROW("Index component type \"{}\" not supported!", accessor.componentType);
             }
             vertex_count = vertices.size();
             meshes.emplace_back(Mesh(vmc, vcc, mat, idx_count, indices.size() - idx_count));

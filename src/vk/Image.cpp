@@ -55,7 +55,7 @@ namespace ve
     Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename, bool use_mip_maps) : vmc(vmc), name(filename), mip_levels(use_mip_maps ? 2 : 1)
     {
         stbi_uc* pixels = stbi_load(filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
-        VE_ASSERT(pixels, "Failed to load image \"" << filename << "\"!\n");
+        VE_ASSERT(pixels, "Failed to load image \"{}\"!", filename);
         byte_size = w * h * 4;
         create_image_from_data(pixels, vcc, queue_family_indices);
         stbi_image_free(pixels);

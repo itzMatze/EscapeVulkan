@@ -10,14 +10,14 @@ namespace ve
     VulkanMainContext::VulkanMainContext() : instance({}), physical_device(instance, surface), logical_device(physical_device, queues_family_indices, queues)
     {
         create_vma_allocator();
-        VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created VulkanMainContext\n");
+        spdlog::info("Created VulkanMainContext");
     }
 
     // create VulkanMainContext with window for graphical applications
     VulkanMainContext::VulkanMainContext(const uint32_t width, const uint32_t height) : window(std::make_optional<Window>(width, height)), instance(window->get_required_extensions()), surface(window->create_surface(instance.get())), physical_device(instance, surface), logical_device(physical_device, queues_family_indices, queues)
     {
         create_vma_allocator();
-        VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created VulkanMainContext\n");
+        spdlog::info("Created VulkanMainContext");
     }
 
     void VulkanMainContext::self_destruct()
@@ -27,7 +27,7 @@ namespace ve
         logical_device.self_destruct();
         instance.self_destruct();
         if (window.has_value()) window->self_destruct();
-        VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed VulkanMainContext\n");
+        spdlog::info("Destroyed VulkanMainContext");
     }
 
     std::vector<vk::SurfaceFormatKHR> VulkanMainContext::get_surface_formats() const

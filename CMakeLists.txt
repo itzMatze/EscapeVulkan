@@ -18,8 +18,9 @@ include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJ
 find_package(glm REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(spdlog REQUIRED)
 
-target_link_libraries(Vulkan_Engine ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES})
+target_link_libraries(Vulkan_Engine ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES} spdlog::spdlog)
 
 set(SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shader")
 

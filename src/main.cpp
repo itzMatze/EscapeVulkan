@@ -36,7 +36,7 @@ public:
         vcc.self_destruct();
         vrc.self_destruct();
         vmc.self_destruct();
-        VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed MainContext" << std::endl);
+        spdlog::info("Destroyed MainContext");
     }
 
     void run()
@@ -122,12 +122,18 @@ private:
 
 int main(int argc, char** argv)
 {
-    VE_LOG_CONSOLE(VE_INFO, "Starting\n");
+    std::vector<spdlog::sink_ptr> sinks;
+    sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
+    sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_st>("ve.log", true));
+    auto combined_logger = std::make_shared<spdlog::logger>("default_logger", begin(sinks), end(sinks));
+    spdlog::set_default_logger(combined_logger);
+    spdlog::set_level(spdlog::level::debug);
+    spdlog::info("Starting");
     auto t1 = std::chrono::high_resolution_clock::now();
     RenderingInfo ri(1000, 800);
     MainContext mc(ri);
     auto t2 = std::chrono::high_resolution_clock::now();
-    VE_LOG_CONSOLE(VE_INFO, VE_C_BLUE << "Setup took: " << (std::chrono::duration<double, std::milli>(t2 - t1).count()) << "ms" << std::endl);
+    spdlog::info("Setup took: {} ms", (std::chrono::duration<double, std::milli>(t2 - t1).count()));
     mc.run();
     return 0;
 }

@@ -33,7 +33,7 @@ namespace ve
             sync_indices[SyncNames::FRenderFinished].push_back(vcc.sync.add_fence());
         }
 
-        VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Created VulkanRenderContext\n");
+        spdlog::info("Created VulkanRenderContext");
     }
 
     void VulkanRenderContext::self_destruct()
@@ -45,7 +45,7 @@ namespace ve
         scene.self_destruct();
         uniform_buffers.clear();
         swapchain.self_destruct(true);
-        VE_LOG_CONSOLE(VE_INFO, VE_C_PINK << "Destroyed VulkanRenderContext\n");
+        spdlog::info("Destroyed VulkanRenderContext");
     }
 
     void VulkanRenderContext::draw_frame(const Camera& camera, float time_diff)

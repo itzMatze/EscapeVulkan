@@ -34,7 +34,7 @@ namespace ve
         validation_handler.add_extensions(validation_layers, false);
         int32_t missing_layers = validation_handler.check_extension_availability(avail_layer_names);
         validation_handler.remove_missing_extensions();
-        if (missing_layers > 0) VE_LOG_CONSOLE(VE_WARN, VE_C_YELLOW << missing_layers << " validation layers not found!\n");
+        if (missing_layers > 0) spdlog::warn("{} validation layers not found!", missing_layers);
 
         vk::InstanceCreateInfo ici{};
         ici.sType = vk::StructureType::eInstanceCreateInfo;

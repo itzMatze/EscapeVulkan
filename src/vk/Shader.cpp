@@ -11,7 +11,7 @@ namespace ve
     Shader::Shader(const vk::Device& device, const std::string filename,
                    vk::ShaderStageFlagBits shader_stage_flag) : name(filename), device(device)
     {
-        VE_LOG_CONSOLE(VE_INFO, "Loading shader \"" << filename << "\"\n");
+        spdlog::info("Loading shader \"{}\"", filename);
         std::string source = read_shader_file(std::string("../shader/bin/" + filename + ".spv"));
         vk::ShaderModuleCreateInfo smci{};
         smci.sType = vk::StructureType::eShaderModuleCreateInfo;
@@ -43,7 +43,7 @@ namespace ve
     std::string Shader::read_shader_file(const std::string& filename)
     {
         std::ifstream file(filename, std::ios::binary);
-        VE_ASSERT(file.is_open(), "Failed to open shader file " << filename);
+        VE_ASSERT(file.is_open(), "Failed to open shader file \"{}\"", filename);
         std::ostringstream file_stream;
         file_stream << file.rdbuf();
         return file_stream.str();
