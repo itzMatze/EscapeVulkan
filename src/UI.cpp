@@ -3,6 +3,8 @@
 #include "backends/imgui_impl_vulkan.h"
 #include "backends/imgui_impl_sdl.h"
 
+#include "ve_log.hpp"
+
 namespace ve
 {
     UI::UI(const VulkanMainContext& vmc, const RenderPass& render_pass, uint32_t frames) : vmc(vmc)
@@ -72,11 +74,12 @@ namespace ve
         ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
 
-    void UI::draw(vk::CommandBuffer& cb)
+    void UI::draw(vk::CommandBuffer& cb, DrawInfo& di)
     {
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplSDL2_NewFrame(vmc.window.value().get());
         ImGui::NewFrame();
+        ImGui::Text((ve::to_string(di.time_diff * 1000, 4) + " ms; FPS: " + ve::to_string(1.0 / di.time_diff) + " (" + ve::to_string(di.frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / di.frametime) + ")").c_str());
         ImGui::Text("Navigation");
         ImGui::Separator();
         ImGui::Text("'W'A'S'D'Q'E': movement");

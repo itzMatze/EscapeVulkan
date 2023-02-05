@@ -34,11 +34,10 @@ public:
 
     void run()
     {
-        constexpr double min_frametime = 5.0;
+        constexpr float min_frametime = 5.0f;
         auto t1 = std::chrono::high_resolution_clock::now();
         auto t2 = std::chrono::high_resolution_clock::now();
         // keep time measurement and frametime separate to be able to use a frame limiter
-        double frametime = 0.0;
         bool quit = false;
         SDL_Event e;
         while (!quit)
@@ -47,7 +46,7 @@ public:
             dispatch_pressed_keys();
             try
             {
-                std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(min_frametime - frametime));
+                std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - di.frametime));
                 di.time_diff /= 1000.0f;
                 vrc.draw_frame(camera, di);
             }
@@ -62,10 +61,9 @@ public:
                 eh.dispatch_event(e);
             }
             t2 = std::chrono::high_resolution_clock::now();
-            di.time_diff = std::chrono::duration<double, std::milli>(t2 - t1).count();
+            di.time_diff = std::chrono::duration<float, std::milli>(t2 - t1).count();
             // calculate actual frametime by subtracting the waiting time
-            frametime = di.time_diff - std::max(0.0, min_frametime - frametime);
-            vmc.window->set_title(ve::to_string(di.time_diff, 4) + " ms; FPS: " + ve::to_string(1000.0 / di.time_diff) + " (" + ve::to_string(frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / frametime) + ")");
+            di.frametime = di.time_diff - std::max(0.0f, min_frametime - di.frametime);
             t1 = t2;
         }
     }

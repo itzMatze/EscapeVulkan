@@ -54,7 +54,7 @@ namespace ve
         spdlog::info("Destroyed VulkanRenderContext");
     }
 
-    void VulkanRenderContext::draw_frame(const Camera& camera, DrawInfo di)
+    void VulkanRenderContext::draw_frame(const Camera& camera, DrawInfo& di)
     {
         total_time += di.time_diff;
         ubo.M = glm::rotate(ubo.M, di.time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -66,7 +66,7 @@ namespace ve
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
         vcc.sync.wait_for_fence(sync_indices[SyncNames::FRenderFinished][current_frame]);
         vcc.sync.reset_fence(sync_indices[SyncNames::FRenderFinished][current_frame]);
-        record_graphics_command_buffer(image_idx.value, camera.getVP(), di.show_ui);
+        record_graphics_command_buffer(image_idx.value, camera.getVP(), di);
         submit_graphics(image_idx.value);
         current_frame = (current_frame + 1) % frames_in_flight;
     }
@@ -79,7 +79,7 @@ namespace ve
         return swapchain.get_extent();
     }
 
-    void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp, bool show_ui)
+    void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp, DrawInfo& di)
     {
         vcc.begin(vcc.graphics_cb[current_frame]);
         vk::RenderPassBeginInfo rpbi{};
@@ -113,7 +113,7 @@ namespace ve
         std::vector<vk::DeviceSize> offsets(1, 0);
 
         scene.draw(vcc.graphics_cb[current_frame], current_frame, vp);
-        if (show_ui) ui.draw(vcc.graphics_cb[current_frame]);
+        if (di.show_ui) ui.draw(vcc.graphics_cb[current_frame], di);
 
         vcc.graphics_cb[current_frame].endRenderPass();
         vcc.graphics_cb[current_frame].end();

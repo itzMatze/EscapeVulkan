@@ -21,11 +21,6 @@ namespace ve
         glm::mat4 M;
     };
 
-    struct DrawInfo {
-        float time_diff = 0.000001f;
-        bool show_ui = true;
-    };
-
     class VulkanRenderContext
     {
     public:
@@ -57,13 +52,13 @@ namespace ve
         Scene scene;
         UI ui;
 
-        void draw_frame(const Camera& camera, DrawInfo di);
+        void draw_frame(const Camera& camera, DrawInfo& di);
         vk::Extent2D recreate_swapchain();
 
     private:
         float total_time = 0.0f;
 
-        void record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp, bool show_ui);
+        void record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp, DrawInfo& di);
         void submit_graphics(uint32_t image_idx);
         vk::SampleCountFlagBits choose_sample_count();
     };
