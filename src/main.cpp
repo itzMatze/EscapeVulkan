@@ -15,19 +15,12 @@
 #include "vk/VulkanMainContext.hpp"
 #include "vk/VulkanRenderContext.hpp"
 
-struct RenderingInfo {
-    RenderingInfo(uint32_t width, uint32_t height) : width(width), height(height)
-    {}
-    uint32_t width;
-    uint32_t height;
-};
-
 class MainContext
 {
 public:
-    MainContext(const RenderingInfo& ri) : vmc(ri.width, ri.height), vcc(vmc), vrc(vmc, vcc), camera(45.0f, ri.width, ri.height)
+    MainContext() : extent(1000, 800), vmc(extent.width, extent.height), vcc(vmc), vrc(vmc, vcc), camera(45.0f, extent.width, extent.height)
     {
-        vk::Extent2D extent = vrc.swapchain.get_extent();
+        extent = vrc.swapchain.get_extent();
         camera.updateScreenSize(extent.width, extent.height);
     }
 
@@ -45,22 +38,22 @@ public:
         auto t1 = std::chrono::high_resolution_clock::now();
         auto t2 = std::chrono::high_resolution_clock::now();
         // keep time measurement and frametime separate to be able to use a frame limiter
-        double duration = 0.0;
         double frametime = 0.0;
         bool quit = false;
         SDL_Event e;
         while (!quit)
         {
-            move_amount = duration * move_speed;
+            move_amount = di.time_diff * move_speed;
             dispatch_pressed_keys();
             try
             {
                 std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(min_frametime - frametime));
-                vrc.draw_frame(camera, duration / 1000.0f);
+                di.time_diff /= 1000.0f;
+                vrc.draw_frame(camera, di);
             }
             catch (const vk::OutOfDateKHRError e)
             {
-                vk::Extent2D extent = vrc.recreate_swapchain();
+                extent = vrc.recreate_swapchain();
                 camera.updateScreenSize(extent.width, extent.height);
             }
             while (SDL_PollEvent(&e))
@@ -69,15 +62,16 @@ public:
                 eh.dispatch_event(e);
             }
             t2 = std::chrono::high_resolution_clock::now();
-            duration = std::chrono::duration<double, std::milli>(t2 - t1).count();
+            di.time_diff = std::chrono::duration<double, std::milli>(t2 - t1).count();
             // calculate actual frametime by subtracting the waiting time
-            frametime = duration - std::max(0.0, min_frametime - frametime);
-            vmc.window->set_title(ve::to_string(duration, 4) + " ms; FPS: " + ve::to_string(1000.0 / duration) + " (" + ve::to_string(frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / frametime) + ")");
+            frametime = di.time_diff - std::max(0.0, min_frametime - frametime);
+            vmc.window->set_title(ve::to_string(di.time_diff, 4) + " ms; FPS: " + ve::to_string(1000.0 / di.time_diff) + " (" + ve::to_string(frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / frametime) + ")");
             t1 = t2;
         }
     }
 
 private:
+    vk::Extent2D extent;
     ve::VulkanMainContext vmc;
     ve::VulkanCommandContext vcc;
     ve::VulkanRenderContext vrc;
@@ -85,6 +79,7 @@ private:
     EventHandler eh;
     float move_amount;
     float move_speed = 0.02f;
+    ve::DrawInfo di;
 
     void dispatch_pressed_keys()
     {
@@ -130,8 +125,7 @@ int main(int argc, char** argv)
     spdlog::set_level(spdlog::level::debug);
     spdlog::info("Starting");
     auto t1 = std::chrono::high_resolution_clock::now();
-    RenderingInfo ri(1000, 800);
-    MainContext mc(ri);
+    MainContext mc;
     auto t2 = std::chrono::high_resolution_clock::now();
     spdlog::info("Setup took: {} ms", (std::chrono::duration<double, std::milli>(t2 - t1).count()));
     mc.run();

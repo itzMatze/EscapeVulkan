@@ -2,14 +2,19 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "backends/imgui_impl_vulkan.h"
+#include "backends/imgui_impl_sdl.h"
+
 #include "vk/common.hpp"
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc, choose_sample_count()), scene(vmc, vcc)
+    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc, choose_sample_count()), scene(vmc, vcc), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
+
+        ui.upload_font_textures(vcc);
 
         scene.load("../assets/scenes/default.json");
 
@@ -38,6 +43,7 @@ namespace ve
 
     void VulkanRenderContext::self_destruct()
     {
+        ui.self_destruct();
         for (auto& buffer: uniform_buffers)
         {
             buffer.self_destruct();
@@ -48,11 +54,11 @@ namespace ve
         spdlog::info("Destroyed VulkanRenderContext");
     }
 
-    void VulkanRenderContext::draw_frame(const Camera& camera, float time_diff)
+    void VulkanRenderContext::draw_frame(const Camera& camera, DrawInfo di)
     {
-        total_time += time_diff;
-        ubo.M = glm::rotate(ubo.M, time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        scene.rotate("bunny", time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
+        total_time += di.time_diff;
+        ubo.M = glm::rotate(ubo.M, di.time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
+        scene.rotate("bunny", di.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
         pc.MVP = camera.getVP() * ubo.M;
         uniform_buffers[current_frame].update_data(ubo);
 
@@ -107,6 +113,7 @@ namespace ve
         std::vector<vk::DeviceSize> offsets(1, 0);
 
         scene.draw(vcc.graphics_cb[current_frame], current_frame, vp);
+        ui.draw(vcc.graphics_cb[current_frame]);
 
         vcc.graphics_cb[current_frame].endRenderPass();
         vcc.graphics_cb[current_frame].end();

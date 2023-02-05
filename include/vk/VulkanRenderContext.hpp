@@ -20,6 +20,10 @@ namespace ve
         glm::mat4 M;
     };
 
+    struct DrawInfo {
+        float time_diff = 0.000001f;
+    };
+
     class VulkanRenderContext
     {
     public:
@@ -49,8 +53,9 @@ namespace ve
         std::unordered_map<SyncNames, std::vector<uint32_t>> sync_indices;
         Swapchain swapchain;
         Scene scene;
+        UI ui;
 
-        void draw_frame(const Camera& camera, float time_diff);
+        void draw_frame(const Camera& camera, DrawInfo di);
         vk::Extent2D recreate_swapchain();
 
     private:

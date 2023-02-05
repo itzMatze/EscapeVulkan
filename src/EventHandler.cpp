@@ -1,7 +1,17 @@
 #include "EventHandler.hpp"
 
+#include "backends/imgui_impl_sdl.h"
+
+EventHandler::EventHandler() : io(ImGui::GetIO())
+{}
+
 void EventHandler::dispatch_event(SDL_Event e)
 {
+    ImGui_ImplSDL2_ProcessEvent(&e);
+    if (io.WantCaptureMouse || io.WantCaptureKeyboard)
+    {
+        return;
+    }
     if (e.type == SDL_MOUSEMOTION)
     {
         mouse_motion.x = e.motion.xrel;

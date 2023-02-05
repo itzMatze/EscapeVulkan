@@ -166,7 +166,7 @@ namespace ve
         std::vector<vk::SurfaceFormatKHR> formats = vmc.get_surface_formats();
         for (const auto& format: formats)
         {
-            if (format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) return format;
+            if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) return format;
         }
         spdlog::warn("Desired format not found. Using first available.");
         return formats[0];

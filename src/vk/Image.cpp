@@ -20,7 +20,7 @@ namespace ve
         w = std::max(1.0, src_image.w / std::pow(2, base_mip_level));
         h = std::max(1.0, src_image.h / std::pow(2, base_mip_level));
         byte_size = w * h * 4;
-        constexpr vk::Format format = vk::Format::eR8G8B8A8Srgb;
+        constexpr vk::Format format = vk::Format::eR8G8B8A8Unorm;
         create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, format, vk::SampleCountFlagBits::e1);
 
         src_image.transition_image_layout(vcc, vk::ImageLayout::eTransferSrcOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eTransferRead);
@@ -66,7 +66,7 @@ namespace ve
     {
         Buffer buffer(vmc, data, byte_size, vk::BufferUsageFlagBits::eTransferSrc, {uint32_t(vmc.queues_family_indices.transfer)});
 
-        constexpr vk::Format format = vk::Format::eR8G8B8A8Srgb;
+        constexpr vk::Format format = vk::Format::eR8G8B8A8Unorm;
         create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, format, vk::SampleCountFlagBits::e1);
 
         transition_image_layout(vcc, vk::ImageLayout::eTransferDstOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, vk::AccessFlagBits::eTransferWrite);

@@ -17,7 +17,7 @@ namespace ve
         std::vector<vk::DeviceQueueCreateInfo> qci_s;
         std::set<int32_t> unique_queue_families = {indices.graphics, indices.compute, indices.transfer, indices.present};
         float queue_prio = 1.0f;
-        for (uint32_t queue_family: unique_queue_families)
+        for (uint32_t queue_family : unique_queue_families)
         {
             vk::DeviceQueueCreateInfo qci{};
             qci.sType = vk::StructureType::eDeviceQueueCreateInfo;
