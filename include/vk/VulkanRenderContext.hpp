@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.hpp>
 
 #include "Camera.hpp"
+#include "UI.hpp"
 #include "common.hpp"
 #include "vk/Buffer.hpp"
 #include "vk/DescriptorSetHandler.hpp"
@@ -22,6 +23,7 @@ namespace ve
 
     struct DrawInfo {
         float time_diff = 0.000001f;
+        bool show_ui = true;
     };
 
     class VulkanRenderContext
@@ -61,7 +63,7 @@ namespace ve
     private:
         float total_time = 0.0f;
 
-        void record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp);
+        void record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp, bool show_ui);
         void submit_graphics(uint32_t image_idx);
         vk::SampleCountFlagBits choose_sample_count();
     };

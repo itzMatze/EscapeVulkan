@@ -101,6 +101,11 @@ private:
             move_speed -= 0.01f;
             eh.pressed_keys.erase(Key::Minus);
         }
+        if (eh.pressed_keys.contains(Key::G))
+        {
+            di.show_ui = !di.show_ui;
+            eh.pressed_keys.erase(Key::G);
+        }
         if (eh.pressed_keys.contains(Key::MouseLeft))
         {
             if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);
@@ -109,7 +114,8 @@ private:
         }
         if (eh.released_keys.contains(Key::MouseLeft))
         {
-            if (SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
+            SDL_SetRelativeMouseMode(SDL_FALSE);
+            SDL_WarpMouseInWindow(vmc.window->get(), extent.width / 2.0f, extent.height / 2.0f);
             eh.released_keys.erase(Key::MouseLeft);
         }
     }

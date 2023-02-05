@@ -4,6 +4,8 @@
 #include <unordered_set>
 #include <glm/vec2.hpp>
 
+#include "imgui.h"
+
 enum class Key
 {
     W,
@@ -12,6 +14,7 @@ enum class Key
     D,
     Q,
     E,
+    G,
     Plus,
     Minus,
     MouseLeft,
@@ -26,9 +29,10 @@ public:
     std::unordered_set<Key> pressed_keys;
     std::unordered_set<Key> released_keys;
 
-    EventHandler() = default;
+    EventHandler();
     void dispatch_event(SDL_Event e);
 
 private:
+    ImGuiIO& io;
     void apply_key_event(Key k, uint32_t et);
 };

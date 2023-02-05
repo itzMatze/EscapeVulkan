@@ -66,7 +66,7 @@ namespace ve
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
         vcc.sync.wait_for_fence(sync_indices[SyncNames::FRenderFinished][current_frame]);
         vcc.sync.reset_fence(sync_indices[SyncNames::FRenderFinished][current_frame]);
-        record_graphics_command_buffer(image_idx.value, camera.getVP());
+        record_graphics_command_buffer(image_idx.value, camera.getVP(), di.show_ui);
         submit_graphics(image_idx.value);
         current_frame = (current_frame + 1) % frames_in_flight;
     }
@@ -79,7 +79,7 @@ namespace ve
         return swapchain.get_extent();
     }
 
-    void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp)
+    void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp, bool show_ui)
     {
         vcc.begin(vcc.graphics_cb[current_frame]);
         vk::RenderPassBeginInfo rpbi{};
@@ -113,7 +113,7 @@ namespace ve
         std::vector<vk::DeviceSize> offsets(1, 0);
 
         scene.draw(vcc.graphics_cb[current_frame], current_frame, vp);
-        ui.draw(vcc.graphics_cb[current_frame]);
+        if (show_ui) ui.draw(vcc.graphics_cb[current_frame]);
 
         vcc.graphics_cb[current_frame].endRenderPass();
         vcc.graphics_cb[current_frame].end();

@@ -83,6 +83,7 @@ namespace ve
         ImGui::Text("'+'-': change movement speed");
         ImGui::Text("'+'-': change movement speed");
         ImGui::Text("'Mouse_L': move camera");
+        ImGui::Text("'G': Show/Hide UI");
         ImGui::EndFrame();
 
         ImGui::Render();
