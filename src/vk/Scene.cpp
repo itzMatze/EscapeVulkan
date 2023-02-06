@@ -7,15 +7,7 @@
 namespace ve
 {
     Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc)
-    {
-        ros.emplace(ShaderFlavor::Default, vmc);
-        ros.emplace(ShaderFlavor::Basic, vmc);
-
-        ros.at(ShaderFlavor::Default).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
-        ros.at(ShaderFlavor::Default).dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
-
-        ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
-    }
+    {}
 
     void Scene::construct(const RenderPass& render_pass)
     {
@@ -35,10 +27,20 @@ namespace ve
             ro.second.self_destruct();
         }
         ros.clear();
+        materials.clear();
+        model_handles.clear();
+        loaded = false;
     }
 
     void Scene::load(const std::string& path)
     {
+        ros.emplace(ShaderFlavor::Default, vmc);
+        ros.emplace(ShaderFlavor::Basic, vmc);
+
+        ros.at(ShaderFlavor::Default).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
+
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         // load scene from custom json file
         using json = nlohmann::json;
         std::ifstream file(path);
@@ -105,6 +107,7 @@ namespace ve
                 add_model(name, ModelHandle(flavor, &vertices, &indices, &materials.back()));
             }
         }
+        loaded = true;
     }
 
     void Scene::add_model(const std::string& key, ModelHandle model_handle)

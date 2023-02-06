@@ -26,6 +26,7 @@ namespace ve
     public:
         VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc);
         void self_destruct();
+        void load_scene(const std::string& filename);
 
     private:
         enum class SyncNames

@@ -9,6 +9,9 @@
 namespace ve
 {
     struct DrawInfo {
+        std::vector<const char*> scene_names;
+        int32_t current_scene = 0;
+        bool load_scene = false;
         float time_diff = 0.000001f;
 		float frametime = 0.0f;
         bool show_ui = true;

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 #include <stdexcept>
 #include <thread>
 #include <vulkan/vulkan.hpp>
@@ -34,6 +35,14 @@ public:
 
     void run()
     {
+        std::vector<std::string> scene_names;
+        for (const auto& entry : std::filesystem::directory_iterator("../assets/scenes/"))
+        {
+            scene_names.push_back(entry.path().filename());
+        }
+        di.current_scene = 0;
+        for (const auto& name : scene_names) di.scene_names.push_back(&name.front());
+        vrc.load_scene(di.scene_names[di.current_scene]);
         constexpr float min_frametime = 5.0f;
         auto t1 = std::chrono::high_resolution_clock::now();
         auto t2 = std::chrono::high_resolution_clock::now();
@@ -65,6 +74,12 @@ public:
             // calculate actual frametime by subtracting the waiting time
             di.frametime = di.time_diff - std::max(0.0f, min_frametime - di.frametime);
             t1 = t2;
+            if (di.load_scene)
+            {
+                di.load_scene = false;
+                vrc.load_scene(di.scene_names[di.current_scene]);
+                t1 = std::chrono::high_resolution_clock::now();
+            }
         }
     }
 

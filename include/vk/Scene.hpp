@@ -21,6 +21,8 @@ namespace ve
         DescriptorSetHandler& get_dsh(ShaderFlavor flavor);
         void draw(vk::CommandBuffer& cb, uint32_t current_frame, const glm::mat4& vp);
 
+        bool loaded = false;
+
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;

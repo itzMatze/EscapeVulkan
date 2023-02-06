@@ -16,23 +16,9 @@ namespace ve
 
         ui.upload_font_textures(vcc);
 
-        scene.load("../assets/scenes/default.json");
-
-        // add one descriptor set for every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             uniform_buffers.push_back(Buffer(vmc, std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}));
-            scene.get_dsh(ShaderFlavor::Default).apply_descriptor_to_new_sets(0, uniform_buffers.back());
-            scene.get_dsh(ShaderFlavor::Basic).apply_descriptor_to_new_sets(0, uniform_buffers.back());
-            scene.add_bindings();
-            scene.get_dsh(ShaderFlavor::Default).reset_auto_apply_bindings();
-            scene.get_dsh(ShaderFlavor::Basic).reset_auto_apply_bindings();
-        }
-
-        scene.construct(swapchain.get_render_pass());
-
-        for (uint32_t i = 0; i < frames_in_flight; ++i)
-        {
             sync_indices[SyncNames::SImageAvailable].push_back(vcc.sync.add_semaphore());
             sync_indices[SyncNames::SRenderFinished].push_back(vcc.sync.add_semaphore());
             sync_indices[SyncNames::FRenderFinished].push_back(vcc.sync.add_fence());
@@ -52,6 +38,30 @@ namespace ve
         uniform_buffers.clear();
         swapchain.self_destruct(true);
         spdlog::info("Destroyed VulkanRenderContext");
+    }
+
+    void VulkanRenderContext::load_scene(const std::string& filename)
+    {
+        auto t1 = std::chrono::high_resolution_clock::now();
+
+        vcc.sync.wait_idle();
+        if (scene.loaded) scene.self_destruct();
+        scene.load(std::string("../assets/scenes/") + filename);
+
+        // add one descriptor set for every frame
+        for (uint32_t i = 0; i < frames_in_flight; ++i)
+        {
+            scene.get_dsh(ShaderFlavor::Default).apply_descriptor_to_new_sets(0, uniform_buffers.back());
+            scene.get_dsh(ShaderFlavor::Basic).apply_descriptor_to_new_sets(0, uniform_buffers.back());
+            scene.add_bindings();
+            scene.get_dsh(ShaderFlavor::Default).reset_auto_apply_bindings();
+            scene.get_dsh(ShaderFlavor::Basic).reset_auto_apply_bindings();
+        }
+
+        scene.construct(swapchain.get_render_pass());
+
+        auto t2 = std::chrono::high_resolution_clock::now();
+        spdlog::info("Loading scene took: {} ms", (std::chrono::duration<double, std::milli>(t2 - t1).count()));
     }
 
     void VulkanRenderContext::draw_frame(const Camera& camera, DrawInfo& di)

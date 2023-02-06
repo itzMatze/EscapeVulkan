@@ -79,14 +79,20 @@ namespace ve
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplSDL2_NewFrame(vmc.window.value().get());
         ImGui::NewFrame();
-        ImGui::Text((ve::to_string(di.time_diff * 1000, 4) + " ms; FPS: " + ve::to_string(1.0 / di.time_diff) + " (" + ve::to_string(di.frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / di.frametime) + ")").c_str());
-        ImGui::Text("Navigation");
+        ImGui::Begin("Vulkan_Engine");
+        if (ImGui::CollapsingHeader("Navigation"))
+        {
+            ImGui::Text("'W'A'S'D'Q'E': movement");
+            ImGui::Text("'+'-': change movement speed");
+            ImGui::Text("'Mouse_L': move camera");
+            ImGui::Text("'G': Show/Hide UI");
+        }
         ImGui::Separator();
-        ImGui::Text("'W'A'S'D'Q'E': movement");
-        ImGui::Text("'+'-': change movement speed");
-        ImGui::Text("'+'-': change movement speed");
-        ImGui::Text("'Mouse_L': move camera");
-        ImGui::Text("'G': Show/Hide UI");
+        ImGui::Combo("Scene", &di.current_scene, di.scene_names.data(), di.scene_names.size());
+        di.load_scene = ImGui::Button("Load scene");
+        ImGui::Separator();
+        ImGui::Text((ve::to_string(di.time_diff * 1000, 4) + " ms; FPS: " + ve::to_string(1.0 / di.time_diff) + " (" + ve::to_string(di.frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / di.frametime) + ")").c_str());
+        ImGui::End();
         ImGui::EndFrame();
 
         ImGui::Render();
