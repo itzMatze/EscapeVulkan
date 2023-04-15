@@ -7,54 +7,37 @@ namespace ve
 
     void RenderObject::self_destruct()
     {
-        for (auto& model: models)
-        {
-            model.self_destruct();
-        }
-        models.clear();
         pipeline.self_destruct();
         dsh.self_destruct();
     }
 
-    uint32_t RenderObject::add_model(VulkanCommandContext& vcc, const std::string& path)
+    void RenderObject::add_model(uint32_t idx)
     {
-        models.emplace_back(Model(vmc, vcc, path));
-        return (models.size() - 1);
+        model_indices.emplace_back(idx);
     }
 
-    uint32_t RenderObject::add_model(VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material)
+    void RenderObject::add_bindings(std::vector<Model>& models)
     {
-        models.emplace_back(vmc, vcc, vertices, indices, material);
-        return (models.size() - 1);
-    }
-
-    Model* RenderObject::get_model(uint32_t idx)
-    {
-        return &models[idx];
-    }
-
-    void RenderObject::add_bindings()
-    {
-        for (auto& model: models)
+        for (auto& model : model_indices)
         {
-            model.add_set_bindings(dsh);
+            models[model].add_set_bindings(dsh);
         }
     }
 
     void RenderObject::construct(const RenderPass& render_pass, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names, vk::PolygonMode polygon_mode)
     {
-        if (models.empty()) return;
+        if (model_indices.empty()) return;
         dsh.construct();
         pipeline.construct(render_pass, dsh.get_layouts()[0], shader_names, polygon_mode);
     }
 
-    void RenderObject::draw(vk::CommandBuffer& cb, uint32_t current_frame, const glm::mat4& vp)
+    void RenderObject::draw(vk::CommandBuffer& cb, uint32_t current_frame, const glm::mat4& vp, std::vector<Model>& models)
     {
-        if (models.empty()) return;
+        if (model_indices.empty()) return;
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
-        for (auto& model: models)
+        for (auto& model : model_indices)
         {
-            model.draw(current_frame, pipeline.get_layout(), dsh.get_sets(), vp);
+            models[model].draw(current_frame, pipeline.get_layout(), dsh.get_sets(), vp);
         }
     }
-}// namespace ve
+} // namespace ve

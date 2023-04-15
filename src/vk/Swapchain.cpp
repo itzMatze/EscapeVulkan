@@ -4,7 +4,7 @@
 
 namespace ve
 {
-    Swapchain::Swapchain(const VulkanMainContext& vmc, vk::SampleCountFlagBits sample_count) : vmc(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format, sample_count), depth_buffer(vmc, "Depth Buffer", false), color_image(vmc, "Color Buffer", false)
+    Swapchain::Swapchain(const VulkanMainContext& vmc) : vmc(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), depth_buffer(vmc, "Depth Buffer", false), color_image(vmc, "Color Buffer", false)
     {
         create_swapchain();
     }
@@ -75,7 +75,7 @@ namespace ve
         swapchain = vmc.logical_device.get().createSwapchainKHR(sci);
         images = vmc.logical_device.get().getSwapchainImagesKHR(swapchain);
 
-        for (const auto& image: images)
+        for (const auto& image : images)
         {
             vk::ImageViewCreateInfo ivci{};
             ivci.sType = vk::StructureType::eImageViewCreateInfo;
@@ -94,7 +94,7 @@ namespace ve
             image_views.push_back(vmc.logical_device.get().createImageView(ivci));
         }
 
-        for (const auto& image_view: image_views)
+        for (const auto& image_view : image_views)
         {
             std::vector<vk::ImageView> attachments;
             if (render_pass.get_sample_count() != vk::SampleCountFlagBits::e1) attachments = {color_image.get_view(), depth_buffer.get_view(), image_view};

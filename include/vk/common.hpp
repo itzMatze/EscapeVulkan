@@ -66,23 +66,10 @@ namespace ve
         float roughness = 1.0f;
         glm::vec4 base_color = glm::vec4(1.0f);
         glm::vec4 emission = glm::vec4(1.0f);
-        Image* base_texture;
-        Image* metallic_roughness_texture;
-        Image* normal_texture;
-        Image* occlusion_texture;
-        Image* emissive_texture;
-    };
-
-    struct ModelHandle {
-        ModelHandle(ShaderFlavor flavor, const std::string& file) : shader_flavor(flavor), idx(0), filename(file)
-        {}
-        ModelHandle(ShaderFlavor flavor, const std::vector<Vertex>* vertices, const std::vector<uint32_t>* indices, const Material* material) : shader_flavor(flavor), idx(0), filename("none"), vertices(vertices), indices(indices), material(material)
-        {}
-        ShaderFlavor shader_flavor;
-        uint32_t idx;
-        std::string filename;
-        const std::vector<Vertex>* vertices;
-        const std::vector<uint32_t>* indices;
-        const Material* material;
+        Image* base_texture = nullptr;
+        Image* metallic_roughness_texture = nullptr;
+        Image* normal_texture = nullptr;
+        Image* occlusion_texture = nullptr;
+        Image* emissive_texture = nullptr;
     };
 }// namespace ve

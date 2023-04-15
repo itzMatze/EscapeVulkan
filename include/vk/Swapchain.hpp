@@ -11,7 +11,7 @@ namespace ve
     class Swapchain
     {
     public:
-        Swapchain(const VulkanMainContext& vmc, vk::SampleCountFlagBits sample_count);
+        Swapchain(const VulkanMainContext& vmc);
         void self_destruct(bool full);
         const vk::SwapchainKHR& get() const;
         const RenderPass& get_render_pass() const;

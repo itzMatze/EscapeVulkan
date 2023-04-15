@@ -17,17 +17,16 @@ namespace ve
 
     void Scene::self_destruct()
     {
-        for (auto& image: images)
-        {
-            image.self_destruct();
-        }
-        images.clear();
-        for (auto& ro: ros)
+        for (auto& ro : ros)
         {
             ro.second.self_destruct();
         }
-        ros.clear();
-        materials.clear();
+        ros.clear(); 
+        for (auto& model: models)
+        {
+            model.self_destruct();
+        }
+        models.clear();
         model_handles.clear();
         loaded = false;
     }
@@ -48,87 +47,63 @@ namespace ve
         if (data.contains("model_files"))
         {
             // load referenced model files
-            for (auto& d: data["model_files"])
+            for (const auto& d : data.at("model_files"))
             {
-                ShaderFlavor flavor;
-                if (d.value("ShaderFlavor", "") == "Basic") flavor = ShaderFlavor::Basic;
-                if (d.value("ShaderFlavor", "") == "Default") flavor = ShaderFlavor::Default;
                 std::string name = d.value("name", "");
-                add_model(name, ModelHandle(flavor, std::string("../assets/models/") + std::string(d.value("file", ""))));
+                models.emplace_back(vmc, vcc, std::string("../assets/models/") + std::string(d.value("file", "")));
+                model_handles.emplace(name, models.size() - 1);
+                if (d.value("ShaderFlavor", "") == "Basic")
+                {
+                    ros.at(ShaderFlavor::Basic).add_model(models.size() - 1);
+                }
+                else if (d.value("ShaderFlavor", "") == "Default")
+                {
+                    ros.at(ShaderFlavor::Default).add_model(models.size() - 1);
+                }
 
                 if (d.contains("scale"))
                 {
-                    glm::vec3 scaling(d["scale"][0], d["scale"][1], d["scale"][2]);
+                    glm::vec3 scaling(d.at("scale")[0], d.at("scale")[1], d.at("scale")[2]);
                     scale(name, scaling);
                 }
                 if (d.contains("translation"))
                 {
-                    glm::vec3 translation(d["translation"][0], d["translation"][1], d["translation"][2]);
+                    glm::vec3 translation(d.at("translation")[0], d.at("translation")[1], d.at("translation")[2]);
                     translate(name, translation);
                 }
                 if (d.contains("rotation"))
                 {
-                    glm::vec3 rotation(d["rotation"][1], d["rotation"][2], d["rotation"][3]);
-                    rotate(name, d["rotation"][0], rotation);
+                    glm::vec3 rotation(d.at("rotation")[1], d.at("rotation")[2], d.at("rotation")[3]);
+                    rotate(name, d.at("rotation")[0], rotation);
                 }
             }
         }
         // load custom models (vertices and indices directly contained in json file)
         if (data.contains("custom_models"))
         {
-            for (auto& d: data["custom_models"])
+            for (const auto& d : data["custom_models"])
             {
-                ShaderFlavor flavor;
-                if (d.value("ShaderFlavor", "") == "Basic") flavor = ShaderFlavor::Basic;
-                if (d.value("ShaderFlavor", "") == "Default") flavor = ShaderFlavor::Default;
                 std::string name = d.value("name", "");
-                std::vector<Vertex> vertices;
-                std::vector<uint32_t> indices;
-                for (auto& v: d["vertices"])
+                models.emplace_back(vmc, vcc, d);
+                model_handles.emplace(name, models.size() - 1);
+                if (d.value("ShaderFlavor", "") == "Basic")
                 {
-                    Vertex vertex;
-                    vertex.pos = glm::vec3(v["pos"][0], v["pos"][1], v["pos"][2]);
-                    vertex.normal = glm::vec3(v["normal"][0], v["normal"][1], v["normal"][2]);
-                    vertex.color = glm::vec4(v["color"][0], v["color"][1], v["color"][2], v["color"][3]);
-                    vertex.tex = glm::vec2(v["tex"][0], v["tex"][1]);
-                    vertices.push_back(vertex);
+                    ros.at(ShaderFlavor::Basic).add_model(models.size() - 1);
                 }
-                for (auto& i: d["indices"])
+                else if (d.value("ShaderFlavor", "") == "Default")
                 {
-                    indices.push_back(i);
+                    ros.at(ShaderFlavor::Default).add_model(models.size() - 1);
                 }
-                Material m;
-                if (d.contains("base_texture"))
-                {
-                    images.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, std::string("../assets/textures/") + std::string(d.value("base_texture", "")), true));
-                    m.base_texture = &images.back();
-                }
-                materials.push_back(m);
-                add_model(name, ModelHandle(flavor, &vertices, &indices, &materials.back()));
             }
         }
         loaded = true;
     }
 
-    void Scene::add_model(const std::string& key, ModelHandle model_handle)
-    {
-        if (model_handle.shader_flavor == ShaderFlavor::Basic) model_handle.material = nullptr;
-        if (model_handle.filename != "none")
-        {
-            model_handle.idx = ros.at(model_handle.shader_flavor).add_model(vcc, model_handle.filename);
-        }
-        else
-        {
-            model_handle.idx = ros.at(model_handle.shader_flavor).add_model(vcc, *model_handle.vertices, *model_handle.indices, model_handle.material);
-        }
-        model_handles.emplace(key, model_handle);
-    }
-
     void Scene::add_bindings()
     {
-        for (auto& ro: ros)
+        for (auto& ro : ros)
         {
-            ro.second.add_bindings();
+            ro.second.add_bindings(models);
         }
     }
 
@@ -136,7 +111,7 @@ namespace ve
     {
         if (model_handles.contains(model))
         {
-            ros.at(model_handles.at(model).shader_flavor).get_model(model_handles.at(model).idx)->translate(trans);
+            models[model_handles.at(model)].translate(trans);
         }
         else
         {
@@ -148,7 +123,7 @@ namespace ve
     {
         if (model_handles.contains(model))
         {
-            ros.at(model_handles.at(model).shader_flavor).get_model(model_handles.at(model).idx)->scale(scale);
+            models[model_handles.at(model)].scale(scale);
         }
         else
         {
@@ -160,7 +135,7 @@ namespace ve
     {
         if (model_handles.contains(model))
         {
-            ros.at(model_handles.at(model).shader_flavor).get_model(model_handles.at(model).idx)->rotate(degree, axis);
+            models[model_handles.at(model)].rotate(degree, axis);
         }
         else
         {
@@ -177,7 +152,7 @@ namespace ve
     {
         for (auto& ro: ros)
         {
-            ro.second.draw(cb, current_frame, vp);
+            ro.second.draw(cb, current_frame, vp, models);
         }
     }
 

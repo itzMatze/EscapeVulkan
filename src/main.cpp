@@ -139,9 +139,10 @@ int main(int argc, char** argv)
     std::vector<spdlog::sink_ptr> sinks;
     sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
     sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_st>("ve.log", true));
-    auto combined_logger = std::make_shared<spdlog::logger>("default_logger", begin(sinks), end(sinks));
+    auto combined_logger = std::make_shared<spdlog::logger>("default_logger", sinks.begin(), sinks.end());
     spdlog::set_default_logger(combined_logger);
     spdlog::set_level(spdlog::level::debug);
+    spdlog::set_pattern("[%Y-%m-%d %T.%e] [%L] %v");
     spdlog::info("Starting");
     auto t1 = std::chrono::high_resolution_clock::now();
     MainContext mc;

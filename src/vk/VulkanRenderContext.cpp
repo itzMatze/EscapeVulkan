@@ -9,7 +9,7 @@
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc, choose_sample_count()), scene(vmc, vcc), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
+    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc), scene(vmc, vcc), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
@@ -34,8 +34,8 @@ namespace ve
         {
             buffer.self_destruct();
         }
-        scene.self_destruct();
         uniform_buffers.clear();
+        scene.self_destruct();
         swapchain.self_destruct(true);
         spdlog::info("Destroyed VulkanRenderContext");
     }
@@ -153,17 +153,4 @@ namespace ve
         present_info.pResults = nullptr;
         VE_CHECK(vmc.get_present_queue().presentKHR(present_info), "Failed to present image!");
     }
-
-    vk::SampleCountFlagBits VulkanRenderContext::choose_sample_count()
-    {
-        vk::PhysicalDeviceProperties pdp = vmc.physical_device.get().getProperties();
-        vk::Flags<vk::SampleCountFlagBits> counts = (pdp.limits.framebufferColorSampleCounts & pdp.limits.framebufferDepthSampleCounts);
-        if (counts & vk::SampleCountFlagBits::e4) return vk::SampleCountFlagBits::e4;
-        if (counts & vk::SampleCountFlagBits::e2) return vk::SampleCountFlagBits::e2;
-        if (counts & vk::SampleCountFlagBits::e8) return vk::SampleCountFlagBits::e8;
-        if (counts & vk::SampleCountFlagBits::e16) return vk::SampleCountFlagBits::e16;
-        if (counts & vk::SampleCountFlagBits::e32) return vk::SampleCountFlagBits::e32;
-        if (counts & vk::SampleCountFlagBits::e64) return vk::SampleCountFlagBits::e64;
-        return vk::SampleCountFlagBits::e1;
-    }
-}// namespace ve
+} // namespace ve

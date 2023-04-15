@@ -2,7 +2,7 @@
 
 namespace ve
 {
-    RenderPass::RenderPass(const VulkanMainContext& vmc, const vk::Format& color_format, const vk::Format& depth_format, vk::SampleCountFlagBits sample_count) : vmc(vmc), sample_count(sample_count)
+    RenderPass::RenderPass(const VulkanMainContext& vmc, const vk::Format& color_format, const vk::Format& depth_format) : vmc(vmc), sample_count(choose_sample_count())
     {
         vk::AttachmentDescription color_ad{};
         color_ad.format = color_format;
@@ -89,4 +89,17 @@ namespace ve
     {
         vmc.logical_device.get().destroyRenderPass(render_pass);
     }
-}// namespace ve
+
+    vk::SampleCountFlagBits RenderPass::choose_sample_count()
+    {
+        vk::PhysicalDeviceProperties pdp = vmc.physical_device.get().getProperties();
+        vk::Flags<vk::SampleCountFlagBits> counts = (pdp.limits.framebufferColorSampleCounts & pdp.limits.framebufferDepthSampleCounts);
+        if (counts & vk::SampleCountFlagBits::e4) return vk::SampleCountFlagBits::e4;
+        if (counts & vk::SampleCountFlagBits::e2) return vk::SampleCountFlagBits::e2;
+        if (counts & vk::SampleCountFlagBits::e8) return vk::SampleCountFlagBits::e8;
+        if (counts & vk::SampleCountFlagBits::e16) return vk::SampleCountFlagBits::e16;
+        if (counts & vk::SampleCountFlagBits::e32) return vk::SampleCountFlagBits::e32;
+        if (counts & vk::SampleCountFlagBits::e64) return vk::SampleCountFlagBits::e64;
+        return vk::SampleCountFlagBits::e1;
+    }
+} // namespace ve

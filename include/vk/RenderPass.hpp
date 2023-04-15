@@ -9,10 +9,11 @@ namespace ve
     class RenderPass
     {
     public:
-        RenderPass(const VulkanMainContext& vmc, const vk::Format& color_format, const vk::Format& depth_format, vk::SampleCountFlagBits sample_count);
+        RenderPass(const VulkanMainContext& vmc, const vk::Format& color_format, const vk::Format& depth_format);
         vk::RenderPass get() const;
         vk::SampleCountFlagBits get_sample_count() const;
         void self_destruct();
+        vk::SampleCountFlagBits choose_sample_count();
         
     private:
         const VulkanMainContext& vmc;

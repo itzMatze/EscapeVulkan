@@ -20,11 +20,34 @@ namespace ve
         load_model(path);
     }
 
-    Model::Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const Material* material) : vmc(vmc), vcc(vcc), name("custom model"), transformation(glm::mat4(1.0f))
+    Model::Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const nlohmann::json& model) : vmc(vmc), vcc(vcc), transformation(glm::mat4(1.0f))
     {
+        // load custom directly in json defined models
+        for (auto& v: model.at("vertices"))
+        {
+            Vertex vertex;
+            vertex.pos = glm::vec3(v.at("pos")[0], v.at("pos")[1], v.at("pos")[2]);
+            vertex.normal = glm::vec3(v.at("normal")[0], v.at("normal")[1], v.at("normal")[2]);
+            vertex.color = glm::vec4(v.at("color")[0], v.at("color")[1], v.at("color")[2], v.at("color")[3]);
+            vertex.tex = glm::vec2(v.at("tex")[0], v.at("tex")[1]);
+            vertices.push_back(vertex);
+        }
+        for (auto& i: model.at("indices"))
+        {
+            indices.push_back(i);
+        }
+        Material m;
+        if (model.contains("base_texture"))
+        {
+            textures.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, std::string("../assets/textures/") + std::string(model.value("base_texture", "")), true));
+            m.base_texture = &textures.back().value();
+        }
+        materials.push_back(m);
         vertex_buffer = Buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc);
         index_buffer = Buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc);
-        meshes.emplace_back(Mesh(vmc, vcc, material, 0, indices.size()));
+        meshes.emplace_back(Mesh(vmc, vcc, materials.back().value(), 0, indices.size()));
+        vertices.clear();
+        indices.clear();
     }
 
     void Model::add_set_bindings(DescriptorSetHandler& dsh)
@@ -114,9 +137,9 @@ namespace ve
         vertices.clear();
     }
 
-    Material* Model::load_material(int mat_idx, const tinygltf::Model& model)
+    Material& Model::load_material(int mat_idx, const tinygltf::Model& model)
     {
-        if (mat_idx < 0) return &materials.back().value();
+        if (mat_idx < 0) return materials.back().value();
         const tinygltf::Material& mat = model.materials[mat_idx];
 
         auto get_texture = [&](const std::string& name, uint32_t base_mip_level) -> Image* {
@@ -153,7 +176,7 @@ namespace ve
             material.emission = glm::vec4(glm::make_vec3(mat.additionalValues.at("emissiveFactor").ColorFactor().data()), 1.0);
         }
         materials[mat_idx].emplace(material);
-        return &(materials[mat_idx].value());
+        return materials[mat_idx].value();
     }
 
     void Model::process_node(const tinygltf::Node& node, const tinygltf::Model& model, const glm::mat4 trans)
@@ -175,7 +198,7 @@ namespace ve
         for (const tinygltf::Primitive& primitive: mesh.primitives)
         {
             uint32_t idx_count = indices.size();
-            Material* mat = load_material(primitive.material, model);
+            Material& mat = load_material(primitive.material, model);
             // vertices
             {
                 const float* pos_buffer = nullptr;
@@ -225,9 +248,9 @@ namespace ve
                     {
                         vertex.color = glm::make_vec4(&color_buffer[i * color_stride]);
                     }
-                    else if (primitive.material > -1 && mat->base_color.length() > 0.0f)
+                    else if (primitive.material > -1 && mat.base_color.length() > 0.0f)
                     {
-                        vertex.color = glm::vec4(mat->base_color);
+                        vertex.color = glm::vec4(mat.base_color);
                     }
                     else
                     {

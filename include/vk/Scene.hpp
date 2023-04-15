@@ -13,7 +13,6 @@ namespace ve
         void construct(const RenderPass& render_pass);
         void self_destruct();
         void load(const std::string& path);
-        void add_model(const std::string& key, ModelHandle model_handle);
         void add_bindings();
         void translate(const std::string& model, const glm::vec3& trans);
         void scale(const std::string& model, const glm::vec3& scale);
@@ -27,8 +26,7 @@ namespace ve
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
         std::unordered_map<ShaderFlavor, RenderObject> ros;
-        std::unordered_map<std::string, ModelHandle> model_handles;
-        std::vector<Image> images;
-        std::vector<Material> materials;
+        std::vector<Model> models;
+        std::unordered_map<std::string, uint32_t> model_handles;
     };
 }// namespace ve

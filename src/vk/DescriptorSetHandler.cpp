@@ -58,7 +58,7 @@ namespace ve
     void DescriptorSetHandler::construct()
     {
         std::sort(layout_bindings.begin(), layout_bindings.end());
-        for (auto& descriptors: descriptor_sets)
+        for (auto& descriptors : descriptor_sets)
         {
             std::sort(descriptors.begin(), descriptors.end());
         }
@@ -121,11 +121,12 @@ namespace ve
 
     void DescriptorSetHandler::self_destruct()
     {
-        vmc.logical_device.get().destroyDescriptorPool(pool);
-        for (auto& dsl: layouts)
+        for (auto& dsl : layouts)
         {
             vmc.logical_device.get().destroyDescriptorSetLayout(dsl);
         }
+        layouts.clear();
+        vmc.logical_device.get().destroyDescriptorPool(pool);
     }
 
     const std::vector<vk::DescriptorSetLayout>& DescriptorSetHandler::get_layouts() const

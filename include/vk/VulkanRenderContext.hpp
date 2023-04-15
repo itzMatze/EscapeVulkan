@@ -61,6 +61,5 @@ namespace ve
 
         void record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp, DrawInfo& di);
         void submit_graphics(uint32_t image_idx);
-        vk::SampleCountFlagBits choose_sample_count();
     };
 }// namespace ve
