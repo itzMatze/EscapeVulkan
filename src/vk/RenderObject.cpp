@@ -2,12 +2,13 @@
 
 namespace ve
 {
-    RenderObject::RenderObject(const VulkanMainContext& vmc) : dsh(vmc), vmc(vmc), pipeline(vmc)
+    RenderObject::RenderObject(const VulkanMainContext& vmc) : dsh(vmc), vmc(vmc), pipeline(vmc), mesh_view_pipeline(vmc)
     {}
 
     void RenderObject::self_destruct()
     {
         pipeline.self_destruct();
+        mesh_view_pipeline.self_destruct();
         dsh.self_destruct();
     }
 
@@ -29,15 +30,16 @@ namespace ve
         if (model_indices.empty()) return;
         dsh.construct();
         pipeline.construct(render_pass, dsh.get_layouts()[0], shader_names, polygon_mode);
+        mesh_view_pipeline.construct(render_pass, dsh.get_layouts()[0], shader_names, vk::PolygonMode::eLine);
     }
 
-    void RenderObject::draw(vk::CommandBuffer& cb, uint32_t current_frame, const glm::mat4& vp, std::vector<Model>& models)
+    void RenderObject::draw(vk::CommandBuffer& cb, DrawInfo& di, std::vector<Model>& models)
     {
         if (model_indices.empty()) return;
-        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
+        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, di.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
         for (auto& model : model_indices)
         {
-            models[model].draw(current_frame, pipeline.get_layout(), dsh.get_sets(), vp);
+            models[model].draw(di.current_frame, pipeline.get_layout(), dsh.get_sets(), di.vp);
         }
     }
 } // namespace ve

@@ -17,6 +17,18 @@ namespace ve
         glm::mat4 MVP;
     };
 
+    struct DrawInfo {
+        std::vector<const char*> scene_names;
+        int32_t current_scene = 0;
+        bool load_scene = false;
+        float time_diff = 0.000001f;
+		float frametime = 0.0f;
+        bool show_ui = true;
+        bool mesh_view = false;
+        uint32_t current_frame = 0;
+        glm::mat4 vp = glm::mat4(1.0);
+    };
+
     struct Vertex {
         glm::vec3 pos;
         glm::vec3 normal;

@@ -5,8 +5,6 @@
 #include "backends/imgui_impl_vulkan.h"
 #include "backends/imgui_impl_sdl.h"
 
-#include "vk/common.hpp"
-
 namespace ve
 {
     VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc), scene(vmc, vcc), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
@@ -64,21 +62,21 @@ namespace ve
         spdlog::info("Loading scene took: {} ms", (std::chrono::duration<double, std::milli>(t2 - t1).count()));
     }
 
-    void VulkanRenderContext::draw_frame(const Camera& camera, DrawInfo& di)
+    void VulkanRenderContext::draw_frame(DrawInfo& di)
     {
         total_time += di.time_diff;
         ubo.M = glm::rotate(ubo.M, di.time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
         scene.rotate("bunny", di.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
-        pc.MVP = camera.getVP() * ubo.M;
-        uniform_buffers[current_frame].update_data(ubo);
+        pc.MVP = di.vp * ubo.M;
+        uniform_buffers[di.current_frame].update_data(ubo);
 
-        vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), vcc.sync.get_semaphore(sync_indices[SyncNames::SImageAvailable][current_frame]));
+        vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), vcc.sync.get_semaphore(sync_indices[SyncNames::SImageAvailable][di.current_frame]));
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
-        vcc.sync.wait_for_fence(sync_indices[SyncNames::FRenderFinished][current_frame]);
-        vcc.sync.reset_fence(sync_indices[SyncNames::FRenderFinished][current_frame]);
-        record_graphics_command_buffer(image_idx.value, camera.getVP(), di);
-        submit_graphics(image_idx.value);
-        current_frame = (current_frame + 1) % frames_in_flight;
+        vcc.sync.wait_for_fence(sync_indices[SyncNames::FRenderFinished][di.current_frame]);
+        vcc.sync.reset_fence(sync_indices[SyncNames::FRenderFinished][di.current_frame]);
+        record_graphics_command_buffer(image_idx.value, di);
+        submit_graphics(image_idx.value, di);
+        di.current_frame = (di.current_frame + 1) % frames_in_flight;
     }
 
     vk::Extent2D VulkanRenderContext::recreate_swapchain()
@@ -89,9 +87,9 @@ namespace ve
         return swapchain.get_extent();
     }
 
-    void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, const glm::mat4& vp, DrawInfo& di)
+    void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, DrawInfo& di)
     {
-        vcc.begin(vcc.graphics_cb[current_frame]);
+        vcc.begin(vcc.graphics_cb[di.current_frame]);
         vk::RenderPassBeginInfo rpbi{};
         rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
         rpbi.renderPass = swapchain.get_render_pass().get();
@@ -105,7 +103,7 @@ namespace ve
         if (swapchain.get_render_pass().get_sample_count() != vk::SampleCountFlagBits::e1) clear_values.push_back(vk::ClearValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
         rpbi.clearValueCount = clear_values.size();
         rpbi.pClearValues = clear_values.data();
-        vcc.graphics_cb[current_frame].beginRenderPass(rpbi, vk::SubpassContents::eInline);
+        vcc.graphics_cb[di.current_frame].beginRenderPass(rpbi, vk::SubpassContents::eInline);
 
         vk::Viewport viewport{};
         viewport.x = 0.0f;
@@ -114,39 +112,39 @@ namespace ve
         viewport.height = swapchain.get_extent().height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
-        vcc.graphics_cb[current_frame].setViewport(0, viewport);
+        vcc.graphics_cb[di.current_frame].setViewport(0, viewport);
         vk::Rect2D scissor{};
         scissor.offset = vk::Offset2D(0, 0);
         scissor.extent = swapchain.get_extent();
-        vcc.graphics_cb[current_frame].setScissor(0, scissor);
+        vcc.graphics_cb[di.current_frame].setScissor(0, scissor);
 
         std::vector<vk::DeviceSize> offsets(1, 0);
 
-        scene.draw(vcc.graphics_cb[current_frame], current_frame, vp);
-        if (di.show_ui) ui.draw(vcc.graphics_cb[current_frame], di);
+        scene.draw(vcc.graphics_cb[di.current_frame], di);
+        if (di.show_ui) ui.draw(vcc.graphics_cb[di.current_frame], di);
 
-        vcc.graphics_cb[current_frame].endRenderPass();
-        vcc.graphics_cb[current_frame].end();
+        vcc.graphics_cb[di.current_frame].endRenderPass();
+        vcc.graphics_cb[di.current_frame].end();
     }
 
-    void VulkanRenderContext::submit_graphics(uint32_t image_idx)
+    void VulkanRenderContext::submit_graphics(uint32_t image_idx, DrawInfo& di)
     {
         vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
         vk::SubmitInfo si{};
         si.sType = vk::StructureType::eSubmitInfo;
         si.waitSemaphoreCount = 1;
-        si.pWaitSemaphores = &vcc.sync.get_semaphore(sync_indices[SyncNames::SImageAvailable][current_frame]);
+        si.pWaitSemaphores = &vcc.sync.get_semaphore(sync_indices[SyncNames::SImageAvailable][di.current_frame]);
         si.pWaitDstStageMask = &wait_stage;
         si.commandBufferCount = 1;
-        si.pCommandBuffers = &vcc.graphics_cb[current_frame];
+        si.pCommandBuffers = &vcc.graphics_cb[di.current_frame];
         si.signalSemaphoreCount = 1;
-        si.pSignalSemaphores = &vcc.sync.get_semaphore(sync_indices[SyncNames::SRenderFinished][current_frame]);
-        vmc.get_graphics_queue().submit(si, vcc.sync.get_fence(sync_indices[SyncNames::FRenderFinished][current_frame]));
+        si.pSignalSemaphores = &vcc.sync.get_semaphore(sync_indices[SyncNames::SRenderFinished][di.current_frame]);
+        vmc.get_graphics_queue().submit(si, vcc.sync.get_fence(sync_indices[SyncNames::FRenderFinished][di.current_frame]));
 
         vk::PresentInfoKHR present_info{};
         present_info.sType = vk::StructureType::ePresentInfoKHR;
         present_info.waitSemaphoreCount = 1;
-        present_info.pWaitSemaphores = &vcc.sync.get_semaphore(sync_indices[SyncNames::SRenderFinished][current_frame]);
+        present_info.pWaitSemaphores = &vcc.sync.get_semaphore(sync_indices[SyncNames::SRenderFinished][di.current_frame]);
         present_info.swapchainCount = 1;
         present_info.pSwapchains = &swapchain.get();
         present_info.pImageIndices = &image_idx;

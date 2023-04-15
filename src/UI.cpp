@@ -90,6 +90,7 @@ namespace ve
         ImGui::Separator();
         ImGui::Combo("Scene", &di.current_scene, di.scene_names.data(), di.scene_names.size());
         di.load_scene = ImGui::Button("Load scene");
+        ImGui::Checkbox("Activate Meshview", &(di.mesh_view));
         ImGui::Separator();
         ImGui::Text((ve::to_string(di.time_diff * 1000, 4) + " ms; FPS: " + ve::to_string(1.0 / di.time_diff) + " (" + ve::to_string(di.frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / di.frametime) + ")").c_str());
         ImGui::End();

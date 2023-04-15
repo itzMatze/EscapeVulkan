@@ -148,11 +148,11 @@ namespace ve
         return ros.at(flavor).dsh;
     }
 
-    void Scene::draw(vk::CommandBuffer& cb, uint32_t current_frame, const glm::mat4& vp)
+    void Scene::draw(vk::CommandBuffer& cb, DrawInfo& di)
     {
         for (auto& ro: ros)
         {
-            ro.second.draw(cb, current_frame, vp, models);
+            ro.second.draw(cb, di, models);
         }
     }
 

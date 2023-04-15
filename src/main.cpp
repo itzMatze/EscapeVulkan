@@ -53,11 +53,12 @@ public:
         {
             move_amount = di.time_diff * move_speed;
             dispatch_pressed_keys();
+            di.vp = camera.getVP();
             try
             {
                 std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - di.frametime));
                 di.time_diff /= 1000.0f;
-                vrc.draw_frame(camera, di);
+                vrc.draw_frame(di);
             }
             catch (const vk::OutOfDateKHRError e)
             {

@@ -30,6 +30,7 @@ namespace ve
         vk::PhysicalDeviceFeatures device_features{};
         device_features.samplerAnisotropy = VK_TRUE;
         device_features.sampleRateShading = VK_TRUE;
+        device_features.fillModeNonSolid = VK_TRUE;
         vk::DeviceCreateInfo dci{};
         dci.sType = vk::StructureType::eDeviceCreateInfo;
         dci.queueCreateInfoCount = qci_s.size();

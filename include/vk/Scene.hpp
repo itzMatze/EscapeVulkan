@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.hpp"
+#include "vk/common.hpp"
 #include "vk/Model.hpp"
 #include "vk/RenderObject.hpp"
 
@@ -18,7 +18,7 @@ namespace ve
         void scale(const std::string& model, const glm::vec3& scale);
         void rotate(const std::string& model, float degree, const glm::vec3& axis);
         DescriptorSetHandler& get_dsh(ShaderFlavor flavor);
-        void draw(vk::CommandBuffer& cb, uint32_t current_frame, const glm::mat4& vp);
+        void draw(vk::CommandBuffer& cb, DrawInfo& di);
 
         bool loaded = false;
 
