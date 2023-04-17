@@ -73,4 +73,4 @@ namespace ve
         }
         return false;
     }
-}// namespace ve
+} // namespace ve

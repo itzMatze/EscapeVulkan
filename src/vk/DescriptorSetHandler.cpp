@@ -139,4 +139,4 @@ namespace ve
         return sets;
     }
 
-}// namespace ve
+} // namespace ve

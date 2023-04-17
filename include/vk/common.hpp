@@ -78,10 +78,10 @@ namespace ve
         float roughness = 1.0f;
         glm::vec4 base_color = glm::vec4(1.0f);
         glm::vec4 emission = glm::vec4(1.0f);
-        Image* base_texture = nullptr;
-        Image* metallic_roughness_texture = nullptr;
-        Image* normal_texture = nullptr;
-        Image* occlusion_texture = nullptr;
-        Image* emissive_texture = nullptr;
+        std::optional<uint32_t> base_texture = std::nullopt;
+        std::optional<uint32_t> metallic_roughness_texture = std::nullopt;
+        std::optional<uint32_t> normal_texture = std::nullopt;
+        std::optional<uint32_t> occlusion_texture = std::nullopt;
+        std::optional<uint32_t> emissive_texture = std::nullopt;
     };
-}// namespace ve
+} // namespace ve

@@ -14,15 +14,16 @@
 
 namespace ve
 {
-    Model::Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path) : vmc(vmc), vcc(vcc), name(path.substr(path.find_last_of('/'), path.length())), transformation(glm::mat4(1.0f))
+    Model::Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc, const std::string name, const std::string& path) : vmc(vmc), vcc(vcc), vsc(vsc), name(name), transformation(glm::mat4(1.0f))
     {
         spdlog::info("Loading glb: \"{}\"", path);
         load_model(path);
     }
 
-    Model::Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const nlohmann::json& model) : vmc(vmc), vcc(vcc), transformation(glm::mat4(1.0f))
+    Model::Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc, const nlohmann::json& model) : vmc(vmc), vcc(vcc), vsc(vsc), transformation(glm::mat4(1.0f))
     {
         // load custom directly in json defined models
+        name = model.value("name", "");
         for (auto& v: model.at("vertices"))
         {
             Vertex vertex;
@@ -39,12 +40,12 @@ namespace ve
         Material m;
         if (model.contains("base_texture"))
         {
-            textures.emplace_back(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, std::string("../assets/textures/") + std::string(model.value("base_texture", "")), true));
-            m.base_texture = &textures.back().value();
+            textures.emplace_back(vsc.add_image(vmc, vcc, std::string("../assets/textures/") + std::string(model.value("base_texture", "")), vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
+            m.base_texture = textures.back().value();
         }
         materials.push_back(m);
-        vertex_buffer = Buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc);
-        index_buffer = Buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc);
+        vertex_buffer = vsc.add_named_buffer(std::string(name + std::string("_v")), vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vcc, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        index_buffer = vsc.add_named_buffer(std::string(name + std::string("_i")), vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, true, vcc, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         meshes.emplace_back(Mesh(vmc, vcc, materials.back().value(), 0, indices.size()));
         vertices.clear();
         indices.clear();
@@ -54,22 +55,22 @@ namespace ve
     {
         for (auto& mesh: meshes)
         {
-            mesh.add_set_bindings(dsh);
+            mesh.add_set_bindings(dsh, vsc);
         }
     }
 
     void Model::self_destruct()
     {
-        vertex_buffer.self_destruct();
-        index_buffer.self_destruct();
+        vsc.destroy_buffer(vertex_buffer);
+        vsc.destroy_buffer(index_buffer);
         for (auto& mesh: meshes)
         {
             mesh.self_destruct();
         }
         meshes.clear();
-        for (auto& texture: textures)
+        for (auto& texture : textures)
         {
-            if (texture.has_value()) texture.value().self_destruct();
+            if (texture.has_value()) vsc.destroy_image(texture.value());
         }
         textures.clear();
     }
@@ -78,8 +79,8 @@ namespace ve
     {
         PushConstants pc{vp * transformation};
         vcc.graphics_cb[current_frame].pushConstants(layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &pc);
-        vcc.graphics_cb[current_frame].bindVertexBuffers(0, vertex_buffer.get(), {0});
-        vcc.graphics_cb[current_frame].bindIndexBuffer(index_buffer.get(), 0, vk::IndexType::eUint32);
+        vcc.graphics_cb[current_frame].bindVertexBuffers(0, vsc.get_buffer(vertex_buffer).get(), {0});
+        vcc.graphics_cb[current_frame].bindIndexBuffer(vsc.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
         for (auto& mesh: meshes)
         {
             mesh.draw(vcc.graphics_cb[current_frame], layout, sets, current_frame);
@@ -117,11 +118,11 @@ namespace ve
         textures.resize(model.textures.size());
         materials.resize(model.materials.size() + 1);
         Material default_mat;
-        default_mat.base_texture = nullptr;
-        default_mat.metallic_roughness_texture = nullptr;
-        default_mat.normal_texture = nullptr;
-        default_mat.emissive_texture = nullptr;
-        default_mat.occlusion_texture = nullptr;
+        default_mat.base_texture = std::nullopt;
+        default_mat.metallic_roughness_texture = std::nullopt;
+        default_mat.normal_texture = std::nullopt;
+        default_mat.emissive_texture = std::nullopt;
+        default_mat.occlusion_texture = std::nullopt;
         materials.back().emplace(default_mat);
 
         const tinygltf::Scene& scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
@@ -130,8 +131,8 @@ namespace ve
         {
             process_node(model.nodes[node_idx], model, glm::mat4(1.0f));
         }
-        vertex_buffer = Buffer(vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc);
-        index_buffer = Buffer(vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, vcc);
+        vertex_buffer = vsc.add_named_buffer(std::string(name + std::string("_v")), vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vcc, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        index_buffer = vsc.add_named_buffer(std::string(name + std::string("_i")), vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, true, vcc, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         // delete vertices and indices on host
         indices.clear();
         vertices.clear();
@@ -142,15 +143,15 @@ namespace ve
         if (mat_idx < 0) return materials.back().value();
         const tinygltf::Material& mat = model.materials[mat_idx];
 
-        auto get_texture = [&](const std::string& name, uint32_t base_mip_level) -> Image* {
-            if (mat.values.find(name) == mat.values.end()) return nullptr;
+        auto get_texture = [&](const std::string& name, uint32_t base_mip_level) -> std::optional<uint32_t> {
+            if (mat.values.find(name) == mat.values.end()) return std::nullopt;
             int texture_idx = mat.values.at(name).TextureIndex();
-            if (textures[texture_idx].has_value()) return &textures[texture_idx].value();
+            if (textures[texture_idx].has_value()) return textures[texture_idx];
             const tinygltf::Texture& tex = model.textures[texture_idx];
-            Image base_image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer)}, model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true);
-            textures[texture_idx].emplace(Image(vmc, vcc, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}, base_image, base_mip_level));
+            Image base_image(vmc, vcc, model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true, vmc.queue_family_indices.transfer);
+            textures[texture_idx].emplace(vsc.add_image(vmc, vcc, base_image, base_mip_level, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
             base_image.self_destruct();
-            return &textures[texture_idx].value();
+            return textures[texture_idx];
         };
 
         Material material{};
@@ -289,4 +290,4 @@ namespace ve
             meshes.emplace_back(Mesh(vmc, vcc, mat, idx_count, indices.size() - idx_count));
         }
     }
-}// namespace ve
+} // namespace ve

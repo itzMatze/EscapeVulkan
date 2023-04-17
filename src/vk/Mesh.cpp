@@ -8,10 +8,10 @@ namespace ve
     void Mesh::self_destruct()
     {}
 
-    void Mesh::add_set_bindings(DescriptorSetHandler& dsh)
+    void Mesh::add_set_bindings(DescriptorSetHandler& dsh, VulkanStorageContext& vsc)
     {
         descriptor_set_indices.push_back(dsh.new_set());
-        if (mat.base_texture != nullptr) dsh.add_descriptor(1, *(mat.base_texture));
+        if (mat.base_texture.has_value()) dsh.add_descriptor(1, vsc.get_image(mat.base_texture.value()));
     }
 
     void Mesh::draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, const std::vector<vk::DescriptorSet>& sets, uint32_t current_frame)
@@ -19,4 +19,4 @@ namespace ve
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, layout, 0, sets[descriptor_set_indices[current_frame]], {});
         cb.drawIndexed(index_count, 1, index_offset, 0, 0);
     }
-}// namespace ve
+} // namespace ve

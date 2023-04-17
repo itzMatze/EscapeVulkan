@@ -99,4 +99,4 @@ namespace ve
         ImGui::Render();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cb);
     }
-}// namespace ve
+} // namespace ve

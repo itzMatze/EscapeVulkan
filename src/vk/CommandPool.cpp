@@ -30,4 +30,4 @@ namespace ve
     {
         device.destroyCommandPool(command_pool);
     }
-}// namespace ve
+} // namespace ve

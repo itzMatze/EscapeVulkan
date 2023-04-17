@@ -68,4 +68,4 @@ namespace ve
         if (physical_devices.empty()) VE_THROW("Failed to find GPUs with Vulkan support!");
         return physical_devices;
     }
-}// namespace ve
+} // namespace ve

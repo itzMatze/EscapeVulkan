@@ -31,4 +31,4 @@ namespace ve
     private:
         void submit(const vk::CommandBuffer& cb, const vk::Queue& queue, bool wait_idle) const;
     };
-}// namespace ve
+} // namespace ve

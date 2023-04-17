@@ -21,4 +21,4 @@ namespace ve
         ExtensionsHandler extensions_handler;
         ExtensionsHandler validation_handler;
     };
-}// namespace ve
+} // namespace ve

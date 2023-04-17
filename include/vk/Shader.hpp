@@ -20,4 +20,4 @@ namespace ve
 
         std::string read_shader_file(const std::string& filename);
     };
-}// namespace ve
+} // namespace ve

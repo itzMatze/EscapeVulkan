@@ -22,4 +22,4 @@ namespace ve
         std::vector<vk::Semaphore> semaphores;
         std::vector<vk::Fence> fences;
     };
-}// namespace ve
+} // namespace ve

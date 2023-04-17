@@ -22,4 +22,4 @@ namespace ve
         vk::PipelineLayout pipeline_layout;
         vk::Pipeline pipeline;
     };
-}// namespace ve
+} // namespace ve

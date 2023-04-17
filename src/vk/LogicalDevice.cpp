@@ -10,12 +10,10 @@
 
 namespace ve
 {
-    LogicalDevice::LogicalDevice(const PhysicalDevice& p_device, QueueFamilyIndices& indices, std::unordered_map<QueueIndex, vk::Queue>& queues)
+    LogicalDevice::LogicalDevice(const PhysicalDevice& p_device, const QueueFamilyIndices& queue_family_indices, std::unordered_map<QueueIndex, vk::Queue>& queues)
     {
-        indices = p_device.get_queue_families();
-
         std::vector<vk::DeviceQueueCreateInfo> qci_s;
-        std::set<int32_t> unique_queue_families = {indices.graphics, indices.compute, indices.transfer, indices.present};
+        std::set<uint32_t> unique_queue_families = {queue_family_indices.graphics, queue_family_indices.compute, queue_family_indices.transfer, queue_family_indices.present};
         float queue_prio = 1.0f;
         for (uint32_t queue_family : unique_queue_families)
         {
@@ -40,10 +38,10 @@ namespace ve
         dci.pEnabledFeatures = &device_features;
 
         device = p_device.get().createDevice(dci);
-        queues.emplace(QueueIndex::Graphics, device.getQueue(indices.graphics, 0));
-        queues.emplace(QueueIndex::Compute, device.getQueue(indices.compute, 0));
-        queues.emplace(QueueIndex::Transfer, device.getQueue(indices.transfer, 0));
-        queues.emplace(QueueIndex::Present, device.getQueue(indices.present, 0));
+        queues.emplace(QueueIndex::Graphics, device.getQueue(queue_family_indices.graphics, 0));
+        queues.emplace(QueueIndex::Compute, device.getQueue(queue_family_indices.compute, 0));
+        queues.emplace(QueueIndex::Transfer, device.getQueue(queue_family_indices.transfer, 0));
+        queues.emplace(QueueIndex::Present, device.getQueue(queue_family_indices.present, 0));
     }
 
     void LogicalDevice::self_destruct()
@@ -55,4 +53,4 @@ namespace ve
     {
         return device;
     }
-}// namespace ve
+} // namespace ve

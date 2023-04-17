@@ -14,27 +14,30 @@ namespace ve
     public:
         Buffer() = default;
 
-        template<class T>
-        Buffer(const VulkanMainContext& vmc, const T* data, std::size_t elements, vk::BufferUsageFlags usage_flags, const std::vector<uint32_t>& queue_family_indices) : vmc(&vmc), device_local(false), element_count(elements), byte_size(sizeof(T) * elements)
+        template<class T, class... Args>
+        Buffer(const VulkanMainContext& vmc, const T* data, std::size_t elements, vk::BufferUsageFlags usage_flags, bool device_local, const VulkanCommandContext& vcc, Args... queue_family_indices) : vmc(vmc), vcc(vcc), device_local(device_local), element_count(elements), byte_size(sizeof(T) * elements)
         {
-            std::tie(buffer, vmaa) = create_buffer(usage_flags, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, queue_family_indices);
-            update_data(data, elements);
+            std::vector<uint32_t> queue_family_indices_vec = {queue_family_indices...};
+            if (device_local)
+            {
+                std::tie(buffer, vmaa) = create_buffer((usage_flags | vk::BufferUsageFlagBits::eTransferDst), {}, queue_family_indices_vec);
+                update_data(data, elements);
+            }
+            else
+            {
+                std::tie(buffer, vmaa) = create_buffer(usage_flags, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, queue_family_indices_vec);
+                update_data(data, elements);
+            }
         }
 
-        template<class T>
-        Buffer(const VulkanMainContext& vmc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, const std::vector<uint32_t>& queue_family_indices) : Buffer(vmc, data.data(), data.size(), usage_flags, queue_family_indices)
+
+        template<class T, class... Args>
+        Buffer(const VulkanMainContext& vmc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, bool device_local, const VulkanCommandContext& vcc, Args... queue_family_indices) : Buffer(vmc, data.data(), data.size(), usage_flags, device_local, vcc, queue_family_indices...)
         {}
-
-        template<class T>
-        Buffer(const VulkanMainContext& vmc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, std::vector<uint32_t> queue_family_indices, const VulkanCommandContext& vcc) : vmc(&vmc), device_local(true), element_count(data.size()), byte_size(sizeof(T) * data.size())
-        {
-            std::tie(buffer, vmaa) = create_buffer((usage_flags | vk::BufferUsageFlagBits::eTransferDst), {}, queue_family_indices);
-            update_data(data, vcc);
-        }
 
         void self_destruct()
         {
-            vmaDestroyBuffer(vmc->va, buffer, vmaa);
+            vmaDestroyBuffer(vmc.va, buffer, vmaa);
         }
 
         const vk::Buffer& get() const
@@ -62,48 +65,39 @@ namespace ve
         void update_data(const T* data, std::size_t elements)
         {
             VE_ASSERT(sizeof(T) * elements <= byte_size, "Data is larger than buffer!");
-            VE_ASSERT(!device_local, "Trying to update data to a buffer that is device local but it should not!");
 
-            void* mapped_mem;
-            vmaMapMemory(vmc->va, vmaa, &mapped_mem);
-            memcpy(mapped_mem, data, sizeof(T) * elements);
-            vmaUnmapMemory(vmc->va, vmaa);
+            if (device_local)
+            {
+                auto [staging_buffer, staging_vmaa] = create_buffer((vk::BufferUsageFlagBits::eTransferSrc), VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, {vmc.queue_family_indices.transfer});
+                void* mapped_data;
+                vmaMapMemory(vmc.va, staging_vmaa, &mapped_data);
+                memcpy(mapped_data, data, sizeof(T) * elements);
+                vmaUnmapMemory(vmc.va, staging_vmaa);
+
+                const vk::CommandBuffer& cb(vcc.begin(vcc.transfer_cb[0]));
+
+                vk::BufferCopy copy_region{};
+                copy_region.srcOffset = 0;
+                copy_region.dstOffset = 0;
+                copy_region.size = sizeof(T) * elements;
+                cb.copyBuffer(staging_buffer, buffer, copy_region);
+                vcc.submit_transfer(cb, true);
+
+                vmaDestroyBuffer(vmc.va, staging_buffer, staging_vmaa);
+            }
+            else
+            {
+                void* mapped_mem;
+                vmaMapMemory(vmc.va, vmaa, &mapped_mem);
+                memcpy(mapped_mem, data, sizeof(T) * elements);
+                vmaUnmapMemory(vmc.va, vmaa);
+            }
         }
 
         template<class T>
         void update_data(const std::vector<T>& data)
         {
             update_data(data.data(), data.size());
-        }
-
-        template<class T>
-        void update_data(const T& data, const VulkanCommandContext& vcc)
-        {
-            update_data(std::vector<T>{data}, vcc);
-        }
-
-        template<class T>
-        void update_data(const std::vector<T>& data, const VulkanCommandContext& vcc)
-        {
-            VE_ASSERT(sizeof(T) * data.size() <= byte_size, "Data is larger than buffer!");
-            VE_ASSERT(device_local, "Trying to update data to a buffer that is not device local but it should!");
-
-            auto [staging_buffer, staging_vmaa] = create_buffer((vk::BufferUsageFlagBits::eTransferSrc), VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, {uint32_t(vmc->queues_family_indices.transfer)});
-            void* mapped_data;
-            vmaMapMemory(vmc->va, staging_vmaa, &mapped_data);
-            memcpy(mapped_data, data.data(), sizeof(T) * data.size());
-            vmaUnmapMemory(vmc->va, staging_vmaa);
-
-            const vk::CommandBuffer& cb(vcc.begin(vcc.transfer_cb[0]));
-
-            vk::BufferCopy copy_region{};
-            copy_region.srcOffset = 0;
-            copy_region.dstOffset = 0;
-            copy_region.size = sizeof(T) * data.size();
-            cb.copyBuffer(staging_buffer, buffer, copy_region);
-            vcc.submit_transfer(cb, true);
-
-            vmaDestroyBuffer(vmc->va, staging_buffer, staging_vmaa);
         }
 
     private:
@@ -122,16 +116,17 @@ namespace ve
             vaci.flags = vma_flags;
             VkBuffer local_buffer;
             VmaAllocation local_vmaa;
-            vmaCreateBuffer(vmc->va, (VkBufferCreateInfo*) (&bci), &vaci, (&local_buffer), &local_vmaa, nullptr);
+            vmaCreateBuffer(vmc.va, (VkBufferCreateInfo*) (&bci), &vaci, (&local_buffer), &local_vmaa, nullptr);
 
             return std::make_pair(local_buffer, local_vmaa);
         }
 
-        const VulkanMainContext* vmc;
+        const VulkanMainContext& vmc;
+        const VulkanCommandContext& vcc;
         bool device_local;
         uint64_t byte_size;
         uint64_t element_count;
         vk::Buffer buffer;
         VmaAllocation vmaa;
     };
-}// namespace ve
+} // namespace ve

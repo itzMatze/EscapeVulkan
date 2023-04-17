@@ -6,9 +6,9 @@ namespace ve
 {
         VulkanCommandContext::VulkanCommandContext(VulkanMainContext& vmc) : vmc(vmc), sync(vmc.logical_device.get())
         {
-            command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queues_family_indices.graphics));
-            command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queues_family_indices.compute));
-            command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queues_family_indices.transfer));
+            command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queue_family_indices.graphics));
+            command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queue_family_indices.compute));
+            command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queue_family_indices.transfer));
             spdlog::info("Created VulkanCommandContext");
         }
 
@@ -77,4 +77,4 @@ namespace ve
             if (wait_idle) queue.waitIdle();
             cb.reset();
         }
-}// namespace ve
+} // namespace ve

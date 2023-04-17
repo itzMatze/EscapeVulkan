@@ -62,4 +62,4 @@ namespace ve
     {
         device.waitIdle();
     }
-}// namespace ve
+} // namespace ve

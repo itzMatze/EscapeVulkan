@@ -44,4 +44,4 @@ namespace ve
         vk::DescriptorPool pool;
         std::vector<vk::DescriptorSet> sets;
     };
-}// namespace ve
+} // namespace ve

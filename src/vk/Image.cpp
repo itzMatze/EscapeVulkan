@@ -1,70 +1,13 @@
 #include "vk/Image.hpp"
 
-#include <stb/stb_image.h>
-
 #include "ve_log.hpp"
 #include "vk/VulkanCommandContext.hpp"
 
 namespace ve
 {
-    Image::Image(const VulkanMainContext& vmc, const std::string& name, bool use_mip_maps) : vmc(vmc), name(name), mip_levels(use_mip_maps ? 2 : 1)
-    {}
-
-    Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const unsigned char* data, uint32_t width, uint32_t height, bool use_mip_maps) : vmc(vmc), w(width), h(height), byte_size(width * height * 4), mip_levels(use_mip_maps ? 2 : 1)
-    {
-        create_image_from_data(data, vcc, queue_family_indices);
-    }
-
-    Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, Image& src_image, uint32_t base_mip_level) : vmc(vmc), mip_levels(2)
-    {
-        w = std::max(1.0, src_image.w / std::pow(2, base_mip_level));
-        h = std::max(1.0, src_image.h / std::pow(2, base_mip_level));
-        byte_size = w * h * 4;
-        constexpr vk::Format format = vk::Format::eR8G8B8A8Unorm;
-        create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, format, vk::SampleCountFlagBits::e1);
-
-        src_image.transition_image_layout(vcc, vk::ImageLayout::eTransferSrcOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eTransferRead);
-        transition_image_layout(vcc, vk::ImageLayout::eTransferDstOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, vk::AccessFlagBits::eTransferWrite);
-        vk::FormatProperties format_properties = vmc.physical_device.get().getFormatProperties(format);
-        if (!(format_properties.optimalTilingFeatures & vk::FormatFeatureFlagBits::eSampledImageFilterLinear)) mip_levels = 1;
-
-        const vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[0]);
-
-        vk::ImageBlit blit{};
-        blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
-        blit.srcOffsets[1] = vk::Offset3D(w, h, 1);
-        blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
-        blit.srcSubresource.mipLevel = base_mip_level;
-        blit.srcSubresource.baseArrayLayer = 0;
-        blit.srcSubresource.layerCount = 1;
-        blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
-        blit.dstOffsets[1] = vk::Offset3D(w, h, 1);
-        blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
-        blit.dstSubresource.mipLevel = 0;
-        blit.dstSubresource.baseArrayLayer = 0;
-        blit.dstSubresource.layerCount = 1;
-        cb.blitImage(src_image.get_image(), vk::ImageLayout::eTransferSrcOptimal, image, vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear);
-
-        vcc.submit_graphics(cb, true);
-
-        mip_levels > 1 ? generate_mipmaps(vcc) : transition_image_layout(vcc, vk::ImageLayout::eShaderReadOnlyOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eShaderRead);
-        create_image_view(format, vk::ImageAspectFlagBits::eColor);
-        create_sampler();
-    }
-
-    Image::Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, const std::string& filename, bool use_mip_maps) : vmc(vmc), name(filename), mip_levels(use_mip_maps ? 2 : 1)
-    {
-        stbi_uc* pixels = stbi_load(filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
-        VE_ASSERT(pixels, "Failed to load image \"{}\"!", filename);
-        byte_size = w * h * 4;
-        create_image_from_data(pixels, vcc, queue_family_indices);
-        stbi_image_free(pixels);
-        pixels = nullptr;
-    }
-
     void Image::create_image_from_data(const unsigned char* data, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices)
     {
-        Buffer buffer(vmc, data, byte_size, vk::BufferUsageFlagBits::eTransferSrc, {uint32_t(vmc.queues_family_indices.transfer)});
+        Buffer buffer(vmc, data, byte_size, vk::BufferUsageFlagBits::eTransferSrc, false, vcc, vmc.queue_family_indices.transfer);
 
         constexpr vk::Format format = vk::Format::eR8G8B8A8Unorm;
         create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, format, vk::SampleCountFlagBits::e1);
@@ -286,4 +229,4 @@ namespace ve
 
         vcc.submit_graphics(cb, true);
     }
-}// namespace ve
+} // namespace ve

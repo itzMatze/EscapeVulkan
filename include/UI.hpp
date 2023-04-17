@@ -20,4 +20,4 @@ namespace ve
         const VulkanMainContext& vmc;
 		vk::DescriptorPool imgui_pool;
 	};
-}// namespace ve
+} // namespace ve

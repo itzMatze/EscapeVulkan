@@ -30,12 +30,12 @@ namespace ve
         void create_vma_allocator();
 
     public:
-        QueueFamilyIndices queues_family_indices;
         std::optional<Window> window;
         Instance instance;
         std::optional<vk::SurfaceKHR> surface;
         PhysicalDevice physical_device;
+        QueueFamilyIndices queue_family_indices;
         LogicalDevice logical_device;
         VmaAllocator va;
     };
-}// namespace ve
+} // namespace ve

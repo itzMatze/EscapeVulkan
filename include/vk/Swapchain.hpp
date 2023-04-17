@@ -37,4 +37,4 @@ namespace ve
         vk::SurfaceFormatKHR choose_surface_format();
         vk::Format choose_depth_format();
     };
-}// namespace ve
+} // namespace ve

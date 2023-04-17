@@ -24,7 +24,7 @@ namespace ve
         ss << std::fixed << std::setprecision(precision) << number;
         return ss.str();
     }
-}// namespace ve
+} // namespace ve
 
 #define VE_THROW(...)                         \
     {                                         \

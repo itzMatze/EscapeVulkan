@@ -44,19 +44,11 @@ namespace ve
         vk::PhysicalDeviceProperties pdp = physical_device.getProperties();
         spdlog::info("GPU: {}", pdp.deviceName);
         extensions_handler.remove_missing_extensions();
-
-        find_queue_families(surface);
-        spdlog::debug("Queue family indices: \n    Graphics: {}\n    Compute:  {}\n    Transfer: {}\n    Present:  {}", queue_family_indices.graphics, queue_family_indices.compute, queue_family_indices.transfer, queue_family_indices.present);
     }
 
     vk::PhysicalDevice PhysicalDevice::get() const
     {
         return physical_device;
-    }
-
-    QueueFamilyIndices PhysicalDevice::get_queue_families() const
-    {
-        return queue_family_indices;
     }
 
     const std::vector<const char*>& PhysicalDevice::get_extensions() const
@@ -69,11 +61,12 @@ namespace ve
         return extensions_handler.get_missing_extensions();
     }
 
-    void PhysicalDevice::find_queue_families(const std::optional<vk::SurfaceKHR>& surface)
+    QueueFamilyIndices PhysicalDevice::get_queue_families(const std::optional<vk::SurfaceKHR>& surface) const
     {
+        QueueFamilyIndices queue_family_indices(-1);
         std::vector<vk::QueueFamilyProperties> queue_families = physical_device.getQueueFamilyProperties();
         // use scores to determine how good a queue family fits for a task
-        QueueFamilyIndices scores;
+        QueueFamilyIndices scores(0);
         for (uint32_t i = 0; i < queue_families.size(); ++i)
         {
             if (surface.has_value())
@@ -81,16 +74,16 @@ namespace ve
                 vk::Bool32 present_support = false;
                 present_support = physical_device.getSurfaceSupportKHR(i, surface.value());
                 // take what we get for present queue, but ideally present and graphics queue are the same
-                if (present_support && scores.present < 0)
+                if (present_support && scores.present == 0)
                 {
-                    scores.present = 0;
+                    scores.present = 1;
                     queue_family_indices.present = i;
                 }
                 if (scores.graphics < get_queue_score(queue_families[i], vk::QueueFlagBits::eGraphics))
                 {
-                    if (present_support && scores.present < 1)
+                    if (present_support && scores.present < 2)
                     {
-                        scores.present = 1;
+                        scores.present = 2;
                         queue_family_indices.present = i;
                     }
                     scores.graphics = get_queue_score(queue_families[i], vk::QueueFlagBits::eGraphics);
@@ -108,7 +101,9 @@ namespace ve
                 queue_family_indices.transfer = i;
             }
         }
-        VE_ASSERT(queue_family_indices.graphics > -1 && queue_family_indices.compute > -1 && queue_family_indices.transfer > -1, "One queue family could not be satisfied!");
+        VE_ASSERT(queue_family_indices.graphics != uint32_t(-1) && queue_family_indices.compute != uint32_t(-1) && queue_family_indices.transfer != uint32_t(-1), "One queue family could not be satisfied!");
+        spdlog::debug("Queue family indices: \n    Graphics: {}\n    Compute:  {}\n    Transfer: {}\n    Present:  {}", queue_family_indices.graphics, queue_family_indices.compute, queue_family_indices.transfer, queue_family_indices.present);
+        return queue_family_indices;
     }
 
     bool PhysicalDevice::is_device_suitable(uint32_t idx, const vk::PhysicalDevice p_device, const std::optional<vk::SurfaceKHR>& surface)
@@ -139,8 +134,8 @@ namespace ve
     int32_t PhysicalDevice::get_queue_score(vk::QueueFamilyProperties queue_family, vk::QueueFlagBits target) const
     {
         // required queue family not supported by this queue
-        if (!(queue_family.queueFlags & target)) return -1;
-        int32_t score = 0;
+        if (!(queue_family.queueFlags & target)) return 0;
+        int32_t score = 1;
         // every missing queue feature increases score, as this means that the queue is more specialized
         if (!(queue_family.queueFlags & vk::QueueFlagBits::eGraphics)) ++score;
         if (!(queue_family.queueFlags & vk::QueueFlagBits::eCompute)) ++score;
@@ -149,4 +144,4 @@ namespace ve
         if (!(queue_family.queueFlags & vk::QueueFlagBits::eSparseBinding)) ++score;
         return score;
     }
-}// namespace ve
+} // namespace ve

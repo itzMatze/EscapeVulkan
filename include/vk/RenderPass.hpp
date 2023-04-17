@@ -20,4 +20,4 @@ namespace ve
         vk::SampleCountFlagBits sample_count;
         vk::RenderPass render_pass;
     };
-}// namespace ve
+} // namespace ve

@@ -7,7 +7,7 @@
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), swapchain(vmc), scene(vmc, vcc), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
+    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc) : vmc(vmc), vcc(vcc), vsc(vsc), swapchain(vmc), scene(vmc, vcc), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
@@ -16,7 +16,7 @@ namespace ve
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
-            uniform_buffers.push_back(Buffer(vmc, std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, {uint32_t(vmc.queues_family_indices.transfer), uint32_t(vmc.queues_family_indices.graphics)}));
+            uniform_buffers.push_back(vsc.add_named_buffer(std::string("uniform_") + std::to_string(i), vmc, std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, false, vcc, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
             sync_indices[SyncNames::SImageAvailable].push_back(vcc.sync.add_semaphore());
             sync_indices[SyncNames::SRenderFinished].push_back(vcc.sync.add_semaphore());
             sync_indices[SyncNames::FRenderFinished].push_back(vcc.sync.add_fence());
@@ -30,7 +30,7 @@ namespace ve
         ui.self_destruct();
         for (auto& buffer: uniform_buffers)
         {
-            buffer.self_destruct();
+            vsc.destroy_buffer(buffer);
         }
         uniform_buffers.clear();
         scene.self_destruct();
@@ -44,13 +44,13 @@ namespace ve
 
         vcc.sync.wait_idle();
         if (scene.loaded) scene.self_destruct();
-        scene.load(std::string("../assets/scenes/") + filename);
+        scene.load(std::string("../assets/scenes/") + filename, vsc);
 
         // add one descriptor set for every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
-            scene.get_dsh(ShaderFlavor::Default).apply_descriptor_to_new_sets(0, uniform_buffers.back());
-            scene.get_dsh(ShaderFlavor::Basic).apply_descriptor_to_new_sets(0, uniform_buffers.back());
+            scene.get_dsh(ShaderFlavor::Default).apply_descriptor_to_new_sets(0, vsc.get_buffer(uniform_buffers.back()));
+            scene.get_dsh(ShaderFlavor::Basic).apply_descriptor_to_new_sets(0, vsc.get_buffer(uniform_buffers.back()));
             scene.add_bindings();
             scene.get_dsh(ShaderFlavor::Default).reset_auto_apply_bindings();
             scene.get_dsh(ShaderFlavor::Basic).reset_auto_apply_bindings();
@@ -68,7 +68,7 @@ namespace ve
         ubo.M = glm::rotate(ubo.M, di.time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
         scene.rotate("bunny", di.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
         pc.MVP = di.vp * ubo.M;
-        uniform_buffers[di.current_frame].update_data(ubo);
+        vsc.get_buffer(uniform_buffers[di.current_frame]).update_data(ubo);
 
         vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), vcc.sync.get_semaphore(sync_indices[SyncNames::SImageAvailable][di.current_frame]));
         VE_CHECK(image_idx.result, "Failed to acquire next image!");

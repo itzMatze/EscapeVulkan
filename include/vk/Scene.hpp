@@ -12,7 +12,7 @@ namespace ve
         Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc);
         void construct(const RenderPass& render_pass);
         void self_destruct();
-        void load(const std::string& path);
+        void load(const std::string& path, VulkanStorageContext& vsc);
         void add_bindings();
         void translate(const std::string& model, const glm::vec3& trans);
         void scale(const std::string& model, const glm::vec3& scale);
@@ -29,4 +29,4 @@ namespace ve
         std::vector<Model> models;
         std::unordered_map<std::string, uint32_t> model_handles;
     };
-}// namespace ve
+} // namespace ve

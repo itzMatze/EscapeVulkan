@@ -15,4 +15,4 @@ namespace ve
         const vk::Device device;
         vk::CommandPool command_pool;
     };
-}// namespace ve
+} // namespace ve

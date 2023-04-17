@@ -31,7 +31,7 @@ namespace ve
         loaded = false;
     }
 
-    void Scene::load(const std::string& path)
+    void Scene::load(const std::string& path, VulkanStorageContext& vsc)
     {
         ros.emplace(ShaderFlavor::Default, vmc);
         ros.emplace(ShaderFlavor::Basic, vmc);
@@ -50,7 +50,7 @@ namespace ve
             for (const auto& d : data.at("model_files"))
             {
                 std::string name = d.value("name", "");
-                models.emplace_back(vmc, vcc, std::string("../assets/models/") + std::string(d.value("file", "")));
+                models.emplace_back(vmc, vcc, vsc, name, std::string("../assets/models/") + std::string(d.value("file", "")));
                 model_handles.emplace(name, models.size() - 1);
                 if (d.value("ShaderFlavor", "") == "Basic")
                 {
@@ -84,7 +84,7 @@ namespace ve
             for (const auto& d : data["custom_models"])
             {
                 std::string name = d.value("name", "");
-                models.emplace_back(vmc, vcc, d);
+                models.emplace_back(vmc, vcc, vsc, d);
                 model_handles.emplace(name, models.size() - 1);
                 if (d.value("ShaderFlavor", "") == "Basic")
                 {
@@ -156,4 +156,4 @@ namespace ve
         }
     }
 
-}// namespace ve
+} // namespace ve

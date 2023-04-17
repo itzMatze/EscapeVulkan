@@ -48,4 +48,4 @@ namespace ve
         file_stream << file.rdbuf();
         return file_stream.str();
     }
-}// namespace ve
+} // namespace ve

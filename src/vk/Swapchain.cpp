@@ -36,11 +36,11 @@ namespace ve
         choose_extent(capabilities);
         uint32_t image_count = capabilities.maxImageCount > 0 ? std::min(capabilities.minImageCount + 1, capabilities.maxImageCount) : capabilities.minImageCount + 1;
 
-        depth_buffer.create_image({uint32_t(vmc.queues_family_indices.graphics)}, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_format, extent.width, extent.height, render_pass.get_sample_count());
+        depth_buffer.create_image({vmc.queue_family_indices.graphics}, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_format, extent.width, extent.height, render_pass.get_sample_count());
         depth_buffer.create_image_view(depth_format, vk::ImageAspectFlagBits::eDepth);
         if (render_pass.get_sample_count() != vk::SampleCountFlagBits::e1)
         {
-            color_image.create_image({uint32_t(vmc.queues_family_indices.graphics)}, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment, surface_format.format, extent.width, extent.height, render_pass.get_sample_count());
+            color_image.create_image({vmc.queue_family_indices.graphics}, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment, surface_format.format, extent.width, extent.height, render_pass.get_sample_count());
             color_image.create_image_view(surface_format.format, vk::ImageAspectFlagBits::eColor);
         }
 
@@ -58,14 +58,13 @@ namespace ve
         sci.presentMode = choose_present_mode(present_modes);
         sci.clipped = VK_TRUE;
         sci.oldSwapchain = VK_NULL_HANDLE;
-        QueueFamilyIndices indices = vmc.physical_device.get_queue_families();
-        uint32_t queue_family_indices[] = {static_cast<uint32_t>(indices.graphics), static_cast<uint32_t>(indices.present)};
-        if (indices.graphics != indices.present)
+        if (vmc.queue_family_indices.graphics != vmc.queue_family_indices.present)
         {
+            std::vector<uint32_t> queue_family_indices = {vmc.queue_family_indices.graphics, vmc.queue_family_indices.present};
             spdlog::debug("Graphics and Presentation queue are two distinct queues. Using Concurrent sharing mode on swapchain.");
             sci.imageSharingMode = vk::SharingMode::eConcurrent;
-            sci.queueFamilyIndexCount = 2;
-            sci.pQueueFamilyIndices = queue_family_indices;
+            sci.queueFamilyIndexCount = queue_family_indices.size();
+            sci.pQueueFamilyIndices = queue_family_indices.data();
         }
         else
         {
@@ -185,4 +184,4 @@ namespace ve
         }
         VE_THROW("Failed to find supported format!");
     }
-}// namespace ve
+} // namespace ve

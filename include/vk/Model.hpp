@@ -14,8 +14,8 @@ namespace ve
     class Model
     {
     public:
-        Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& path);
-        Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const nlohmann::json& model);
+        Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc, const std::string name, const std::string& path);
+        Model(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc, const nlohmann::json& model);
         void self_destruct();
         void add_set_bindings(DescriptorSetHandler& dsh);
         void draw(uint32_t current_frame, const vk::PipelineLayout& layout, const std::vector<vk::DescriptorSet>& sets, const glm::mat4& vp);
@@ -26,13 +26,14 @@ namespace ve
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
+        VulkanStorageContext& vsc;
         std::vector<Vertex> vertices;
         uint32_t vertex_count = 0;
         std::vector<uint32_t> indices;
-        Buffer vertex_buffer;
-        Buffer index_buffer;
+        uint32_t vertex_buffer;
+        uint32_t index_buffer;
         std::vector<Mesh> meshes;
-        std::vector<std::optional<Image>> textures;
+        std::vector<std::optional<uint32_t>> textures;
         std::vector<std::optional<Material>> materials;
         std::string name;
         glm::mat4 transformation;
@@ -42,4 +43,4 @@ namespace ve
         void process_node(const tinygltf::Node& node, const tinygltf::Model& model, const glm::mat4 trans);
         void process_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model, const glm::mat4 matrix);
     };
-}// namespace ve
+} // namespace ve

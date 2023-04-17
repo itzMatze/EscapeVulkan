@@ -175,4 +175,4 @@ namespace ve
     {
         return pipeline_layout;
     }
-}// namespace ve
+} // namespace ve

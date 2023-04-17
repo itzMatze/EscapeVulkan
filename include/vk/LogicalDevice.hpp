@@ -18,11 +18,11 @@ namespace ve
     class LogicalDevice
     {
     public:
-        LogicalDevice(const PhysicalDevice& p_device, QueueFamilyIndices& indices, std::unordered_map<QueueIndex, vk::Queue>& queues);
+        LogicalDevice(const PhysicalDevice& p_device, const QueueFamilyIndices& queue_family_indices, std::unordered_map<QueueIndex, vk::Queue>& queues);
         void self_destruct();
         const vk::Device& get() const;
 
     private:
         vk::Device device;
     };
-}// namespace ve
+} // namespace ve

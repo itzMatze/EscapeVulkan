@@ -24,4 +24,4 @@ namespace ve
 
         bool find_extension(const char* name, const std::vector<const char*>& extensions) const;
     };
-}// namespace ve
+} // namespace ve

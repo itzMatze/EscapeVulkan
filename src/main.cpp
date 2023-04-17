@@ -19,7 +19,7 @@
 class MainContext
 {
 public:
-    MainContext() : extent(1000, 800), vmc(extent.width, extent.height), vcc(vmc), vrc(vmc, vcc), camera(45.0f, extent.width, extent.height)
+    MainContext() : extent(1000, 800), vmc(extent.width, extent.height), vcc(vmc), vsc(vmc, vcc), vrc(vmc, vcc, vsc), camera(45.0f, extent.width, extent.height)
     {
         extent = vrc.swapchain.get_extent();
         camera.updateScreenSize(extent.width, extent.height);
@@ -88,6 +88,7 @@ private:
     vk::Extent2D extent;
     ve::VulkanMainContext vmc;
     ve::VulkanCommandContext vcc;
+    ve::VulkanStorageContext vsc;
     ve::VulkanRenderContext vrc;
     Camera camera;
     EventHandler eh;
