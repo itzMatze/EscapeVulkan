@@ -38,8 +38,10 @@ namespace ve
 
         const VulkanMainContext& vmc;
         std::vector<Descriptor> new_set_descriptors;
+        // vector of descriptor sets, one element contains vector with descriptors of one descriptor set
         std::vector<std::vector<Descriptor>> descriptor_sets;
         std::vector<vk::DescriptorSetLayoutBinding> layout_bindings;
+        // those are all the same layout to allocate multiple descriptor sets at once
         std::vector<vk::DescriptorSetLayout> layouts;
         vk::DescriptorPool pool;
         std::vector<vk::DescriptorSet> sets;

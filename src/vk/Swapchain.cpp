@@ -113,12 +113,12 @@ namespace ve
 
     void Swapchain::self_destruct(bool full)
     {
-        for (auto& framebuffer: framebuffers)
+        for (auto& framebuffer : framebuffers)
         {
             vmc.logical_device.get().destroyFramebuffer(framebuffer);
         }
         framebuffers.clear();
-        for (auto& image_view: image_views)
+        for (auto& image_view : image_views)
         {
             vmc.logical_device.get().destroyImageView(image_view);
         }
@@ -131,7 +131,7 @@ namespace ve
 
     vk::PresentModeKHR Swapchain::choose_present_mode(const std::vector<vk::PresentModeKHR>& available_present_modes)
     {
-        for (const auto& pm: available_present_modes)
+        for (const auto& pm : available_present_modes)
         {
             if (pm == vk::PresentModeKHR::eImmediate) return pm;
         }
@@ -163,7 +163,7 @@ namespace ve
     vk::SurfaceFormatKHR Swapchain::choose_surface_format()
     {
         std::vector<vk::SurfaceFormatKHR> formats = vmc.get_surface_formats();
-        for (const auto& format: formats)
+        for (const auto& format : formats)
         {
             if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) return format;
         }
@@ -174,7 +174,7 @@ namespace ve
     vk::Format Swapchain::choose_depth_format()
     {
         std::vector<vk::Format> candidates{vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint};
-        for (vk::Format format: candidates)
+        for (vk::Format format : candidates)
         {
             vk::FormatProperties props = vmc.physical_device.get().getFormatProperties(format);
             if ((props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) == vk::FormatFeatureFlagBits::eDepthStencilAttachment)

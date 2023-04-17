@@ -6,13 +6,13 @@
 
 namespace ve
 {
-    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc)
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc) : vmc(vmc), vcc(vcc), vsc(vsc)
     {}
 
     void Scene::construct(const RenderPass& render_pass)
     {
-        ros.at(ShaderFlavor::Default).construct(render_pass, {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("default.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
-        ros.at(ShaderFlavor::Basic).construct(render_pass, {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("basic.frag", vk::ShaderStageFlagBits::eFragment)}, vk::PolygonMode::eFill);
+        ros.at(ShaderFlavor::Default).construct(render_pass, {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("default.frag", vk::ShaderStageFlagBits::eFragment)});
+        ros.at(ShaderFlavor::Basic).construct(render_pass, {std::make_pair("default.vert", vk::ShaderStageFlagBits::eVertex), std::make_pair("basic.frag", vk::ShaderStageFlagBits::eFragment)});
     }
 
     void Scene::self_destruct()
@@ -22,7 +22,7 @@ namespace ve
             ro.second.self_destruct();
         }
         ros.clear(); 
-        for (auto& model: models)
+        for (auto& model : models)
         {
             model.self_destruct();
         }
@@ -31,7 +31,7 @@ namespace ve
         loaded = false;
     }
 
-    void Scene::load(const std::string& path, VulkanStorageContext& vsc)
+    void Scene::load(const std::string& path)
     {
         ros.emplace(ShaderFlavor::Default, vmc);
         ros.emplace(ShaderFlavor::Basic, vmc);
@@ -61,6 +61,7 @@ namespace ve
                     ros.at(ShaderFlavor::Default).add_model(models.size() - 1);
                 }
 
+                // apply transformations to model
                 if (d.contains("scale"))
                 {
                     glm::vec3 scaling(d.at("scale")[0], d.at("scale")[1], d.at("scale")[2]);
@@ -150,7 +151,7 @@ namespace ve
 
     void Scene::draw(vk::CommandBuffer& cb, DrawInfo& di)
     {
-        for (auto& ro: ros)
+        for (auto& ro : ros)
         {
             ro.second.draw(cb, di, models);
         }

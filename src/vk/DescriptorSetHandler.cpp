@@ -7,6 +7,7 @@ namespace ve
 
     uint32_t DescriptorSetHandler::new_set()
     {
+        // add new descriptor set and apply current auto apply bindings
         descriptor_sets.push_back({});
         descriptor_sets.back().insert(descriptor_sets.back().end(), new_set_descriptors.begin(), new_set_descriptors.end());
         return (descriptor_sets.size() - 1);
@@ -14,6 +15,7 @@ namespace ve
 
     void DescriptorSetHandler::add_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages)
     {
+        // add binding to build descriptor set layout
         vk::DescriptorSetLayoutBinding dslb{};
         dslb.binding = binding;
         dslb.descriptorType = type;
@@ -25,6 +27,8 @@ namespace ve
 
     void DescriptorSetHandler::add_descriptor(uint32_t binding, const Buffer& buffer)
     {
+        // add buffer descriptor to current descriptor set
+        // every set needs to be build one after another
         vk::DescriptorBufferInfo dbi{};
         dbi.buffer = buffer.get();
         dbi.offset = 0;
@@ -34,6 +38,8 @@ namespace ve
 
     void DescriptorSetHandler::add_descriptor(uint32_t binding, const Image& image)
     {
+        // add image descriptor to current descriptor set
+        // every set needs to be build one after another
         vk::DescriptorImageInfo dii{};
         dii.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
         dii.imageView = image.get_view();
@@ -43,6 +49,7 @@ namespace ve
 
     void DescriptorSetHandler::apply_descriptor_to_new_sets(uint32_t binding, const Buffer& buffer)
     {
+        // add buffer descriptor to be added to every new descriptor set (used for e.g. uniform buffers)
         vk::DescriptorBufferInfo dbi{};
         dbi.buffer = buffer.get();
         dbi.offset = 0;
@@ -57,18 +64,11 @@ namespace ve
 
     void DescriptorSetHandler::construct()
     {
+        // sort with respect to binding that the layout and the descriptor sets are in the same order
         std::sort(layout_bindings.begin(), layout_bindings.end());
         for (auto& descriptors : descriptor_sets)
         {
             std::sort(descriptors.begin(), descriptors.end());
-        }
-        std::vector<vk::DescriptorPoolSize> pool_sizes;
-        for (const auto& dslb: layout_bindings)
-        {
-            vk::DescriptorPoolSize dps{};
-            dps.type = dslb.descriptorType;
-            dps.descriptorCount = descriptor_sets.size();
-            pool_sizes.push_back(dps);
         }
 
         for (uint32_t i = 0; i < descriptor_sets.size(); ++i)
@@ -78,6 +78,15 @@ namespace ve
             dslci.bindingCount = layout_bindings.size();
             dslci.pBindings = layout_bindings.data();
             layouts.push_back(vmc.logical_device.get().createDescriptorSetLayout(dslci));
+        }
+
+        std::vector<vk::DescriptorPoolSize> pool_sizes;
+        for (const auto& dslb : layout_bindings)
+        {
+            vk::DescriptorPoolSize dps{};
+            dps.type = dslb.descriptorType;
+            dps.descriptorCount = descriptor_sets.size();
+            pool_sizes.push_back(dps);
         }
 
         vk::DescriptorPoolCreateInfo dpci{};
@@ -107,6 +116,7 @@ namespace ve
                 wds.dstBinding = layout_bindings[j].binding;
                 wds.dstArrayElement = 0;
 
+                // descriptorType decides if descriptor is buffer or image, the unused one is empty
                 wds.descriptorType = layout_bindings[j].descriptorType;
                 wds.descriptorCount = 1;
                 wds.pBufferInfo = &(descriptor_sets[i][j].dbi);

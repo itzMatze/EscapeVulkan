@@ -20,7 +20,7 @@ namespace ve
     {
         std::vector<Shader> shaders;
         std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
-        for (const auto& shader_name: shader_names)
+        for (const auto& shader_name : shader_names)
         {
             Shader shader(vmc.logical_device.get(), shader_name.first, shader_name.second);
             shaders.push_back(shader);
@@ -160,7 +160,7 @@ namespace ve
         VE_CHECK(pipeline_result_value.result, "Failed to create pipeline!");
         pipeline = pipeline_result_value.value;
 
-        for (auto& shader: shaders)
+        for (auto& shader : shaders)
         {
             vmc.logical_device.get().destroyShaderModule(shader.get());
         }

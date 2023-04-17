@@ -15,7 +15,7 @@ namespace ve
         void self_destruct();
         void add_model(uint32_t idx);
         void add_bindings(std::vector<Model>& models);
-        void construct(const RenderPass& render_pass, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names, vk::PolygonMode polygon_mode);
+        void construct(const RenderPass& render_pass, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names);
         void draw(vk::CommandBuffer& cb, DrawInfo& di, std::vector<Model>& models);
 
         DescriptorSetHandler dsh;

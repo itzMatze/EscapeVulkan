@@ -12,8 +12,9 @@
 #include "Camera.hpp"
 #include "EventHandler.hpp"
 #include "ve_log.hpp"
-#include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanMainContext.hpp"
+#include "vk/VulkanCommandContext.hpp"
+#include "vk/VulkanStorageContext.hpp"
 #include "vk/VulkanRenderContext.hpp"
 
 class MainContext

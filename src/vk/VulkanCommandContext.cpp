@@ -57,7 +57,7 @@ namespace ve
         void VulkanCommandContext::self_destruct()
         {
             sync.wait_idle();
-            for (auto& command_pool: command_pools)
+            for (auto& command_pool : command_pools)
             {
                 command_pool.self_destruct();
             }

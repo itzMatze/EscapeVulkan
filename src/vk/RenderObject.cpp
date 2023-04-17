@@ -25,11 +25,11 @@ namespace ve
         }
     }
 
-    void RenderObject::construct(const RenderPass& render_pass, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names, vk::PolygonMode polygon_mode)
+    void RenderObject::construct(const RenderPass& render_pass, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names)
     {
         if (model_indices.empty()) return;
         dsh.construct();
-        pipeline.construct(render_pass, dsh.get_layouts()[0], shader_names, polygon_mode);
+        pipeline.construct(render_pass, dsh.get_layouts()[0], shader_names, vk::PolygonMode::eFill);
         mesh_view_pipeline.construct(render_pass, dsh.get_layouts()[0], shader_names, vk::PolygonMode::eLine);
     }
 

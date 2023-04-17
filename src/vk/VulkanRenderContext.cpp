@@ -7,7 +7,7 @@
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc) : vmc(vmc), vcc(vcc), vsc(vsc), swapchain(vmc), scene(vmc, vcc), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
+    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc) : vmc(vmc), vcc(vcc), vsc(vsc), swapchain(vmc), scene(vmc, vcc, vsc), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
@@ -16,7 +16,7 @@ namespace ve
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
-            uniform_buffers.push_back(vsc.add_named_buffer(std::string("uniform_") + std::to_string(i), vmc, std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, false, vcc, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
+            uniform_buffers.push_back(vsc.add_named_buffer(std::string("uniform_") + std::to_string(i), std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
             sync_indices[SyncNames::SImageAvailable].push_back(vcc.sync.add_semaphore());
             sync_indices[SyncNames::SRenderFinished].push_back(vcc.sync.add_semaphore());
             sync_indices[SyncNames::FRenderFinished].push_back(vcc.sync.add_fence());
@@ -28,7 +28,7 @@ namespace ve
     void VulkanRenderContext::self_destruct()
     {
         ui.self_destruct();
-        for (auto& buffer: uniform_buffers)
+        for (auto& buffer : uniform_buffers)
         {
             vsc.destroy_buffer(buffer);
         }
@@ -44,7 +44,7 @@ namespace ve
 
         vcc.sync.wait_idle();
         if (scene.loaded) scene.self_destruct();
-        scene.load(std::string("../assets/scenes/") + filename, vsc);
+        scene.load(std::string("../assets/scenes/") + filename);
 
         // add one descriptor set for every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)

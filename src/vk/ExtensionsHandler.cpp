@@ -51,7 +51,7 @@ namespace ve
     {
         std::vector<const char*> tmp_exts(extensions);
         extensions.clear();
-        for (const auto& ext: tmp_exts)
+        for (const auto& ext : tmp_exts)
         {
             if (!find_extension(ext, missing_extensions)) extensions.push_back(ext);
         }
@@ -64,7 +64,7 @@ namespace ve
 
     bool ExtensionsHandler::find_extension(const char* name, const std::vector<const char*>& extensions) const
     {
-        for (const auto& ext: extensions)
+        for (const auto& ext : extensions)
         {
             if (strcmp(ext, name) == 0)
             {

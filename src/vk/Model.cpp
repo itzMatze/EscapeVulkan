@@ -24,7 +24,7 @@ namespace ve
     {
         // load custom directly in json defined models
         name = model.value("name", "");
-        for (auto& v: model.at("vertices"))
+        for (auto& v : model.at("vertices"))
         {
             Vertex vertex;
             vertex.pos = glm::vec3(v.at("pos")[0], v.at("pos")[1], v.at("pos")[2]);
@@ -33,27 +33,28 @@ namespace ve
             vertex.tex = glm::vec2(v.at("tex")[0], v.at("tex")[1]);
             vertices.push_back(vertex);
         }
-        for (auto& i: model.at("indices"))
+        for (auto& i : model.at("indices"))
         {
             indices.push_back(i);
         }
         Material m;
         if (model.contains("base_texture"))
         {
-            textures.emplace_back(vsc.add_image(vmc, vcc, std::string("../assets/textures/") + std::string(model.value("base_texture", "")), vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
+            textures.emplace_back(vsc.add_image(std::string("../assets/textures/") + std::string(model.value("base_texture", "")), vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
             m.base_texture = textures.back().value();
         }
         materials.push_back(m);
-        vertex_buffer = vsc.add_named_buffer(std::string(name + std::string("_v")), vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vcc, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
-        index_buffer = vsc.add_named_buffer(std::string(name + std::string("_i")), vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, true, vcc, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
-        meshes.emplace_back(Mesh(vmc, vcc, materials.back().value(), 0, indices.size()));
+        vertex_buffer = vsc.add_named_buffer(std::string(name + std::string("_v")), vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        index_buffer = vsc.add_named_buffer(std::string(name + std::string("_i")), indices, vk::BufferUsageFlagBits::eIndexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        meshes.emplace_back(Mesh(materials.back().value(), 0, indices.size()));
+        // delete vertices and indices on host
         vertices.clear();
         indices.clear();
     }
 
     void Model::add_set_bindings(DescriptorSetHandler& dsh)
     {
-        for (auto& mesh: meshes)
+        for (auto& mesh : meshes)
         {
             mesh.add_set_bindings(dsh, vsc);
         }
@@ -63,10 +64,6 @@ namespace ve
     {
         vsc.destroy_buffer(vertex_buffer);
         vsc.destroy_buffer(index_buffer);
-        for (auto& mesh: meshes)
-        {
-            mesh.self_destruct();
-        }
         meshes.clear();
         for (auto& texture : textures)
         {
@@ -81,7 +78,7 @@ namespace ve
         vcc.graphics_cb[current_frame].pushConstants(layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(PushConstants), &pc);
         vcc.graphics_cb[current_frame].bindVertexBuffers(0, vsc.get_buffer(vertex_buffer).get(), {0});
         vcc.graphics_cb[current_frame].bindIndexBuffer(vsc.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
-        for (auto& mesh: meshes)
+        for (auto& mesh : meshes)
         {
             mesh.draw(vcc.graphics_cb[current_frame], layout, sets, current_frame);
         }
@@ -127,12 +124,12 @@ namespace ve
 
         const tinygltf::Scene& scene = model.scenes[model.defaultScene > -1 ? model.defaultScene : 0];
         // traverse scene nodes
-        for (auto& node_idx: scene.nodes)
+        for (auto& node_idx : scene.nodes)
         {
             process_node(model.nodes[node_idx], model, glm::mat4(1.0f));
         }
-        vertex_buffer = vsc.add_named_buffer(std::string(name + std::string("_v")), vmc, vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vcc, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
-        index_buffer = vsc.add_named_buffer(std::string(name + std::string("_i")), vmc, indices, vk::BufferUsageFlagBits::eIndexBuffer, true, vcc, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        vertex_buffer = vsc.add_named_buffer(std::string(name + std::string("_v")), vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        index_buffer = vsc.add_named_buffer(std::string(name + std::string("_i")), indices, vk::BufferUsageFlagBits::eIndexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         // delete vertices and indices on host
         indices.clear();
         vertices.clear();
@@ -145,11 +142,12 @@ namespace ve
 
         auto get_texture = [&](const std::string& name, uint32_t base_mip_level) -> std::optional<uint32_t> {
             if (mat.values.find(name) == mat.values.end()) return std::nullopt;
+            // check if texture is already loaded and if not load it
             int texture_idx = mat.values.at(name).TextureIndex();
             if (textures[texture_idx].has_value()) return textures[texture_idx];
             const tinygltf::Texture& tex = model.textures[texture_idx];
             Image base_image(vmc, vcc, model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true, vmc.queue_family_indices.transfer);
-            textures[texture_idx].emplace(vsc.add_image(vmc, vcc, base_image, base_mip_level, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
+            textures[texture_idx].emplace(vsc.add_image(base_image, base_mip_level, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
             base_image.self_destruct();
             return textures[texture_idx];
         };
@@ -187,7 +185,7 @@ namespace ve
         glm::vec3 scale = (node.scale.size() == 3) ? glm::make_vec3(node.scale.data()) : glm::dvec3(1.0f);
         glm::mat4 matrix = (node.matrix.size() == 16) ? glm::make_mat4x4(node.matrix.data()) : glm::dmat4(1.0f);
         matrix = trans * glm::translate(glm::mat4(1.0f), translation) * glm::mat4(q) * glm::scale(glm::mat4(1.0f), scale) * matrix;
-        for (auto& child_idx: node.children)
+        for (auto& child_idx : node.children)
         {
             process_node(model.nodes[child_idx], model, matrix);
         }
@@ -196,7 +194,7 @@ namespace ve
 
     void Model::process_mesh(const tinygltf::Mesh& mesh, const tinygltf::Model& model, const glm::mat4 matrix)
     {
-        for (const tinygltf::Primitive& primitive: mesh.primitives)
+        for (const tinygltf::Primitive& primitive : mesh.primitives)
         {
             uint32_t idx_count = indices.size();
             Material& mat = load_material(primitive.material, model);
@@ -212,6 +210,7 @@ namespace ve
                 int tex_stride;
                 int color_stride;
 
+                // load access information
                 const tinygltf::Accessor& pos_accessor = model.accessors[primitive.attributes.find("POSITION")->second];
                 const tinygltf::BufferView& pos_view = model.bufferViews[pos_accessor.bufferView];
                 pos_buffer = reinterpret_cast<const float*>(&(model.buffers[pos_view.buffer].data[pos_accessor.byteOffset + pos_view.byteOffset]));
@@ -238,6 +237,7 @@ namespace ve
                     color_stride = color_accessor.ByteStride(color_view) ? (color_accessor.ByteStride(color_view) / sizeof(float)) : tinygltf::GetNumComponentsInType(TINYGLTF_TYPE_VEC3);
                 }
 
+                // access data and load vertices
                 for (size_t i = 0; i < pos_accessor.count; ++i)
                 {
                     Vertex vertex;
@@ -287,7 +287,7 @@ namespace ve
                     VE_THROW("Index component type \"{}\" not supported!", accessor.componentType);
             }
             vertex_count = vertices.size();
-            meshes.emplace_back(Mesh(vmc, vcc, mat, idx_count, indices.size() - idx_count));
+            meshes.emplace_back(Mesh(mat, idx_count, indices.size() - idx_count));
         }
     }
 } // namespace ve

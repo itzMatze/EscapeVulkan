@@ -15,7 +15,7 @@ namespace ve
         template<typename... Args>
         uint32_t add_named_buffer(const std::string& name, Args&&... args)
         {
-            buffers.emplace_back(std::make_optional<Buffer>(std::forward<Args>(args)...));
+            buffers.emplace_back(std::make_optional<Buffer>(vmc, vcc, std::forward<Args>(args)...));
             if (buffer_names.contains(name))
             {
                 if (buffers.at(buffer_names.at(name)).has_value())
@@ -39,7 +39,7 @@ namespace ve
         template<typename... Args>
         uint32_t add_named_image(const std::string& name, Args&&... args)
         {
-            images.emplace_back(std::make_optional<Image>(std::forward<Args>(args)...));
+            images.emplace_back(std::make_optional<Image>(vmc, vcc, std::forward<Args>(args)...));
             if (buffer_names.contains(name))
             {
                 if (images.at(image_names.at(name)).has_value())
@@ -63,14 +63,14 @@ namespace ve
         template<typename... Args>
         uint32_t add_buffer(Args&&... args)
         {
-            buffers.emplace_back(std::make_optional<Buffer>(std::forward<Args>(args)...));
+            buffers.emplace_back(std::make_optional<Buffer>(vmc, vcc, std::forward<Args>(args)...));
             return buffers.size() - 1;
         }
 
         template<typename... Args>
         uint32_t add_image(Args&&... args)
         {
-            images.emplace_back(std::make_optional<Image>(std::forward<Args>(args)...));
+            images.emplace_back(std::make_optional<Image>(vmc, vcc, std::forward<Args>(args)...));
             return images.size() - 1;
         }
 

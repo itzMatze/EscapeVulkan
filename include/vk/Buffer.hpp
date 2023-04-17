@@ -15,7 +15,7 @@ namespace ve
         Buffer() = default;
 
         template<class T, class... Args>
-        Buffer(const VulkanMainContext& vmc, const T* data, std::size_t elements, vk::BufferUsageFlags usage_flags, bool device_local, const VulkanCommandContext& vcc, Args... queue_family_indices) : vmc(vmc), vcc(vcc), device_local(device_local), element_count(elements), byte_size(sizeof(T) * elements)
+        Buffer(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const T* data, std::size_t elements, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : vmc(vmc), vcc(vcc), device_local(device_local), element_count(elements), byte_size(sizeof(T) * elements)
         {
             std::vector<uint32_t> queue_family_indices_vec = {queue_family_indices...};
             if (device_local)
@@ -32,7 +32,7 @@ namespace ve
 
 
         template<class T, class... Args>
-        Buffer(const VulkanMainContext& vmc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, bool device_local, const VulkanCommandContext& vcc, Args... queue_family_indices) : Buffer(vmc, data.data(), data.size(), usage_flags, device_local, vcc, queue_family_indices...)
+        Buffer(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : Buffer(vmc, vcc, data.data(), data.size(), usage_flags, device_local, queue_family_indices...)
         {}
 
         void self_destruct()

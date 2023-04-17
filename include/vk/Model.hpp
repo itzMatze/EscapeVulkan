@@ -4,10 +4,11 @@
 #include <vector>
 
 #include "tiny_gltf.h"
+#include "json.hpp"
 
 #include "vk/Image.hpp"
 #include "vk/Mesh.hpp"
-#include "json.hpp"
+#include "vk/VulkanStorageContext.hpp"
 
 namespace ve
 {
@@ -33,6 +34,7 @@ namespace ve
         uint32_t vertex_buffer;
         uint32_t index_buffer;
         std::vector<Mesh> meshes;
+        // materials and textures are loaded when they needed which requires to know if it is loaded
         std::vector<std::optional<uint32_t>> textures;
         std::vector<std::optional<Material>> materials;
         std::string name;

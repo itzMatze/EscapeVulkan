@@ -7,7 +7,7 @@ namespace ve
 {
     void Image::create_image_from_data(const unsigned char* data, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices)
     {
-        Buffer buffer(vmc, data, byte_size, vk::BufferUsageFlagBits::eTransferSrc, false, vcc, vmc.queue_family_indices.transfer);
+        Buffer buffer(vmc, vcc, data, byte_size, vk::BufferUsageFlagBits::eTransferSrc, false, vmc.queue_family_indices.transfer);
 
         constexpr vk::Format format = vk::Format::eR8G8B8A8Unorm;
         create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, format, vk::SampleCountFlagBits::e1);

@@ -10,7 +10,7 @@ namespace ve
         Synchronization(const vk::Device& logical_device);
         void self_destruct();
         uint32_t add_semaphore();
-        uint32_t add_fence();
+        uint32_t add_fence(bool signaled = true);
         const vk::Semaphore& get_semaphore(uint32_t idx) const;
         const vk::Fence& get_fence(uint32_t idx) const;
         void wait_for_fence(uint32_t idx) const;

@@ -112,7 +112,7 @@ namespace ve
         vk::PhysicalDeviceFeatures p_device_features = p_device.getFeatures();
         std::vector<vk::ExtensionProperties> available_extensions = p_device.enumerateDeviceExtensionProperties();
         std::vector<const char*> avail_ext_names;
-        for (const auto& ext: available_extensions) avail_ext_names.push_back(ext.extensionName);
+        for (const auto& ext : available_extensions) avail_ext_names.push_back(ext.extensionName);
         std::cout << "    " << idx << " " << pdp.deviceName << " ";
         int32_t missing_extensions = extensions_handler.check_extension_availability(avail_ext_names);
         if (missing_extensions == -1 || !p_device_features.samplerAnisotropy || (surface.has_value() && extensions_handler.find_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME) && !is_swapchain_supported(p_device, surface.value())))

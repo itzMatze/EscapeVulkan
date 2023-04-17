@@ -9,12 +9,12 @@ namespace ve
 
     void Synchronization::self_destruct()
     {
-        for (auto& s: semaphores)
+        for (auto& s : semaphores)
         {
             device.destroy(s);
         }
         semaphores.clear();
-        for (auto& f: fences)
+        for (auto& f : fences)
         {
             device.destroyFence(f);
         }
@@ -29,11 +29,11 @@ namespace ve
         return semaphores.size() - 1;
     }
 
-    uint32_t Synchronization::add_fence()
+    uint32_t Synchronization::add_fence(bool signaled)
     {
         vk::FenceCreateInfo fci{};
         fci.sType = vk::StructureType::eFenceCreateInfo;
-        fci.flags = vk::FenceCreateFlagBits::eSignaled;
+        if (signaled) fci.flags = vk::FenceCreateFlagBits::eSignaled;
         fences.push_back(device.createFence(fci));
         return fences.size() - 1;
     }

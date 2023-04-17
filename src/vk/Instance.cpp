@@ -22,7 +22,7 @@ namespace ve
         // use ExtensionHandler class to check if extensions and validation layers are available
         std::vector<vk::ExtensionProperties> available_extensions = vk::enumerateInstanceExtensionProperties();
         std::vector<const char*> avail_ext_names;
-        for (const auto& ext: available_extensions) avail_ext_names.push_back(ext.extensionName);
+        for (const auto& ext : available_extensions) avail_ext_names.push_back(ext.extensionName);
         extensions_handler.add_extensions(required_extensions, true);
         extensions_handler.add_extensions(optional_extensions, false);
         if (extensions_handler.check_extension_availability(avail_ext_names) == -1) VE_THROW("Required instance extension not found!");
@@ -30,7 +30,7 @@ namespace ve
 
         std::vector<vk::LayerProperties> available_layers = vk::enumerateInstanceLayerProperties();
         std::vector<const char*> avail_layer_names;
-        for (const auto& layer: available_layers) avail_layer_names.push_back(layer.layerName);
+        for (const auto& layer : available_layers) avail_layer_names.push_back(layer.layerName);
         validation_handler.add_extensions(validation_layers, false);
         int32_t missing_layers = validation_handler.check_extension_availability(avail_layer_names);
         validation_handler.remove_missing_extensions();

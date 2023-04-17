@@ -2,14 +2,12 @@
 
 namespace ve
 {
-    Mesh::Mesh(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const Material& material, uint32_t idx_offset, uint32_t idx_count) : mat(material), index_offset(idx_offset), index_count(idx_count)
-    {}
-
-    void Mesh::self_destruct()
+    Mesh::Mesh(const Material& material, uint32_t idx_offset, uint32_t idx_count) : mat(material), index_offset(idx_offset), index_count(idx_count)
     {}
 
     void Mesh::add_set_bindings(DescriptorSetHandler& dsh, VulkanStorageContext& vsc)
     {
+        // create new descriptor set and add descriptor(s) needed for rendering
         descriptor_set_indices.push_back(dsh.new_set());
         if (mat.base_texture.has_value()) dsh.add_descriptor(1, vsc.get_image(mat.base_texture.value()));
     }

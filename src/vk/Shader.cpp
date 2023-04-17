@@ -11,7 +11,7 @@ namespace ve
     Shader::Shader(const vk::Device& device, const std::string filename,
                    vk::ShaderStageFlagBits shader_stage_flag) : name(filename), device(device)
     {
-        spdlog::info("Loading shader \"{}\"", filename);
+        spdlog::debug("Loading shader \"{}\"", filename);
         std::string source = read_shader_file(std::string("../shader/bin/" + filename + ".spv"));
         vk::ShaderModuleCreateInfo smci{};
         smci.sType = vk::StructureType::eShaderModuleCreateInfo;
