@@ -105,22 +105,32 @@ private:
         if (eh.pressed_keys.contains(Key::D)) camera.moveRight(move_amount);
         if (eh.pressed_keys.contains(Key::Q)) camera.moveDown(move_amount);
         if (eh.pressed_keys.contains(Key::E)) camera.moveDown(-move_amount);
+        float panning_speed = eh.pressed_keys.contains(Key::Shift) ? 0.2f : 2.0f;
+        if (eh.pressed_keys.contains(Key::Left)) camera.onMouseMove(-panning_speed, 0.0f);
+        if (eh.pressed_keys.contains(Key::Right)) camera.onMouseMove(panning_speed, 0.0f);
+        if (eh.pressed_keys.contains(Key::Up)) camera.onMouseMove(0.0f, -panning_speed);
+        if (eh.pressed_keys.contains(Key::Down)) camera.onMouseMove(0.0f, panning_speed);
 
         // reset state of keys that are used to execute a one time action
         if (eh.pressed_keys.contains(Key::Plus))
         {
-            move_speed += 0.01f;
+            move_speed *= 2.0f;
             eh.pressed_keys.erase(Key::Plus);
         }
         if (eh.pressed_keys.contains(Key::Minus))
         {
-            move_speed -= 0.01f;
+            move_speed /= 2.0f;
             eh.pressed_keys.erase(Key::Minus);
         }
         if (eh.pressed_keys.contains(Key::G))
         {
             di.show_ui = !di.show_ui;
             eh.pressed_keys.erase(Key::G);
+        }
+        if (eh.pressed_keys.contains(Key::M))
+        {
+            di.mesh_view = !di.mesh_view;
+            eh.pressed_keys.erase(Key::M);
         }
         if (eh.pressed_keys.contains(Key::MouseLeft))
         {

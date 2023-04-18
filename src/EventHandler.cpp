@@ -8,6 +8,10 @@ EventHandler::EventHandler() : io(ImGui::GetIO())
 void EventHandler::dispatch_event(SDL_Event e)
 {
     ImGui_ImplSDL2_ProcessEvent(&e);
+    if (io.WantCaptureMouse || io.WantCaptureKeyboard)
+    {
+        return;
+    }
     if (e.type == SDL_MOUSEMOTION)
     {
         mouse_motion.x = e.motion.xrel;
@@ -48,18 +52,33 @@ void EventHandler::dispatch_event(SDL_Event e)
         case SDLK_g:
             apply_key_event(Key::G, e.type);
             break;
-        case SDLK_PLUS:
+        case SDLK_m:
+            apply_key_event(Key::M, e.type);
+            break;
+        case SDLK_KP_PLUS:
             apply_key_event(Key::Plus, e.type);
             break;
-        case SDLK_MINUS:
+        case SDLK_KP_MINUS:
             apply_key_event(Key::Minus, e.type);
             break;
-    }
-    if (io.WantCaptureMouse || io.WantCaptureKeyboard)
-    {
-        pressed_keys.erase(Key::MouseLeft);
-        released_keys.erase(Key::MouseLeft);
-        return;
+        case SDLK_LEFT:
+            apply_key_event(Key::Left, e.type);
+            break;
+        case SDLK_RIGHT:
+            apply_key_event(Key::Right, e.type);
+            break;
+        case SDLK_UP:
+            apply_key_event(Key::Up, e.type);
+            break;
+        case SDLK_DOWN:
+            apply_key_event(Key::Down, e.type);
+            break;
+        case SDLK_LSHIFT:
+            apply_key_event(Key::Shift, e.type);
+            break;
+        case SDLK_RSHIFT:
+            apply_key_event(Key::Shift, e.type);
+            break;
     }
 }
 

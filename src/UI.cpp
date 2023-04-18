@@ -83,8 +83,9 @@ namespace ve
         if (ImGui::CollapsingHeader("Navigation"))
         {
             ImGui::Text("'W'A'S'D'Q'E': movement");
+            ImGui::Text("Mouse_L || Arrow-Keys: panning");
             ImGui::Text("'+'-': change movement speed");
-            ImGui::Text("'Mouse_L': move camera");
+            ImGui::Text("'M': toggle mesh view");
             ImGui::Text("'G': Show/Hide UI");
         }
         ImGui::Separator();
