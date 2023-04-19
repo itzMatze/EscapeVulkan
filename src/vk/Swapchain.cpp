@@ -4,9 +4,9 @@
 
 namespace ve
 {
-    Swapchain::Swapchain(const VulkanMainContext& vmc) : vmc(vmc), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), depth_buffer(vmc, "Depth Buffer", false), color_image(vmc, "Color Buffer", false)
+    Swapchain::Swapchain(const VulkanMainContext& vmc) : vmc(vmc), extent(choose_extent()), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format)
     {
-        create_swapchain();
+        create();
     }
 
     const vk::SwapchainKHR& Swapchain::get() const
@@ -29,20 +29,23 @@ namespace ve
         return framebuffers[idx];
     }
 
-    void Swapchain::create_swapchain()
+    void Swapchain::create()
     {
-        std::vector<vk::PresentModeKHR> present_modes = vmc.get_surface_present_modes();
-        vk::SurfaceCapabilitiesKHR capabilities = vmc.get_surface_capabilities();
-        choose_extent(capabilities);
-        uint32_t image_count = capabilities.maxImageCount > 0 ? std::min(capabilities.minImageCount + 1, capabilities.maxImageCount) : capabilities.minImageCount + 1;
-
-        depth_buffer.create_image({vmc.queue_family_indices.graphics}, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_format, extent.width, extent.height, render_pass.get_sample_count());
-        depth_buffer.create_image_view(depth_format, vk::ImageAspectFlagBits::eDepth);
+        extent = choose_extent();
+        surface_format = choose_surface_format();
+        swapchain = create_swapchain();
+        depth_buffer.emplace(create_depth_buffer());
         if (render_pass.get_sample_count() != vk::SampleCountFlagBits::e1)
         {
-            color_image.create_image({vmc.queue_family_indices.graphics}, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment, surface_format.format, extent.width, extent.height, render_pass.get_sample_count());
-            color_image.create_image_view(surface_format.format, vk::ImageAspectFlagBits::eColor);
+            color_image.emplace(create_color_buffer());
         }
+        create_framebuffers();
+    }
+
+    vk::SwapchainKHR Swapchain::create_swapchain()
+    {
+        vk::SurfaceCapabilitiesKHR capabilities = vmc.get_surface_capabilities();
+        uint32_t image_count = capabilities.maxImageCount > 0 ? std::min(capabilities.minImageCount + 1, capabilities.maxImageCount) : capabilities.minImageCount + 1;
 
         vk::SwapchainCreateInfoKHR sci{};
         sci.sType = vk::StructureType::eSwapchainCreateInfoKHR;
@@ -55,7 +58,7 @@ namespace ve
         sci.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
         sci.preTransform = capabilities.currentTransform;
         sci.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
-        sci.presentMode = choose_present_mode(present_modes);
+        sci.presentMode = choose_present_mode();
         sci.clipped = VK_TRUE;
         sci.oldSwapchain = VK_NULL_HANDLE;
         if (vmc.queue_family_indices.graphics != vmc.queue_family_indices.present)
@@ -71,7 +74,11 @@ namespace ve
             spdlog::debug("Graphics and Presentation queue are the same queue. Using Exclusive sharing mode on swapchain.");
             sci.imageSharingMode = vk::SharingMode::eExclusive;
         }
-        swapchain = vmc.logical_device.get().createSwapchainKHR(sci);
+        return vmc.logical_device.get().createSwapchainKHR(sci);
+    }
+
+    void Swapchain::create_framebuffers()
+    {
         images = vmc.logical_device.get().getSwapchainImagesKHR(swapchain);
 
         for (const auto& image : images)
@@ -96,8 +103,8 @@ namespace ve
         for (const auto& image_view : image_views)
         {
             std::vector<vk::ImageView> attachments;
-            if (render_pass.get_sample_count() != vk::SampleCountFlagBits::e1) attachments = {color_image.get_view(), depth_buffer.get_view(), image_view};
-            else attachments = {image_view, depth_buffer.get_view()};
+            if (color_image.has_value()) attachments = {color_image.value().get_view(), depth_buffer.value().get_view(), image_view};
+            else attachments = {image_view, depth_buffer.value().get_view()};
             vk::FramebufferCreateInfo fbci{};
             fbci.sType = vk::StructureType::eFramebufferCreateInfo;
             fbci.renderPass = render_pass.get();
@@ -123,15 +130,16 @@ namespace ve
             vmc.logical_device.get().destroyImageView(image_view);
         }
         image_views.clear();
-        depth_buffer.self_destruct();
-        if (render_pass.get_sample_count() != vk::SampleCountFlagBits::e1) color_image.self_destruct();
+        if (depth_buffer.has_value()) depth_buffer.value().self_destruct();
+        if (color_image.has_value()) color_image.value().self_destruct();
         vmc.logical_device.get().destroySwapchainKHR(swapchain);
         if (full) render_pass.self_destruct();
     }
 
-    vk::PresentModeKHR Swapchain::choose_present_mode(const std::vector<vk::PresentModeKHR>& available_present_modes)
+    vk::PresentModeKHR Swapchain::choose_present_mode()
     {
-        for (const auto& pm : available_present_modes)
+        std::vector<vk::PresentModeKHR> present_modes = vmc.get_surface_present_modes();
+        for (const auto& pm : present_modes)
         {
             if (pm == vk::PresentModeKHR::eImmediate) return pm;
         }
@@ -139,8 +147,9 @@ namespace ve
         return vk::PresentModeKHR::eFifo;
     }
 
-    void Swapchain::choose_extent(const vk::SurfaceCapabilitiesKHR& capabilities)
+    vk::Extent2D Swapchain::choose_extent()
     {
+        vk::SurfaceCapabilitiesKHR capabilities = vmc.get_surface_capabilities();
         if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
         {
             extent = capabilities.currentExtent;
@@ -158,6 +167,7 @@ namespace ve
             extent.width = std::clamp(extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
             extent.height = std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         }
+        return extent;
     }
 
     vk::SurfaceFormatKHR Swapchain::choose_surface_format()
@@ -184,4 +194,15 @@ namespace ve
         }
         VE_THROW("Failed to find supported format!");
     }
+
+    Image Swapchain::create_depth_buffer()
+    {
+        return Image(vmc, extent.width, extent.height, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_format, render_pass.get_sample_count(), false, 0, {vmc.queue_family_indices.graphics});
+    }
+
+    Image Swapchain::create_color_buffer()
+    {
+        return Image(vmc, extent.width, extent.height, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment, surface_format.format, render_pass.get_sample_count(), false, 0, {vmc.queue_family_indices.graphics});
+    }
+
 } // namespace ve

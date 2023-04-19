@@ -83,7 +83,7 @@ namespace ve
     {
         vcc.sync.wait_idle();
         swapchain.self_destruct(false);
-        swapchain.create_swapchain();
+        swapchain.create();
         return swapchain.get_extent();
     }
 

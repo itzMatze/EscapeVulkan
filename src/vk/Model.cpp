@@ -40,7 +40,7 @@ namespace ve
         Material m;
         if (model.contains("base_texture"))
         {
-            textures.emplace_back(vsc.add_image(std::string("../assets/textures/") + std::string(model.value("base_texture", "")), vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
+            textures.emplace_back(vsc.add_image(std::string("../assets/textures/") + std::string(model.value("base_texture", "")), true, 0, std::vector<uint32_t>{vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics}));
             m.base_texture = textures.back().value();
         }
         materials.push_back(m);
@@ -146,9 +146,7 @@ namespace ve
             int texture_idx = mat.values.at(name).TextureIndex();
             if (textures[texture_idx].has_value()) return textures[texture_idx];
             const tinygltf::Texture& tex = model.textures[texture_idx];
-            Image base_image(vmc, vcc, model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true, vmc.queue_family_indices.transfer);
-            textures[texture_idx].emplace(vsc.add_image(base_image, base_mip_level, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
-            base_image.self_destruct();
+            textures[texture_idx].emplace(vsc.add_image(model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true, base_mip_level, std::vector<uint32_t>{vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics}));
             return textures[texture_idx];
         };
 
