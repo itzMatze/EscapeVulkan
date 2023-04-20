@@ -99,50 +99,50 @@ private:
 
     void dispatch_pressed_keys()
     {
-        if (eh.pressed_keys.contains(Key::W)) camera.moveFront(move_amount);
-        if (eh.pressed_keys.contains(Key::A)) camera.moveRight(-move_amount);
-        if (eh.pressed_keys.contains(Key::S)) camera.moveFront(-move_amount);
-        if (eh.pressed_keys.contains(Key::D)) camera.moveRight(move_amount);
-        if (eh.pressed_keys.contains(Key::Q)) camera.moveDown(move_amount);
-        if (eh.pressed_keys.contains(Key::E)) camera.moveDown(-move_amount);
-        float panning_speed = eh.pressed_keys.contains(Key::Shift) ? 0.2f : 2.0f;
-        if (eh.pressed_keys.contains(Key::Left)) camera.onMouseMove(-panning_speed, 0.0f);
-        if (eh.pressed_keys.contains(Key::Right)) camera.onMouseMove(panning_speed, 0.0f);
-        if (eh.pressed_keys.contains(Key::Up)) camera.onMouseMove(0.0f, -panning_speed);
-        if (eh.pressed_keys.contains(Key::Down)) camera.onMouseMove(0.0f, panning_speed);
+        if (eh.is_key_pressed(Key::W)) camera.moveFront(move_amount);
+        if (eh.is_key_pressed(Key::A)) camera.moveRight(-move_amount);
+        if (eh.is_key_pressed(Key::S)) camera.moveFront(-move_amount);
+        if (eh.is_key_pressed(Key::D)) camera.moveRight(move_amount);
+        if (eh.is_key_pressed(Key::Q)) camera.moveDown(move_amount);
+        if (eh.is_key_pressed(Key::E)) camera.moveDown(-move_amount);
+        float panning_speed = eh.is_key_pressed(Key::Shift) ? 0.2f : 2.0f;
+        if (eh.is_key_pressed(Key::Left)) camera.onMouseMove(-panning_speed, 0.0f);
+        if (eh.is_key_pressed(Key::Right)) camera.onMouseMove(panning_speed, 0.0f);
+        if (eh.is_key_pressed(Key::Up)) camera.onMouseMove(0.0f, -panning_speed);
+        if (eh.is_key_pressed(Key::Down)) camera.onMouseMove(0.0f, panning_speed);
 
         // reset state of keys that are used to execute a one time action
-        if (eh.pressed_keys.contains(Key::Plus))
+        if (eh.is_key_pressed(Key::Plus))
         {
             move_speed *= 2.0f;
-            eh.pressed_keys.erase(Key::Plus);
+            eh.set_pressed_key(Key::Plus, false);
         }
-        if (eh.pressed_keys.contains(Key::Minus))
+        if (eh.is_key_pressed(Key::Minus))
         {
             move_speed /= 2.0f;
-            eh.pressed_keys.erase(Key::Minus);
+            eh.set_pressed_key(Key::Minus, false);
         }
-        if (eh.pressed_keys.contains(Key::G))
+        if (eh.is_key_pressed(Key::G))
         {
             di.show_ui = !di.show_ui;
-            eh.pressed_keys.erase(Key::G);
+            eh.set_pressed_key(Key::G, false);
         }
-        if (eh.pressed_keys.contains(Key::M))
+        if (eh.is_key_pressed(Key::M))
         {
             di.mesh_view = !di.mesh_view;
-            eh.pressed_keys.erase(Key::M);
+            eh.set_pressed_key(Key::M, false);
         }
-        if (eh.pressed_keys.contains(Key::MouseLeft))
+        if (eh.is_key_pressed(Key::MouseLeft))
         {
             if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);
             camera.onMouseMove(eh.mouse_motion.x * 1.5f, eh.mouse_motion.y * 1.5f);
             eh.mouse_motion = glm::vec2(0.0f);
         }
-        if (eh.released_keys.contains(Key::MouseLeft))
+        if (eh.is_key_released(Key::MouseLeft))
         {
             SDL_SetRelativeMouseMode(SDL_FALSE);
             SDL_WarpMouseInWindow(vmc.window->get(), extent.width / 2.0f, extent.height / 2.0f);
-            eh.released_keys.erase(Key::MouseLeft);
+            eh.set_released_key(Key::MouseLeft, false);
         }
     }
 };

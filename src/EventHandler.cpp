@@ -2,7 +2,7 @@
 
 #include "backends/imgui_impl_sdl.h"
 
-EventHandler::EventHandler() : io(ImGui::GetIO())
+EventHandler::EventHandler() : io(ImGui::GetIO()), pressed_keys(get_idx(Key::Size), false), released_keys(get_idx(Key::Size), false)
 {}
 
 void EventHandler::dispatch_event(SDL_Event e)
@@ -82,16 +82,41 @@ void EventHandler::dispatch_event(SDL_Event e)
     }
 }
 
+bool EventHandler::is_key_pressed(Key key) const
+{
+    return pressed_keys[get_idx(key)];
+}
+
+bool EventHandler::is_key_released(Key key) const
+{
+    return released_keys[get_idx(key)];
+}
+
+void EventHandler::set_pressed_key(Key key, bool value)
+{
+    pressed_keys[get_idx(key)] = value;
+}
+
+void EventHandler::set_released_key(Key key, bool value)
+{
+    released_keys[get_idx(key)] = value;
+}
+
 void EventHandler::apply_key_event(Key k, uint32_t et)
 {
     if (et == SDL_KEYDOWN || et == SDL_MOUSEBUTTONDOWN)
     {
-        pressed_keys.insert(k);
-        released_keys.erase(k);
+        pressed_keys[get_idx(k)] = true;
+        released_keys[get_idx(k)] = false;
     }
     else if (et == SDL_KEYUP || et == SDL_MOUSEBUTTONUP)
     {
-        pressed_keys.erase(k);
-        released_keys.insert(k);
+        pressed_keys[get_idx(k)] = false;
+        released_keys[get_idx(k)] = true;
     }
+}
+
+uint32_t EventHandler::get_idx(Key key)
+{
+    return static_cast<uint32_t>(key);
 }
