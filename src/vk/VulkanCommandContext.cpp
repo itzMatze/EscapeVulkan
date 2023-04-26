@@ -30,7 +30,7 @@ namespace ve
             transfer_cb.insert(transfer_cb.end(), tmp.begin(), tmp.end());
         }
 
-        const vk::CommandBuffer& VulkanCommandContext::begin(const vk::CommandBuffer& cb) const
+        vk::CommandBuffer& VulkanCommandContext::begin(vk::CommandBuffer& cb)
         {
             vk::CommandBufferBeginInfo cbbi{};
             cbbi.sType = vk::StructureType::eCommandBufferBeginInfo;
@@ -57,10 +57,7 @@ namespace ve
         void VulkanCommandContext::self_destruct()
         {
             sync.wait_idle();
-            for (auto& command_pool : command_pools)
-            {
-                command_pool.self_destruct();
-            }
+            for (auto& command_pool : command_pools) command_pool.self_destruct();
             command_pools.clear();
             sync.self_destruct();
             spdlog::info("Destroyed VulkanCommandContext");

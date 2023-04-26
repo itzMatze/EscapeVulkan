@@ -10,7 +10,7 @@ namespace ve
     class VulkanStorageContext
     {
     public:
-        VulkanStorageContext(const VulkanMainContext& vmc, const VulkanCommandContext& vcc);
+        VulkanStorageContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc);
 
         template<typename... Args>
         uint32_t add_named_buffer(const std::string& name, Args&&... args)
@@ -86,7 +86,7 @@ namespace ve
 
     private:
         const VulkanMainContext& vmc;
-        const VulkanCommandContext& vcc;
+        VulkanCommandContext& vcc;
         std::vector<std::optional<Buffer>> buffers;
         std::vector<std::optional<Image>> images;
         std::unordered_map<std::string, uint32_t> buffer_names;

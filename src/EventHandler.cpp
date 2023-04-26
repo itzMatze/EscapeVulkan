@@ -55,6 +55,9 @@ void EventHandler::dispatch_event(SDL_Event e)
         case SDLK_m:
             apply_key_event(Key::M, e.type);
             break;
+        case SDLK_n:
+            apply_key_event(Key::N, e.type);
+            break;
         case SDLK_KP_PLUS:
             apply_key_event(Key::Plus, e.type);
             break;

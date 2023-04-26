@@ -5,7 +5,7 @@
 
 namespace ve
 {
-    void blit_image(const vk::CommandBuffer& cb, vk::Image& src, uint32_t src_mip_map_lvl, vk::Offset3D src_offset, vk::Image& dst, uint32_t dst_mip_map_lvl, vk::Offset3D dst_offset)
+    void blit_image(const vk::CommandBuffer& cb, vk::Image& src, uint32_t src_mip_map_lvl, vk::Offset3D src_offset, vk::Image& dst, uint32_t dst_mip_map_lvl, vk::Offset3D dst_offset, uint32_t layer_count)
     {
         vk::ImageBlit blit{};
         blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
@@ -13,17 +13,17 @@ namespace ve
         blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
         blit.srcSubresource.mipLevel = src_mip_map_lvl;
         blit.srcSubresource.baseArrayLayer = 0;
-        blit.srcSubresource.layerCount = 1;
+        blit.srcSubresource.layerCount = layer_count;
         blit.dstOffsets[0] = vk::Offset3D(0, 0, 0);
         blit.dstOffsets[1] = dst_offset;
         blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
         blit.dstSubresource.mipLevel = dst_mip_map_lvl;
         blit.dstSubresource.baseArrayLayer = 0;
-        blit.dstSubresource.layerCount = 1;
+        blit.dstSubresource.layerCount = layer_count;
         cb.blitImage(src, vk::ImageLayout::eTransferSrcOptimal, dst, vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear);
     }
 
-    std::pair<vk::Image, VmaAllocation> Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::SampleCountFlagBits sample_count, bool use_mip_levels, vk::Format format, vk::Extent3D extent, const VmaAllocator& va)
+    std::pair<vk::Image, VmaAllocation> Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::SampleCountFlagBits sample_count, bool use_mip_levels, vk::Format format, vk::Extent3D extent, uint32_t layer_count, const VmaAllocator& va)
     {
         uint32_t mip_levels = use_mip_levels ? std::floor(std::log2(std::max(extent.width, extent.height))) + 1 : 1;
         if (mip_levels > 1) usage |= vk::ImageUsageFlagBits::eTransferSrc;
@@ -33,7 +33,7 @@ namespace ve
         ici.extent = extent;
         ici.extent.depth = 1;
         ici.mipLevels = mip_levels;
-        ici.arrayLayers = 1;
+        ici.arrayLayers = layer_count;
         ici.format = format;
         ici.tiling = vk::ImageTiling::eOptimal;
         ici.initialLayout = vk::ImageLayout::eUndefined;
@@ -51,7 +51,7 @@ namespace ve
         return image;
     }
 
-    void perform_image_layout_transition(const vk::CommandBuffer& cb, vk::Image image, vk::ImageLayout old_layout, vk::ImageLayout new_layout, vk::PipelineStageFlags src_stage_flags, vk::PipelineStageFlags dst_stage_flags, vk::AccessFlags src_access_flags, vk::AccessFlags dst_access_flags, uint32_t base_mip_level, uint32_t mip_levels)
+    void perform_image_layout_transition(const vk::CommandBuffer& cb, vk::Image image, vk::ImageLayout old_layout, vk::ImageLayout new_layout, vk::PipelineStageFlags src_stage_flags, vk::PipelineStageFlags dst_stage_flags, vk::AccessFlags src_access_flags, vk::AccessFlags dst_access_flags, uint32_t base_mip_level, uint32_t mip_levels, uint32_t layer_count)
     {
         // perform actual image layout transition independent from this image
         // functionality is needed without changing the state of the class to enable setting a base_mip_map_level
@@ -66,7 +66,7 @@ namespace ve
         imb.subresourceRange.baseMipLevel = 0;
         imb.subresourceRange.levelCount = mip_levels;
         imb.subresourceRange.baseArrayLayer = 0;
-        imb.subresourceRange.layerCount = 1;
+        imb.subresourceRange.layerCount = layer_count;
         imb.srcAccessMask = src_access_flags;
         imb.dstAccessMask = dst_access_flags;
         src_stage_flags = src_stage_flags;
@@ -74,25 +74,30 @@ namespace ve
         cb.pipelineBarrier(src_stage_flags, dst_stage_flags, {}, nullptr, nullptr, imb);
     }
 
-    void copy_buffer_to_image(const VulkanCommandContext& vcc, const Buffer& buffer, vk::Extent3D extent, vk::Image image)
+    void copy_buffer_to_image(VulkanCommandContext& vcc, const Buffer& buffer, vk::Extent3D extent, vk::Image image, uint32_t layer_count, uint32_t pixel_byte_size)
     {
-        const vk::CommandBuffer& cb = vcc.begin(vcc.transfer_cb[0]);
-        vk::BufferImageCopy copy_region{};
-        copy_region.bufferOffset = 0;
-        copy_region.bufferRowLength = 0;
-        copy_region.bufferImageHeight = 0;
-        copy_region.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
-        copy_region.imageSubresource.mipLevel = 0;
-        copy_region.imageSubresource.baseArrayLayer = 0;
-        copy_region.imageSubresource.layerCount = 1;
-        copy_region.imageOffset = vk::Offset3D{0, 0, 0};
-        copy_region.imageExtent = extent;
+        vk::CommandBuffer& cb = vcc.begin(vcc.transfer_cb[0]);
+        std::vector<vk::BufferImageCopy> copy_regions;
+        for (uint32_t i = 0; i < layer_count; ++i)
+        {
+            vk::BufferImageCopy copy_region{};
+            copy_region.bufferOffset = i * extent.width * extent.height * pixel_byte_size;
+            copy_region.bufferRowLength = 0;
+            copy_region.bufferImageHeight = 0;
+            copy_region.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+            copy_region.imageSubresource.mipLevel = 0;
+            copy_region.imageSubresource.baseArrayLayer = i;
+            copy_region.imageSubresource.layerCount = 1;
+            copy_region.imageOffset = vk::Offset3D{0, 0, 0};
+            copy_region.imageExtent = extent;
+            copy_regions.push_back(copy_region);
+        }
 
-        cb.copyBufferToImage(buffer.get(), image, vk::ImageLayout::eTransferDstOptimal, copy_region);
+        cb.copyBufferToImage(buffer.get(), image, vk::ImageLayout::eTransferDstOptimal, copy_regions);
         vcc.submit_transfer(cb, true);
     }
 
-    void Image::create_image_from_data(const unsigned char* data, const VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, uint32_t base_mip_map_lvl)
+    void Image::create_image_from_data(const unsigned char* data, VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, uint32_t base_mip_map_lvl)
     {
         Buffer buffer(vmc, vcc, data, byte_size, vk::BufferUsageFlagBits::eTransferSrc, false, vmc.queue_family_indices.transfer);
 
@@ -105,17 +110,17 @@ namespace ve
 
         auto move_buffer_to_image = [&](vk::Image image, uint32_t mip_levels) -> void {
             // copy image data to tmp_image
-            const vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[0]);
-            perform_image_layout_transition(cb, image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, vk::AccessFlagBits::eTransferWrite, 0, mip_levels);
+            vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[0]);
+            perform_image_layout_transition(cb, image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, vk::AccessFlagBits::eTransferWrite, 0, mip_levels, layer_count);
             vcc.submit_graphics(cb, true);
-            copy_buffer_to_image(vcc, buffer, vk::Extent3D(w, h, 1), image);
+            copy_buffer_to_image(vcc, buffer, vk::Extent3D(w, h, 1), image, layer_count, c);
         };
 
         // check if image should start at base_mip_map_lvl to save some storage
         // create image with original resolution and copy to actual image with reduced resolution
         if (base_mip_map_lvl > 0)
         {
-            auto [tmp_image, tmp_alloc] = create_image({vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer}, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc, vk::SampleCountFlagBits::e1, false, format, vk::Extent3D(w, h, 1), vmc.va);
+            auto [tmp_image, tmp_alloc] = create_image({vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer}, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc, vk::SampleCountFlagBits::e1, false, format, vk::Extent3D(w, h, 1), layer_count, vmc.va);
             move_buffer_to_image(tmp_image, 1);
 
             vk::Offset3D tmp_image_offset(w, h, 1);
@@ -125,11 +130,11 @@ namespace ve
             byte_size = w * h * 4;
 
             // create image with reduced resolution by blitting
-            const vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[0]);
-            perform_image_layout_transition(cb, tmp_image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eTransferSrcOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eTransferRead, 0, 1);
-            std::tie(image, vmaa) = create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled, vk::SampleCountFlagBits::e1, true, format, vk::Extent3D(w, h, 1), vmc.va);
-            perform_image_layout_transition(cb, image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, vk::AccessFlagBits::eTransferWrite, 0, mip_levels);
-            blit_image(cb, tmp_image, 0, tmp_image_offset, image, 0, {w, h, 1});
+            vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[0]);
+            perform_image_layout_transition(cb, tmp_image, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eTransferSrcOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eTransferRead, 0, 1, layer_count);
+            std::tie(image, vmaa) = create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled, vk::SampleCountFlagBits::e1, true, format, vk::Extent3D(w, h, 1), layer_count, vmc.va);
+            perform_image_layout_transition(cb, image, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, vk::AccessFlagBits::eTransferWrite, 0, mip_levels, layer_count);
+            blit_image(cb, tmp_image, 0, tmp_image_offset, image, 0, {w, h, 1}, layer_count);
             vcc.submit_graphics(cb, true);
 
             vmaDestroyImage(vmc.va, VkImage(tmp_image), tmp_alloc);
@@ -137,7 +142,7 @@ namespace ve
         else
         {
             // layout of image is transitioned in move_buffer_to_image
-            std::tie(image, vmaa) = create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled, vk::SampleCountFlagBits::e1, true, format, vk::Extent3D(w, h, 1), vmc.va);
+            std::tie(image, vmaa) = create_image(queue_family_indices, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eSampled, vk::SampleCountFlagBits::e1, true, format, vk::Extent3D(w, h, 1), layer_count, vmc.va);
             move_buffer_to_image(image, mip_levels);
         }
         buffer.self_destruct();
@@ -153,13 +158,13 @@ namespace ve
         vk::ImageViewCreateInfo ivci{};
         ivci.sType = vk::StructureType::eImageViewCreateInfo;
         ivci.image = image;
-        ivci.viewType = vk::ImageViewType::e2D;
+        ivci.viewType = layer_count > 1 ? vk::ImageViewType::e2DArray : vk::ImageViewType::e2D;
         ivci.format = format;
         ivci.subresourceRange.aspectMask = aspects;
         ivci.subresourceRange.baseMipLevel = 0;
         ivci.subresourceRange.levelCount = mip_levels;
         ivci.subresourceRange.baseArrayLayer = 0;
-        ivci.subresourceRange.layerCount = 1;
+        ivci.subresourceRange.layerCount = layer_count;
         view = vmc.logical_device.get().createImageView(ivci);
     }
 
@@ -192,11 +197,11 @@ namespace ve
         vmaDestroyImage(vmc.va, VkImage(image), vmaa);
     }
 
-    void Image::transition_image_layout(const VulkanCommandContext& vcc, vk::ImageLayout new_layout, vk::PipelineStageFlags src_stage_flags, vk::PipelineStageFlags dst_stage_flags, vk::AccessFlags src_access_flags, vk::AccessFlags dst_access_flags)
+    void Image::transition_image_layout(VulkanCommandContext& vcc, vk::ImageLayout new_layout, vk::PipelineStageFlags src_stage_flags, vk::PipelineStageFlags dst_stage_flags, vk::AccessFlags src_access_flags, vk::AccessFlags dst_access_flags)
     {
         // transition the image layout of this image
-        const vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[0]);
-        perform_image_layout_transition(cb, image, layout, new_layout, src_stage_flags, dst_stage_flags, src_access_flags, dst_access_flags, 0, mip_levels);
+        vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[0]);
+        perform_image_layout_transition(cb, image, layout, new_layout, src_stage_flags, dst_stage_flags, src_access_flags, dst_access_flags, 0, mip_levels, layer_count);
         vcc.submit_graphics(cb, true);
         layout = new_layout;
     }
@@ -204,6 +209,11 @@ namespace ve
     vk::DeviceSize Image::get_byte_size() const
     {
         return byte_size;
+    }
+
+    uint32_t Image::get_layer_count() const
+    {
+        return layer_count;
     }
 
     vk::Image Image::get_image() const
@@ -221,9 +231,9 @@ namespace ve
         return sampler;
     }
 
-    void Image::generate_mipmaps(const VulkanCommandContext& vcc)
+    void Image::generate_mipmaps(VulkanCommandContext& vcc)
     {
-        const vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[0]);
+        vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[0]);
         vk::ImageMemoryBarrier imb{};
         imb.sType = vk::StructureType::eImageMemoryBarrier;
         imb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -232,7 +242,7 @@ namespace ve
         imb.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
         imb.subresourceRange.levelCount = 1;
         imb.subresourceRange.baseArrayLayer = 0;
-        imb.subresourceRange.layerCount = 1;
+        imb.subresourceRange.layerCount = layer_count;
 
         uint32_t mip_w = w;
         uint32_t mip_h = h;
@@ -245,7 +255,7 @@ namespace ve
             imb.dstAccessMask = vk::AccessFlagBits::eTransferRead;
             cb.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, nullptr, nullptr, imb);
 
-            blit_image(cb, image, i - 1, {int32_t(mip_w), int32_t(mip_h), 1}, image, i, {int32_t(mip_w > 1 ? mip_w / 2 : 1), int32_t(mip_h > 1 ? mip_h / 2 : 1), 1});
+            blit_image(cb, image, i - 1, {int32_t(mip_w), int32_t(mip_h), 1}, image, i, {int32_t(mip_w > 1 ? mip_w / 2 : 1), int32_t(mip_h > 1 ? mip_h / 2 : 1), 1}, layer_count);
 
             imb.oldLayout = vk::ImageLayout::eTransferSrcOptimal;
             imb.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;

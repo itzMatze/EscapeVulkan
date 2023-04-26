@@ -10,13 +10,11 @@ namespace ve
     class Mesh
     {
     public:
-        Mesh(const Material& material, uint32_t idx_offset, uint32_t idx_count);
-        void add_set_bindings(DescriptorSetHandler& dsh, VulkanStorageContext& vsc);
-        void draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, const std::vector<vk::DescriptorSet>& sets, uint32_t current_frame);
+        Mesh(int32_t material_idx, uint32_t idx_offset, uint32_t idx_count);
+        void draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, const std::vector<vk::DescriptorSet>& sets, DrawInfo& di);
 
     private:
         uint32_t index_offset, index_count;
-        std::vector<uint32_t> descriptor_set_indices;
-        const Material& mat;
+        int32_t mat_idx;
     };
 } // namespace ve

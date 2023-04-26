@@ -12,10 +12,8 @@ namespace ve
     class Buffer
     {
     public:
-        Buffer() = default;
-
         template<class T, class... Args>
-        Buffer(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const T* data, std::size_t elements, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : vmc(vmc), vcc(vcc), device_local(device_local), element_count(elements), byte_size(sizeof(T) * elements)
+        Buffer(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const T* data, std::size_t elements, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : vmc(vmc), vcc(vcc), device_local(device_local), element_count(elements), byte_size(sizeof(T) * elements)
         {
             std::vector<uint32_t> queue_family_indices_vec = {queue_family_indices...};
             if (device_local)
@@ -32,7 +30,7 @@ namespace ve
 
 
         template<class T, class... Args>
-        Buffer(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : Buffer(vmc, vcc, data.data(), data.size(), usage_flags, device_local, queue_family_indices...)
+        Buffer(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : Buffer(vmc, vcc, data.data(), data.size(), usage_flags, device_local, queue_family_indices...)
         {}
 
         void self_destruct()
@@ -74,7 +72,7 @@ namespace ve
                 memcpy(mapped_data, data, sizeof(T) * elements);
                 vmaUnmapMemory(vmc.va, staging_vmaa);
 
-                const vk::CommandBuffer& cb(vcc.begin(vcc.transfer_cb[0]));
+                vk::CommandBuffer& cb(vcc.begin(vcc.transfer_cb[0]));
 
                 vk::BufferCopy copy_region{};
                 copy_region.srcOffset = 0;
@@ -122,7 +120,7 @@ namespace ve
         }
 
         const VulkanMainContext& vmc;
-        const VulkanCommandContext& vcc;
+        VulkanCommandContext& vcc;
         bool device_local;
         uint64_t byte_size;
         uint64_t element_count;

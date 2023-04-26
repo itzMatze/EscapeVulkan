@@ -15,7 +15,7 @@ namespace ve
         void add_graphics_buffers(uint32_t count);
         void add_compute_buffers(uint32_t count);
         void add_transfer_buffers(uint32_t count);
-        const vk::CommandBuffer& begin(const vk::CommandBuffer& cb) const;
+        vk::CommandBuffer& begin(vk::CommandBuffer& cb);
         void submit_graphics(const vk::CommandBuffer& cb, bool wait_idle) const;
         void submit_compute(const vk::CommandBuffer& cb, bool wait_idle) const;
         void submit_transfer(const vk::CommandBuffer& cb, bool wait_idle) const;

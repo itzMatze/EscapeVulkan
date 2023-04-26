@@ -2,7 +2,6 @@
 
 #include "ve_log.hpp"
 #include "vk/RenderPass.hpp"
-#include "vk/Shader.hpp"
 #include "vk/common.hpp"
 
 namespace ve
@@ -16,15 +15,17 @@ namespace ve
         vmc.logical_device.get().destroyPipelineLayout(pipeline_layout);
     }
 
-    void Pipeline::construct(const RenderPass& render_pass, vk::DescriptorSetLayout set_layout, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names, vk::PolygonMode polygon_mode)
+    void Pipeline::construct(const RenderPass& render_pass, vk::DescriptorSetLayout set_layout, const std::vector<ShaderInfo>& shader_infos, vk::PolygonMode polygon_mode)
     {
         std::vector<Shader> shaders;
         std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
-        for (const auto& shader_name : shader_names)
+        for (const auto& shader_info : shader_infos)
         {
-            Shader shader(vmc.logical_device.get(), shader_name.first, shader_name.second);
+            Shader shader(vmc.logical_device.get(), shader_info.shader_name, shader_info.stage_flag);
             shaders.push_back(shader);
-            shader_stages.push_back(shader.get_stage_create_info());
+            vk::PipelineShaderStageCreateInfo pssci = shader.get_stage_create_info();
+            pssci.pSpecializationInfo = &shader_info.spec_info;
+            shader_stages.push_back(pssci);
         }
 
         std::vector<vk::DynamicState> dynamic_states = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
@@ -111,17 +112,20 @@ namespace ve
         pcbsci.blendConstants[2] = 0.0f;
         pcbsci.blendConstants[3] = 0.0f;
 
-        vk::PushConstantRange pcr;
-        pcr.offset = 0;
-        pcr.size = sizeof(PushConstants);
-        pcr.stageFlags = vk::ShaderStageFlagBits::eVertex;
+        std::array<vk::PushConstantRange, 2> pcrs;
+        pcrs[0].offset = PushConstants::get_vertex_push_constant_offset();
+        pcrs[0].size = PushConstants::get_vertex_push_constant_size();
+        pcrs[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
+        pcrs[1].offset = PushConstants::get_fragment_push_constant_offset();
+        pcrs[1].size = PushConstants::get_fragment_push_constant_size();
+        pcrs[1].stageFlags = vk::ShaderStageFlagBits::eFragment;
 
         vk::PipelineLayoutCreateInfo plci{};
         plci.sType = vk::StructureType::ePipelineLayoutCreateInfo;
         plci.setLayoutCount = 1;
         plci.pSetLayouts = &set_layout;
-        plci.pushConstantRangeCount = 1;
-        plci.pPushConstantRanges = &pcr;
+        plci.pushConstantRangeCount = pcrs.size();
+        plci.pPushConstantRanges = pcrs.data();
 
         pipeline_layout = vmc.logical_device.get().createPipelineLayout(plci);
 

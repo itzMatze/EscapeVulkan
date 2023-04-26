@@ -9,15 +9,9 @@ namespace ve
 
     void Synchronization::self_destruct()
     {
-        for (auto& s : semaphores)
-        {
-            device.destroy(s);
-        }
+        for (auto& s : semaphores) device.destroy(s);
         semaphores.clear();
-        for (auto& f : fences)
-        {
-            device.destroyFence(f);
-        }
+        for (auto& f : fences) device.destroyFence(f);
         fences.clear();
     }
 

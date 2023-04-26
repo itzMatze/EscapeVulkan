@@ -120,15 +120,9 @@ namespace ve
 
     void Swapchain::self_destruct(bool full)
     {
-        for (auto& framebuffer : framebuffers)
-        {
-            vmc.logical_device.get().destroyFramebuffer(framebuffer);
-        }
+        for (auto& framebuffer : framebuffers) vmc.logical_device.get().destroyFramebuffer(framebuffer);
         framebuffers.clear();
-        for (auto& image_view : image_views)
-        {
-            vmc.logical_device.get().destroyImageView(image_view);
-        }
+        for (auto& image_view : image_views) vmc.logical_device.get().destroyImageView(image_view);
         image_views.clear();
         if (depth_buffer.has_value()) depth_buffer.value().self_destruct();
         if (color_image.has_value()) color_image.value().self_destruct();
@@ -183,7 +177,7 @@ namespace ve
 
     vk::Format Swapchain::choose_depth_format()
     {
-        std::vector<vk::Format> candidates{vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint};
+        std::vector<vk::Format> candidates{vk::Format::eD24UnormS8Uint, vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint};
         for (vk::Format format : candidates)
         {
             vk::FormatProperties props = vmc.physical_device.get().getFormatProperties(format);

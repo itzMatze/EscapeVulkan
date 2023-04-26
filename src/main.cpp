@@ -132,6 +132,11 @@ private:
             di.mesh_view = !di.mesh_view;
             eh.set_pressed_key(Key::M, false);
         }
+        if (eh.is_key_pressed(Key::N))
+        {
+            di.normal_view = !di.normal_view;
+            eh.set_pressed_key(Key::N, false);
+        }
         if (eh.is_key_pressed(Key::MouseLeft))
         {
             if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);

@@ -14,6 +14,10 @@ layout(push_constant) uniform PushConstants
     PushConstant pc;
 };
 
+layout(binding = 3) buffer material_buffer {
+    Material materials[];
+};
+
 void main()
 {
     if (pc.normal_view)
@@ -21,5 +25,5 @@ void main()
         out_color = vec4((frag_normal + 1.0) / 2.0, 1.0);
         return;
     }
-    out_color = max(0.1, dot(normalize(vec3(1.0, 1.0, -1.0)), frag_normal) * 0.8) * vec4(frag_color, 1.0);
+    out_color = materials[pc.mat_idx].emission;
 }

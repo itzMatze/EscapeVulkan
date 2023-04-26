@@ -16,7 +16,6 @@ namespace ve
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
-            uniform_buffers.push_back(vsc.add_named_buffer(std::string("uniform_") + std::to_string(i), std::vector<UniformBufferObject>{ubo}, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
             sync_indices[SyncNames::SImageAvailable].push_back(vcc.sync.add_semaphore());
             sync_indices[SyncNames::SRenderFinished].push_back(vcc.sync.add_semaphore());
             sync_indices[SyncNames::FRenderFinished].push_back(vcc.sync.add_fence());
@@ -28,11 +27,6 @@ namespace ve
     void VulkanRenderContext::self_destruct()
     {
         ui.self_destruct();
-        for (auto& buffer : uniform_buffers)
-        {
-            vsc.destroy_buffer(buffer);
-        }
-        uniform_buffers.clear();
         scene.self_destruct();
         swapchain.self_destruct(true);
         spdlog::info("Destroyed VulkanRenderContext");
@@ -49,11 +43,7 @@ namespace ve
         // add one descriptor set for every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
-            scene.get_dsh(ShaderFlavor::Default).apply_descriptor_to_new_sets(0, vsc.get_buffer(uniform_buffers.back()));
-            scene.get_dsh(ShaderFlavor::Basic).apply_descriptor_to_new_sets(0, vsc.get_buffer(uniform_buffers.back()));
             scene.add_bindings();
-            scene.get_dsh(ShaderFlavor::Default).reset_auto_apply_bindings();
-            scene.get_dsh(ShaderFlavor::Basic).reset_auto_apply_bindings();
         }
 
         scene.construct(swapchain.get_render_pass());
@@ -65,10 +55,8 @@ namespace ve
     void VulkanRenderContext::draw_frame(DrawInfo& di)
     {
         total_time += di.time_diff;
-        ubo.M = glm::rotate(ubo.M, di.time_diff * glm::radians(90.f), glm::vec3(0.0f, 0.0f, 1.0f));
-        scene.rotate("bunny", di.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
-        pc.MVP = di.vp * ubo.M;
-        vsc.get_buffer(uniform_buffers[di.current_frame]).update_data(ubo);
+        //scene.rotate("Player", di.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
+        scene.rotate("floor", di.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
 
         vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), vcc.sync.get_semaphore(sync_indices[SyncNames::SImageAvailable][di.current_frame]));
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
@@ -89,7 +77,7 @@ namespace ve
 
     void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, DrawInfo& di)
     {
-        vcc.begin(vcc.graphics_cb[di.current_frame]);
+        vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[di.current_frame]);
         vk::RenderPassBeginInfo rpbi{};
         rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
         rpbi.renderPass = swapchain.get_render_pass().get();
@@ -103,7 +91,7 @@ namespace ve
         if (swapchain.get_render_pass().get_sample_count() != vk::SampleCountFlagBits::e1) clear_values.push_back(vk::ClearValue(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}));
         rpbi.clearValueCount = clear_values.size();
         rpbi.pClearValues = clear_values.data();
-        vcc.graphics_cb[di.current_frame].beginRenderPass(rpbi, vk::SubpassContents::eInline);
+        cb.beginRenderPass(rpbi, vk::SubpassContents::eInline);
 
         vk::Viewport viewport{};
         viewport.x = 0.0f;
@@ -112,19 +100,19 @@ namespace ve
         viewport.height = swapchain.get_extent().height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
-        vcc.graphics_cb[di.current_frame].setViewport(0, viewport);
+        cb.setViewport(0, viewport);
         vk::Rect2D scissor{};
         scissor.offset = vk::Offset2D(0, 0);
         scissor.extent = swapchain.get_extent();
-        vcc.graphics_cb[di.current_frame].setScissor(0, scissor);
+        cb.setScissor(0, scissor);
 
         std::vector<vk::DeviceSize> offsets(1, 0);
 
-        scene.draw(vcc.graphics_cb[di.current_frame], di);
-        if (di.show_ui) ui.draw(vcc.graphics_cb[di.current_frame], di);
+        scene.draw(cb, di);
+        if (di.show_ui) ui.draw(cb, di);
 
-        vcc.graphics_cb[di.current_frame].endRenderPass();
-        vcc.graphics_cb[di.current_frame].end();
+        cb.endRenderPass();
+        cb.end();
     }
 
     void VulkanRenderContext::submit_graphics(uint32_t image_idx, DrawInfo& di)

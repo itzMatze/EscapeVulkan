@@ -57,6 +57,16 @@ namespace ve
         new_set_descriptors.push_back(Descriptor(binding, dbi, {}));
     }
 
+    void DescriptorSetHandler::apply_descriptor_to_new_sets(uint32_t binding, const Image& image)
+    {
+        // add buffer descriptor to be added to every new descriptor set (used for e.g. uniform buffers)
+        vk::DescriptorImageInfo dii{};
+        dii.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        dii.imageView = image.get_view();
+        dii.sampler = image.get_sampler();
+        new_set_descriptors.push_back(Descriptor(binding, {}, dii));
+    }
+
     void DescriptorSetHandler::reset_auto_apply_bindings()
     {
         new_set_descriptors.clear();
@@ -131,10 +141,7 @@ namespace ve
 
     void DescriptorSetHandler::self_destruct()
     {
-        for (auto& dsl : layouts)
-        {
-            vmc.logical_device.get().destroyDescriptorSetLayout(dsl);
-        }
+        for (auto& dsl : layouts) vmc.logical_device.get().destroyDescriptorSetLayout(dsl);
         layouts.clear();
         vmc.logical_device.get().destroyDescriptorPool(pool);
     }

@@ -10,12 +10,37 @@ namespace ve
 {
     enum class ShaderFlavor
     {
-        Basic,
-        Default
+        Basic = 0,
+        Default = 1,
+        Emissive = 2,
+        Size = 3
+    };
+
+    struct ModelRenderData {
+        glm::mat4 MVP;
     };
 
     struct PushConstants {
-        glm::mat4 MVP;
+        // vertex push constants
+        uint32_t mvp_idx;
+        // fragment push constants
+        int32_t mat_idx;
+        bool normal_view;
+
+        void* get_fragment_push_constant_pointer()
+        { return &mat_idx; }
+
+        static uint32_t get_vertex_push_constant_size()
+        { return offsetof(PushConstants, mat_idx); }
+
+        static uint32_t get_vertex_push_constant_offset()
+        { return 0; }
+
+        static uint32_t get_fragment_push_constant_size()
+        { return sizeof(PushConstants) - offsetof(PushConstants, mat_idx); }
+
+        static uint32_t get_fragment_push_constant_offset()
+        { return offsetof(PushConstants, mat_idx); }
     };
 
     struct DrawInfo {
@@ -26,6 +51,7 @@ namespace ve
 		float frametime = 0.0f;
         bool show_ui = true;
         bool mesh_view = false;
+        bool normal_view = false;
         uint32_t current_frame = 0;
         glm::mat4 vp = glm::mat4(1.0);
     };
@@ -73,14 +99,14 @@ namespace ve
     };
 
     struct Material {
-        float metallic = 1.0f;
-        float roughness = 1.0f;
         glm::vec4 base_color = glm::vec4(1.0f);
-        glm::vec4 emission = glm::vec4(1.0f);
-        std::optional<uint32_t> base_texture = std::nullopt;
-        std::optional<uint32_t> metallic_roughness_texture = std::nullopt;
-        std::optional<uint32_t> normal_texture = std::nullopt;
-        std::optional<uint32_t> occlusion_texture = std::nullopt;
-        std::optional<uint32_t> emissive_texture = std::nullopt;
+        glm::vec4 emission = glm::vec4(0.0f);
+        float metallic = 0.0f;
+        float roughness = 0.0f;
+        alignas(8) int32_t base_texture = -1;
+        //int32_t metallic_roughness_texture = -1;
+        //int32_t normal_texture = -1;
+        //int32_t occlusion_texture = -1;
+        //int32_t emissive_texture = -1;
     };
 } // namespace ve

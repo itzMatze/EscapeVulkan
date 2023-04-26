@@ -2,12 +2,11 @@
 
 namespace ve
 {
-    VulkanStorageContext::VulkanStorageContext(const VulkanMainContext& vmc, const VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc)
+    VulkanStorageContext::VulkanStorageContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc)
     {}
 
     void VulkanStorageContext::destroy_buffer(uint32_t idx)
     {
-
         if (buffers.at(idx).has_value())
         {
             buffers.at(idx).value().self_destruct();

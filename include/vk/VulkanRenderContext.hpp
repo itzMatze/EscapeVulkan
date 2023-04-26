@@ -18,10 +18,6 @@
 
 namespace ve
 {
-    struct UniformBufferObject {
-        glm::mat4 M;
-    };
-
     class VulkanRenderContext
     {
     public:
@@ -38,17 +34,10 @@ namespace ve
         };
 
     public:
-        UniformBufferObject ubo{
-                glm::mat4(1.0f)};
-
-        PushConstants pc{
-                glm::mat4(1.0f)};
-
         const uint32_t frames_in_flight = 2;
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
         VulkanStorageContext& vsc;
-        std::vector<uint32_t> uniform_buffers;
         std::unordered_map<SyncNames, std::vector<uint32_t>> sync_indices;
         Swapchain swapchain;
         Scene scene;

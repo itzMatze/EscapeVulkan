@@ -13,16 +13,19 @@ namespace ve
     public:
         RenderObject(const VulkanMainContext& vmc);
         void self_destruct();
-        void add_model(uint32_t idx);
-        void add_bindings(std::vector<Model>& models);
-        void construct(const RenderPass& render_pass, const std::vector<std::pair<std::string, vk::ShaderStageFlagBits>>& shader_names);
-        void draw(vk::CommandBuffer& cb, DrawInfo& di, std::vector<Model>& models);
+        void add_model_meshes(std::vector<Mesh>& mesh_list);
+        void add_bindings(VulkanStorageContext& vsc, const std::vector<Material>& materials);
+        void construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_names);
+        void draw(vk::CommandBuffer& cb, DrawInfo& di);
 
         DescriptorSetHandler dsh;
 
     private:
         const VulkanMainContext& vmc;
+        // store meshes and the indices where a different model begins
+        std::vector<Mesh> meshes;
         std::vector<uint32_t> model_indices;
+        std::vector<uint32_t> descriptor_set_indices;
         Pipeline pipeline;
         Pipeline mesh_view_pipeline;
     };

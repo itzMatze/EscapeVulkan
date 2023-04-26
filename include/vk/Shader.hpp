@@ -4,6 +4,13 @@
 
 namespace ve
 {
+    struct ShaderInfo
+    {
+        std::string shader_name;
+        vk::ShaderStageFlagBits stage_flag;
+        vk::SpecializationInfo spec_info = {};
+    };
+
     class Shader
     {
     public:

@@ -66,7 +66,7 @@ namespace ve
         ImGui_ImplSDL2_Shutdown();
     }
 
-    void UI::upload_font_textures(const VulkanCommandContext& vcc)
+    void UI::upload_font_textures(VulkanCommandContext& vcc)
     {
         vk::CommandBuffer cb = vcc.begin(vcc.graphics_cb[0]);
         ImGui_ImplVulkan_CreateFontsTexture(cb);
@@ -86,12 +86,15 @@ namespace ve
             ImGui::Text("Mouse_L || Arrow-Keys: panning");
             ImGui::Text("'+'-': change movement speed");
             ImGui::Text("'M': toggle mesh view");
+            ImGui::Text("'N': toggle normal view");
             ImGui::Text("'G': Show/Hide UI");
         }
         ImGui::Separator();
         ImGui::Combo("Scene", &di.current_scene, di.scene_names.data(), di.scene_names.size());
         di.load_scene = ImGui::Button("Load scene");
-        ImGui::Checkbox("Activate Meshview", &(di.mesh_view));
+        ImGui::Checkbox("Meshview", &(di.mesh_view));
+        ImGui::SameLine();
+        ImGui::Checkbox("NormalView", &(di.normal_view));
         ImGui::Separator();
         ImGui::Text((ve::to_string(di.time_diff * 1000, 4) + " ms; FPS: " + ve::to_string(1.0 / di.time_diff) + " (" + ve::to_string(di.frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / di.frametime) + ")").c_str());
         ImGui::End();

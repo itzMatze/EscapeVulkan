@@ -28,7 +28,17 @@ namespace ve
         VulkanCommandContext& vcc;
         VulkanStorageContext& vsc;
         std::unordered_map<ShaderFlavor, RenderObject> ros;
-        std::vector<Model> models;
+        std::vector<Material> materials;
+        std::vector<std::vector<unsigned char>> texture_data;
+        std::vector<glm::mat4> model_transformations;
+        std::vector<ModelRenderData> model_render_data;
         std::unordered_map<std::string, uint32_t> model_handles;
+        uint32_t vertex_buffer;
+        uint32_t index_buffer;
+        uint32_t material_buffer;
+        uint32_t texture_image;
+        std::vector<uint32_t> model_render_data_buffers;
+
+        void add_model(Model& model, const std::string& name);
     };
 } // namespace ve

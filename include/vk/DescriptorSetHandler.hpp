@@ -17,6 +17,7 @@ namespace ve
         void add_descriptor(uint32_t binding, const Image& image);
         void add_descriptor(uint32_t binding, const Buffer& buffer);
         void apply_descriptor_to_new_sets(uint32_t binding, const Buffer& buffer);
+        void apply_descriptor_to_new_sets(uint32_t binding, const Image& image);
         void reset_auto_apply_bindings();
         void construct();
         void self_destruct();

@@ -11,7 +11,7 @@ src/vk/RenderObject.cpp src/vk/Scene.cpp src/vk/Model.cpp src/vk/Mesh.cpp
 src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/vk/VulkanRenderContext.cpp src/vk/VulkanStorageContext.cpp
 "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_draw.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_widgets.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_tables.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/backends/imgui_impl_vulkan.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/backends/imgui_impl_sdl.cpp")
 
-set(SHADER_FILES default.vert default.frag basic.frag)
+set(SHADER_FILES default.vert default.frag basic.frag emissive.frag)
 
 add_executable(Vulkan_Engine ${SOURCE_FILES})
 include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/dependencies/VulkanMemoryAllocator-3.0.1/include" "${PROJECT_SOURCE_DIR}/dependencies/tinygltf-2.6.3/" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/")
