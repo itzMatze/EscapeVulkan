@@ -35,11 +35,11 @@ namespace ve
     {
         vsc.destroy_buffer(vertex_buffer);
         vsc.destroy_buffer(index_buffer);
-        vsc.destroy_buffer(material_buffer);
+        if (material_buffer > -1) vsc.destroy_buffer(material_buffer);
         for (auto& buffer : model_render_data_buffers) vsc.destroy_buffer(buffer);
         model_render_data_buffers.clear();
         model_render_data.clear();
-        vsc.destroy_image(texture_image);
+        if (texture_image > -1) vsc.destroy_image(texture_image);
         for (auto& ro : ros) ro.second.self_destruct();
         ros.clear(); 
         model_handles.clear();
@@ -127,7 +127,10 @@ namespace ve
         }
         vertex_buffer = vsc.add_named_buffer(std::string("vertices"), vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         index_buffer = vsc.add_named_buffer(std::string("indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
-        material_buffer = vsc.add_named_buffer(std::string("materials"), materials, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        if (!materials.empty())
+        {
+            material_buffer = vsc.add_named_buffer(std::string("materials"), materials, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        }
         materials.clear();
         if (!texture_data.empty())
         {
@@ -146,18 +149,18 @@ namespace ve
         model_render_data_buffers.push_back(vsc.add_buffer(model_render_data, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
 
         ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(0, vsc.get_buffer(model_render_data_buffers.back()));
-        ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(2, vsc.get_image(texture_image));
-        ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(3, vsc.get_buffer(material_buffer));
-        ros.at(ShaderFlavor::Default).add_bindings(vsc, materials);
+        if (texture_image > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(2, vsc.get_image(texture_image));
+        if (material_buffer > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(3, vsc.get_buffer(material_buffer));
+        ros.at(ShaderFlavor::Default).add_bindings(vsc);
         ros.at(ShaderFlavor::Default).dsh.reset_auto_apply_bindings();
 
         ros.at(ShaderFlavor::Emissive).dsh.apply_descriptor_to_new_sets(0, vsc.get_buffer(model_render_data_buffers.back()));
-        ros.at(ShaderFlavor::Emissive).dsh.apply_descriptor_to_new_sets(3, vsc.get_buffer(material_buffer));
-        ros.at(ShaderFlavor::Emissive).add_bindings(vsc, materials);
+        if (material_buffer > -1) ros.at(ShaderFlavor::Emissive).dsh.apply_descriptor_to_new_sets(3, vsc.get_buffer(material_buffer));
+        ros.at(ShaderFlavor::Emissive).add_bindings(vsc);
         ros.at(ShaderFlavor::Emissive).dsh.reset_auto_apply_bindings();
 
         ros.at(ShaderFlavor::Basic).dsh.apply_descriptor_to_new_sets(0, vsc.get_buffer(model_render_data_buffers.back()));
-        ros.at(ShaderFlavor::Basic).add_bindings(vsc, materials);
+        ros.at(ShaderFlavor::Basic).add_bindings(vsc);
         ros.at(ShaderFlavor::Basic).dsh.reset_auto_apply_bindings();
     }
 

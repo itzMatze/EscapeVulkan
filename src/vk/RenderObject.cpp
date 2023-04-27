@@ -18,7 +18,7 @@ namespace ve
         meshes.insert(meshes.end(), mesh_list.begin(), mesh_list.end());
     }
 
-    void RenderObject::add_bindings(VulkanStorageContext& vsc, const std::vector<Material>& materials)
+    void RenderObject::add_bindings(VulkanStorageContext& vsc)
     {
         descriptor_set_indices.push_back(dsh.new_set());
     }

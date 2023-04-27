@@ -35,8 +35,9 @@ namespace ve
         std::unordered_map<std::string, uint32_t> model_handles;
         uint32_t vertex_buffer;
         uint32_t index_buffer;
-        uint32_t material_buffer;
-        uint32_t texture_image;
+        // use -1 to encode missing material buffer and/or textures as they are not required
+        int32_t material_buffer = -1;
+        int32_t texture_image = -1;
         std::vector<uint32_t> model_render_data_buffers;
 
         void add_model(Model& model, const std::string& name);

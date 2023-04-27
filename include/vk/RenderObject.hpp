@@ -14,7 +14,7 @@ namespace ve
         RenderObject(const VulkanMainContext& vmc);
         void self_destruct();
         void add_model_meshes(std::vector<Mesh>& mesh_list);
-        void add_bindings(VulkanStorageContext& vsc, const std::vector<Material>& materials);
+        void add_bindings(VulkanStorageContext& vsc);
         void construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_names);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
 
