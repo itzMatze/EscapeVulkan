@@ -36,10 +36,12 @@ namespace ve
         vsc.destroy_buffer(vertex_buffer);
         vsc.destroy_buffer(index_buffer);
         if (material_buffer > -1) vsc.destroy_buffer(material_buffer);
+        material_buffer = -1;
         for (auto& buffer : model_render_data_buffers) vsc.destroy_buffer(buffer);
         model_render_data_buffers.clear();
         model_render_data.clear();
         if (texture_image > -1) vsc.destroy_image(texture_image);
+        texture_image = -1;
         for (auto& ro : ros) ro.second.self_destruct();
         ros.clear(); 
         model_handles.clear();

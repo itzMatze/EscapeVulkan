@@ -16,6 +16,7 @@ namespace ve
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
+            timers.emplace_back(vmc);
             sync_indices[SyncNames::SImageAvailable].push_back(vcc.sync.add_semaphore());
             sync_indices[SyncNames::SRenderFinished].push_back(vcc.sync.add_semaphore());
             sync_indices[SyncNames::FRenderFinished].push_back(vcc.sync.add_fence());
@@ -26,6 +27,8 @@ namespace ve
 
     void VulkanRenderContext::self_destruct()
     {
+        for (auto& timer : timers) timer.self_destruct();
+        timers.clear();
         ui.self_destruct();
         scene.self_destruct();
         swapchain.self_destruct(true);
@@ -65,6 +68,11 @@ namespace ve
         record_graphics_command_buffer(image_idx.value, di);
         submit_graphics(image_idx.value, di);
         di.current_frame = (di.current_frame + 1) % frames_in_flight;
+        for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT; ++i)
+        {
+            double timing = timers[di.current_frame].get_result_by_idx(i);
+            if (!std::signbit(timing)) di.devicetimings[i] = timing;
+        }
     }
 
     vk::Extent2D VulkanRenderContext::recreate_swapchain()
@@ -78,6 +86,8 @@ namespace ve
     void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, DrawInfo& di)
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[di.current_frame]);
+        timers[di.current_frame].reset_all(cb);
+        timers[di.current_frame].start(cb, DeviceTimer::ALL_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
         vk::RenderPassBeginInfo rpbi{};
         rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
         rpbi.renderPass = swapchain.get_render_pass().get();
@@ -108,10 +118,15 @@ namespace ve
 
         std::vector<vk::DeviceSize> offsets(1, 0);
 
+        timers[di.current_frame].start(cb, DeviceTimer::APP_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
         scene.draw(cb, di);
+        timers[di.current_frame].stop(cb, DeviceTimer::APP_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].start(cb, DeviceTimer::UI_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
         if (di.show_ui) ui.draw(cb, di);
+        timers[di.current_frame].stop(cb, DeviceTimer::UI_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
 
         cb.endRenderPass();
+        timers[di.current_frame].stop(cb, DeviceTimer::ALL_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
         cb.end();
     }
 
