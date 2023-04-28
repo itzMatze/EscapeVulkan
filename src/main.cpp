@@ -12,6 +12,7 @@
 #include "Camera.hpp"
 #include "EventHandler.hpp"
 #include "ve_log.hpp"
+#include "vk/Timer.hpp"
 #include "vk/VulkanMainContext.hpp"
 #include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanStorageContext.hpp"
@@ -22,6 +23,7 @@ class MainContext
 public:
     MainContext() : extent(1000, 800), vmc(extent.width, extent.height), vcc(vmc), vsc(vmc, vcc), vrc(vmc, vcc, vsc), camera(45.0f, extent.width, extent.height)
     {
+        di.devicetimings.resize(ve::DeviceTimer::TIMER_COUNT, 0.0f);
         extent = vrc.swapchain.get_extent();
         camera.updateScreenSize(extent.width, extent.height);
     }
@@ -37,17 +39,17 @@ public:
     void run()
     {
         std::vector<std::string> scene_names;
+        di.current_scene = 0;
         for (const auto& entry : std::filesystem::directory_iterator("../assets/scenes/"))
         {
+            if (entry.path().filename() == "escapevulkan.json") di.current_scene = scene_names.size();
             scene_names.push_back(entry.path().filename());
         }
-        di.current_scene = 0;
         for (const auto& name : scene_names) di.scene_names.push_back(&name.front());
         vrc.load_scene(di.scene_names[di.current_scene]);
         constexpr float min_frametime = 5.0f;
-        auto t1 = std::chrono::high_resolution_clock::now();
-        auto t2 = std::chrono::high_resolution_clock::now();
         // keep time measurement and frametime separate to be able to use a frame limiter
+        ve::HostTimer timer;
         bool quit = false;
         SDL_Event e;
         while (!quit)
@@ -71,16 +73,14 @@ public:
                 quit = e.window.event == SDL_WINDOWEVENT_CLOSE;
                 eh.dispatch_event(e);
             }
-            t2 = std::chrono::high_resolution_clock::now();
-            di.time_diff = std::chrono::duration<float, std::milli>(t2 - t1).count();
+            di.time_diff = timer.restart();
             // calculate actual frametime by subtracting the waiting time
             di.frametime = di.time_diff - std::max(0.0f, min_frametime - di.frametime);
-            t1 = t2;
             if (di.load_scene)
             {
                 di.load_scene = false;
                 vrc.load_scene(di.scene_names[di.current_scene]);
-                t1 = std::chrono::high_resolution_clock::now();
+                timer.restart();
             }
         }
     }

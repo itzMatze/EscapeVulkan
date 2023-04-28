@@ -15,6 +15,7 @@
 #include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanMainContext.hpp"
 #include "vk/VulkanStorageContext.hpp"
+#include "vk/Timer.hpp"
 
 namespace ve
 {
@@ -42,6 +43,7 @@ namespace ve
         Swapchain swapchain;
         Scene scene;
         UI ui;
+        std::vector<DeviceTimer> timers;
 
         void draw_frame(DrawInfo& di);
         vk::Extent2D recreate_swapchain();

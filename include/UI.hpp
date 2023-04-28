@@ -6,6 +6,7 @@
 #include "vk/RenderPass.hpp"
 #include "vk/VulkanMainContext.hpp"
 #include "vk/VulkanCommandContext.hpp"
+#include "FixVector.hpp"
 
 namespace ve
 {
@@ -19,5 +20,10 @@ namespace ve
 	private:
         const VulkanMainContext& vmc;
 		vk::DescriptorPool imgui_pool;
+        FixVector<float> frametime_values;
+        float time_diff = 0.0f;
+        float frametime = 0.0f;
+        std::vector<FixVector<float>> devicetiming_values;
+        std::vector<float> devicetimings;
 	};
 } // namespace ve

@@ -49,6 +49,7 @@ namespace ve
         bool load_scene = false;
         float time_diff = 0.000001f;
 		float frametime = 0.0f;
+        std::vector<float> devicetimings;
         bool show_ui = true;
         bool mesh_view = false;
         bool normal_view = false;

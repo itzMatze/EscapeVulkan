@@ -2,13 +2,20 @@
 #include "imgui.h"
 #include "backends/imgui_impl_vulkan.h"
 #include "backends/imgui_impl_sdl.h"
+#include "implot.h"
+#include "implot_internal.h"
 
 #include "ve_log.hpp"
+#include "vk/Timer.hpp"
 
 namespace ve
 {
-    UI::UI(const VulkanMainContext& vmc, const RenderPass& render_pass, uint32_t frames) : vmc(vmc)
+    constexpr uint32_t plot_value_count = 1024;
+    constexpr float update_weight = 0.1f;
+
+    UI::UI(const VulkanMainContext& vmc, const RenderPass& render_pass, uint32_t frames) : vmc(vmc), frametime_values(plot_value_count, 0.0f), devicetimings(DeviceTimer::TIMER_COUNT, 0.0f)
     {
+        for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT; ++i) devicetiming_values.push_back(FixVector<float>(plot_value_count, 0.0f));
         std::vector<vk::DescriptorPoolSize> pool_sizes =
         {
             { vk::DescriptorType::eSampler, 1000 },
@@ -34,6 +41,7 @@ namespace ve
         imgui_pool = vmc.logical_device.get().createDescriptorPool(dpci);
 
         ImGui::CreateContext();
+        ImPlot::CreateContext();
 
         //this initializes imgui for SDL
         ImGui_ImplSDL2_InitForVulkan(vmc.window.value().get());
@@ -64,6 +72,8 @@ namespace ve
         vmc.logical_device.get().destroyDescriptorPool(imgui_pool);
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplSDL2_Shutdown();
+        ImPlot::DestroyContext();
+        ImGui::DestroyContext();
     }
 
     void UI::upload_font_textures(VulkanCommandContext& vcc)
@@ -96,7 +106,32 @@ namespace ve
         ImGui::SameLine();
         ImGui::Checkbox("NormalView", &(di.normal_view));
         ImGui::Separator();
-        ImGui::Text((ve::to_string(di.time_diff * 1000, 4) + " ms; FPS: " + ve::to_string(1.0 / di.time_diff) + " (" + ve::to_string(di.frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / di.frametime) + ")").c_str());
+        time_diff = time_diff * (1 - update_weight) + di.time_diff * update_weight;
+        frametime = frametime * (1 - update_weight) + di.frametime * update_weight;
+        frametime_values.push_back(di.frametime);
+        for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT; ++i)
+        {
+            devicetimings[i] = devicetimings[i] * (1 - update_weight) + di.devicetimings[i] * update_weight;
+            devicetiming_values[i].push_back(di.devicetimings[i]);
+        }
+        if (ImGui::CollapsingHeader("Timings"))
+        {
+            ImGui::Text((ve::to_string(time_diff * 1000, 4) + " ms; FPS: " + ve::to_string(1.0 / time_diff) + " (" + ve::to_string(frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / frametime) + ")").c_str());
+            ImGui::Text(("ALL_RENDERING: " + ve::to_string(devicetimings[DeviceTimer::ALL_RENDERING], 4) + " ms").c_str());
+            ImGui::Text(("APP_RENDERING: " + ve::to_string(devicetimings[DeviceTimer::APP_RENDERING], 4) + " ms").c_str());
+            ImGui::Text(("UI_RENDERING: " + ve::to_string(devicetimings[DeviceTimer::UI_RENDERING], 4) + " ms").c_str());
+        }
+        if (ImGui::CollapsingHeader("Plots"))
+        {
+            if (ImPlot::BeginPlot("Device Timings"))
+            {
+                ImPlot::SetupAxes("Frame", "Time [ms]", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
+                ImPlot::PlotLine("ALL_RENDERING", devicetiming_values[DeviceTimer::ALL_RENDERING].data(), plot_value_count);
+                ImPlot::PlotLine("APP_RENDERING", devicetiming_values[DeviceTimer::APP_RENDERING].data(), plot_value_count);
+                ImPlot::PlotLine("UI_RENDERING", devicetiming_values[DeviceTimer::UI_RENDERING].data(), plot_value_count);
+                ImPlot::EndPlot();
+            }
+        }
         ImGui::End();
         ImGui::EndFrame();
 

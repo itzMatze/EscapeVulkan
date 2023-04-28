@@ -41,8 +41,10 @@ namespace ve
         ici.pApplicationInfo = &ai;
         ici.enabledExtensionCount = extensions_handler.get_size();
         ici.ppEnabledExtensionNames = extensions_handler.get_extensions().data();
+#if not defined(NDEBUG) or true
         ici.enabledLayerCount = validation_handler.get_size();
         ici.ppEnabledLayerNames = validation_handler.get_extensions().data();
+#endif
 
         instance = vk::createInstance(ici);
     }
