@@ -4,15 +4,9 @@
             "name": "bunny",
             "ShaderFlavor": "Basic",
             "file": "bunny.glb",
-            "scale": [
-                1.0, 1.0, 1.0
-            ],
-            "translation": [
-                0.0, -1.0, 3.0
-            ],
-            "rotation": [
-                180, 0.0, 1.0, 0.0
-            ]
+            "scale": [1.0, 1.0, 1.0],
+            "translation": [0.0, -1.0, 3.0],
+            "rotation": [180, 0.0, 1.0, 0.0]
         }
     ],
     "custom_models": [

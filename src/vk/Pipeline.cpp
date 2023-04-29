@@ -164,10 +164,37 @@ namespace ve
         VE_CHECK(pipeline_result_value.result, "Failed to create pipeline!");
         pipeline = pipeline_result_value.value;
 
-        for (auto& shader : shaders)
-        {
-            vmc.logical_device.get().destroyShaderModule(shader.get());
-        }
+        for (auto& shader : shaders) shader.self_destruct();
+    }
+
+    void Pipeline::construct(vk::DescriptorSetLayout set_layout, const ShaderInfo& shader_info)
+    {
+        Shader shader(vmc.logical_device.get(), shader_info.shader_name, vk::ShaderStageFlagBits::eCompute);
+
+        vk::PushConstantRange pcr;
+        pcr.offset = 0;
+        pcr.size = sizeof(ComputePushConstants);
+        pcr.stageFlags = vk::ShaderStageFlagBits::eCompute;
+
+        vk::PipelineLayoutCreateInfo plci{};
+        plci.sType = vk::StructureType::ePipelineLayoutCreateInfo;
+        plci.setLayoutCount = 1;
+        plci.pSetLayouts = &set_layout;
+        plci.pushConstantRangeCount = 1;
+        plci.pPushConstantRanges = &pcr;
+
+        pipeline_layout = vmc.logical_device.get().createPipelineLayout(plci);
+
+        vk::ComputePipelineCreateInfo cpci{};
+        cpci.sType = vk::StructureType::eComputePipelineCreateInfo;
+        cpci.stage = shader.get_stage_create_info();
+        cpci.layout = pipeline_layout;
+
+        vk::ResultValue<vk::Pipeline> comute_pipeline_result_value = vmc.logical_device.get().createComputePipeline(VK_NULL_HANDLE, cpci);
+        VE_CHECK(comute_pipeline_result_value.result, "Failed to create compute pipeline!");
+        pipeline = comute_pipeline_result_value.value;
+
+        shader.self_destruct();
     }
 
     const vk::Pipeline& Pipeline::get() const

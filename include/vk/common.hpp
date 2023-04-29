@@ -43,6 +43,10 @@ namespace ve
         { return offsetof(PushConstants, mat_idx); }
     };
 
+    struct ComputePushConstants {
+
+    };
+
     struct DrawInfo {
         std::vector<const char*> scene_names;
         int32_t current_scene = 0;

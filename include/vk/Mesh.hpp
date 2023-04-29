@@ -3,7 +3,7 @@
 #include "vk/DescriptorSetHandler.hpp"
 #include "vk/Image.hpp"
 #include "vk/common.hpp"
-#include "vk/VulkanStorageContext.hpp"
+#include "Storage.hpp"
 
 namespace ve
 {

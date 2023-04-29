@@ -8,7 +8,7 @@
 
 #include "vk/Image.hpp"
 #include "vk/Mesh.hpp"
-#include "vk/VulkanStorageContext.hpp"
+#include "Storage.hpp"
 
 namespace ve
 {
@@ -39,7 +39,7 @@ namespace ve
 
     namespace ModelLoader
     {
-        Model load(const VulkanMainContext& vmc, VulkanStorageContext& vsc, const std::string& path, uint32_t idx_count, uint32_t vertex_count, uint32_t material_count, uint32_t texture_count);
-        Model load(const VulkanMainContext& vmc, VulkanStorageContext& vsc, const nlohmann::json& model, uint32_t idx_count, uint32_t vertex_count, uint32_t material_count);
+        Model load(const VulkanMainContext& vmc, Storage& storage, const std::string& path, uint32_t idx_count, uint32_t vertex_count, uint32_t material_count, uint32_t texture_count);
+        Model load(const VulkanMainContext& vmc, Storage& storage, const nlohmann::json& model, uint32_t idx_count, uint32_t vertex_count, uint32_t material_count);
     };
 } // namespace ve

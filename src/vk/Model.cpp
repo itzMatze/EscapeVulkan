@@ -24,7 +24,7 @@ namespace ve
         std::vector<int32_t> texture_indices;
         std::vector<int32_t> material_indices;
 
-        Material& load_material(const VulkanMainContext& vmc, VulkanStorageContext& vsc, int mat_idx, const tinygltf::Model& model, Model& model_data)
+        Material& load_material(const VulkanMainContext& vmc, Storage& storage, int mat_idx, const tinygltf::Model& model, Model& model_data)
         {
             if (mat_idx < 0) VE_THROW("Trying to load material_idx < 0!");
             const tinygltf::Material& mat = model.materials[mat_idx];
@@ -35,7 +35,7 @@ namespace ve
                 int texture_idx = mat.values.at(name).TextureIndex();
                 if (texture_indices[texture_idx] > -1) return texture_indices[texture_idx];
                 const tinygltf::Texture& tex = model.textures[texture_idx];
-                texture_indices[texture_idx] = vsc.add_image(model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true, base_mip_level, std::vector<uint32_t>{vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics});
+                texture_indices[texture_idx] = storage.add_image(model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true, base_mip_level, std::vector<uint32_t>{vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics});
                 std::cout << model.images[tex.source].width << ";" << model.images[tex.source].height << std::endl;
                 return texture_indices[texture_idx];
             };
@@ -80,7 +80,7 @@ namespace ve
             return model_data.materials[material_indices[mat_idx]];
         }
 
-        void process_mesh(const VulkanMainContext& vmc, VulkanStorageContext& vsc, const tinygltf::Mesh& mesh, const tinygltf::Model& model, const glm::mat4 matrix, Model& model_data)
+        void process_mesh(const VulkanMainContext& vmc, Storage& storage, const tinygltf::Mesh& mesh, const tinygltf::Model& model, const glm::mat4 matrix, Model& model_data)
         {
             ShaderFlavor flavor;
             for (const tinygltf::Primitive& primitive : mesh.primitives)
@@ -173,7 +173,7 @@ namespace ve
                 }
                 if (primitive.material > -1)
                 {
-                    Material& mat = load_material(vmc, vsc, primitive.material, model, model_data);
+                    Material& mat = load_material(vmc, storage, primitive.material, model, model_data);
                     if (mat.base_texture > -1)
                     {
                         flavor = ShaderFlavor::Default;
@@ -195,7 +195,7 @@ namespace ve
             }
         }
 
-        void process_node(const VulkanMainContext& vmc, VulkanStorageContext& vsc, const tinygltf::Node& node, const tinygltf::Model& model, const glm::mat4 trans, Model& model_data)
+        void process_node(const VulkanMainContext& vmc, Storage& storage, const tinygltf::Node& node, const tinygltf::Model& model, const glm::mat4 trans, Model& model_data)
         {
             glm::vec3 translation = (node.translation.size() == 3) ? glm::make_vec3(node.translation.data()) : glm::dvec3(0.0f);
             glm::quat q = (node.rotation.size() == 4) ? glm::make_quat(node.rotation.data()) : glm::qua<double>();
@@ -204,12 +204,12 @@ namespace ve
             matrix = trans * glm::translate(glm::mat4(1.0f), translation) * glm::mat4(q) * glm::scale(glm::mat4(1.0f), scale) * matrix;
             for (auto& child_idx : node.children)
             {
-                process_node(vmc, vsc, model.nodes[child_idx], model, matrix, model_data);
+                process_node(vmc, storage, model.nodes[child_idx], model, matrix, model_data);
             }
-            if (node.mesh > -1) (process_mesh(vmc, vsc, model.meshes[node.mesh], model, matrix, model_data));
+            if (node.mesh > -1) (process_mesh(vmc, storage, model.meshes[node.mesh], model, matrix, model_data));
         }
 
-        Model load(const VulkanMainContext& vmc, VulkanStorageContext& vsc, const std::string& path, uint32_t idx_count, uint32_t vertex_count, uint32_t material_count, uint32_t texture_count)
+        Model load(const VulkanMainContext& vmc, Storage& storage, const std::string& path, uint32_t idx_count, uint32_t vertex_count, uint32_t material_count, uint32_t texture_count)
         {
             total_index_count = idx_count;
             total_vertex_count = vertex_count;
@@ -231,7 +231,7 @@ namespace ve
             // traverse scene nodes
             for (auto& node_idx : scene.nodes)
             {
-                process_node(vmc, vsc, model.nodes[node_idx], model, glm::mat4(1.0f), model_data);
+                process_node(vmc, storage, model.nodes[node_idx], model, glm::mat4(1.0f), model_data);
             }
             for (const auto& i : texture_indices)
             {
@@ -242,7 +242,7 @@ namespace ve
             return model_data;
         }
 
-        Model load(const VulkanMainContext& vmc, VulkanStorageContext& vsc, const nlohmann::json& model, uint32_t idx_count, uint32_t vertex_count, uint32_t material_count)
+        Model load(const VulkanMainContext& vmc, Storage& storage, const nlohmann::json& model, uint32_t idx_count, uint32_t vertex_count, uint32_t material_count)
         {
             total_index_count = idx_count;
             total_vertex_count = vertex_count;
@@ -265,7 +265,7 @@ namespace ve
             Material m;
             if (model.contains("base_texture"))
             {
-                texture_indices.emplace_back(vsc.add_image(std::string("../assets/textures/") + std::string(model.value("base_texture", "")), true, 0, std::vector<uint32_t>{vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics}));
+                texture_indices.emplace_back(storage.add_image(std::string("../assets/textures/") + std::string(model.value("base_texture", "")), true, 0, std::vector<uint32_t>{vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics}));
                 m.base_texture = texture_indices.back();
             }
             model_data.materials.push_back(m);

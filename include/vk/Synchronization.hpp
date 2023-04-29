@@ -7,14 +7,25 @@ namespace ve
     class Synchronization
     {
     public:
+        enum SemaphoreNames
+        {
+            S_IMAGE_AVAILABLE = 0,
+            S_RENDER_FINISHED = 1,
+            SEMAPHORE_COUNT
+        };
+
+        enum FenceNames
+        {
+            F_RENDER_FINISHED = 0,
+            FENCE_COUNT
+        };
+
         Synchronization(const vk::Device& logical_device);
         void self_destruct();
-        uint32_t add_semaphore();
-        uint32_t add_fence(bool signaled = true);
-        const vk::Semaphore& get_semaphore(uint32_t idx) const;
-        const vk::Fence& get_fence(uint32_t idx) const;
-        void wait_for_fence(uint32_t idx) const;
-        void reset_fence(uint32_t idx) const;
+        const vk::Semaphore& get_semaphore(SemaphoreNames name) const;
+        const vk::Fence& get_fence(FenceNames name) const;
+        void wait_for_fence(FenceNames name) const;
+        void reset_fence(FenceNames name) const;
         void wait_idle() const;
 
     private:

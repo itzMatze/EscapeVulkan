@@ -4,7 +4,7 @@
 
 namespace ve
 {
-        VulkanCommandContext::VulkanCommandContext(VulkanMainContext& vmc) : vmc(vmc), sync(vmc.logical_device.get())
+        VulkanCommandContext::VulkanCommandContext(VulkanMainContext& vmc) : vmc(vmc)
         {
             command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queue_family_indices.graphics));
             command_pools.push_back(CommandPool(vmc.logical_device.get(), vmc.queue_family_indices.compute));
@@ -56,10 +56,8 @@ namespace ve
 
         void VulkanCommandContext::self_destruct()
         {
-            sync.wait_idle();
             for (auto& command_pool : command_pools) command_pool.self_destruct();
             command_pools.clear();
-            sync.self_destruct();
             spdlog::info("Destroyed VulkanCommandContext");
         }
 

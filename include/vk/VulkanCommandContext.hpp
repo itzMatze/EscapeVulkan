@@ -22,7 +22,6 @@ namespace ve
         void self_destruct();
 
         const VulkanMainContext& vmc;
-        Synchronization sync;
         std::vector<CommandPool> command_pools;
         std::vector<vk::CommandBuffer> graphics_cb;
         std::vector<vk::CommandBuffer> compute_cb;

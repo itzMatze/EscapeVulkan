@@ -5,44 +5,35 @@
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
-#include "Camera.hpp"
 #include "UI.hpp"
 #include "vk/common.hpp"
 #include "vk/Buffer.hpp"
-#include "vk/DescriptorSetHandler.hpp"
 #include "vk/Scene.hpp"
+#include "vk/ComputeObject.hpp"
 #include "vk/Swapchain.hpp"
 #include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanMainContext.hpp"
-#include "vk/VulkanStorageContext.hpp"
+#include "Storage.hpp"
 #include "vk/Timer.hpp"
 
 namespace ve
 {
-    class VulkanRenderContext
+    class WorkContext
     {
     public:
-        VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc);
+        WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc);
         void self_destruct();
         void load_scene(const std::string& filename);
 
-    private:
-        enum class SyncNames
-        {
-            SImageAvailable,
-            SRenderFinished,
-            FRenderFinished
-        };
-
     public:
-        const uint32_t frames_in_flight = 2;
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
-        VulkanStorageContext& vsc;
-        std::unordered_map<SyncNames, std::vector<uint32_t>> sync_indices;
+        Storage storage;
         Swapchain swapchain;
         Scene scene;
         UI ui;
+        ComputeObject co;
+        std::vector<Synchronization> syncs;
         std::vector<DeviceTimer> timers;
 
         void draw_frame(DrawInfo& di);
