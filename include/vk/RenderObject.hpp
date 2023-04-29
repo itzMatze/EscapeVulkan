@@ -14,7 +14,7 @@ namespace ve
         RenderObject(const VulkanMainContext& vmc);
         void self_destruct();
         void add_model_meshes(std::vector<Mesh>& mesh_list);
-        void add_bindings(VulkanStorageContext& vsc);
+        void add_bindings();
         void construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_names);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
 
@@ -25,7 +25,6 @@ namespace ve
         // store meshes and the indices where a different model begins
         std::vector<Mesh> meshes;
         std::vector<uint32_t> model_indices;
-        std::vector<uint32_t> descriptor_set_indices;
         Pipeline pipeline;
         Pipeline mesh_view_pipeline;
     };

@@ -18,18 +18,18 @@ namespace ve
         meshes.insert(meshes.end(), mesh_list.begin(), mesh_list.end());
     }
 
-    void RenderObject::add_bindings(VulkanStorageContext& vsc)
+    void RenderObject::add_bindings()
     {
-        descriptor_set_indices.push_back(dsh.new_set());
+        dsh.new_set();
     }
 
-    void RenderObject::construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_names)
+    void RenderObject::construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_infos)
     {
         if (meshes.empty()) return;
         model_indices.push_back(meshes.size());
         dsh.construct();
-        pipeline.construct(render_pass, dsh.get_layouts()[0], shader_names, vk::PolygonMode::eFill);
-        mesh_view_pipeline.construct(render_pass, dsh.get_layouts()[0], shader_names, vk::PolygonMode::eLine);
+        pipeline.construct(render_pass, dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill);
+        mesh_view_pipeline.construct(render_pass, dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine);
     }
 
     void RenderObject::draw(vk::CommandBuffer& cb, DrawInfo& di)
@@ -37,7 +37,7 @@ namespace ve
         if (meshes.empty()) return;
         const vk::PipelineLayout& pipeline_layout = di.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, di.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, dsh.get_sets()[descriptor_set_indices[di.current_frame]], {});
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, dsh.get_sets()[di.current_frame], {});
         for (uint32_t i = 0; i < model_indices.size() - 1; ++i)
         {
             PushConstants pc{.mvp_idx = i};

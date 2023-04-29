@@ -3,18 +3,17 @@
 #include "vk/common.hpp"
 #include "vk/Model.hpp"
 #include "vk/RenderObject.hpp"
-#include "vk/VulkanStorageContext.hpp"
+#include "Storage.hpp"
 
 namespace ve
 {
     class Scene
     {
     public:
-        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc);
-        void construct(const RenderPass& render_pass);
+        Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
+        void construct(const RenderPass& render_pass, uint32_t parallel_units);
         void self_destruct();
         void load(const std::string& path);
-        void add_bindings();
         void translate(const std::string& model, const glm::vec3& trans);
         void scale(const std::string& model, const glm::vec3& scale);
         void rotate(const std::string& model, float degree, const glm::vec3& axis);
@@ -26,7 +25,7 @@ namespace ve
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
-        VulkanStorageContext& vsc;
+        Storage& storage;
         std::unordered_map<ShaderFlavor, RenderObject> ros;
         std::vector<Material> materials;
         std::vector<std::vector<unsigned char>> texture_data;

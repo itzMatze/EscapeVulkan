@@ -7,10 +7,10 @@
 
 namespace ve
 {
-    class VulkanStorageContext
+    class Storage
     {
     public:
-        VulkanStorageContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc);
+        Storage(const VulkanMainContext& vmc, VulkanCommandContext& vcc);
 
         template<typename... Args>
         uint32_t add_named_buffer(const std::string& name, Args&&... args)

@@ -7,40 +7,58 @@
 
 namespace ve
 {
-    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc) : vmc(vmc), vcc(vcc), vsc(vsc)
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage)
     {}
 
-    void Scene::construct(const RenderPass& render_pass)
+    void Scene::construct(const RenderPass& render_pass, uint32_t parallel_units)
     {
+        // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
+        for (uint32_t i = 0; i < parallel_units; ++i)
+        {
+            model_render_data_buffers.push_back(storage.add_buffer(model_render_data, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
+
+            ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
+            if (texture_image > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(2, storage.get_image(texture_image));
+            if (material_buffer > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(3, storage.get_buffer(material_buffer));
+            ros.at(ShaderFlavor::Default).add_bindings();
+            ros.at(ShaderFlavor::Default).dsh.reset_auto_apply_bindings();
+
+            ros.at(ShaderFlavor::Emissive).dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
+            if (material_buffer > -1) ros.at(ShaderFlavor::Emissive).dsh.apply_descriptor_to_new_sets(3, storage.get_buffer(material_buffer));
+            ros.at(ShaderFlavor::Emissive).add_bindings();
+            ros.at(ShaderFlavor::Emissive).dsh.reset_auto_apply_bindings();
+
+            ros.at(ShaderFlavor::Basic).dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
+            ros.at(ShaderFlavor::Basic).add_bindings();
+            ros.at(ShaderFlavor::Basic).dsh.reset_auto_apply_bindings();
+        }
+
         vk::SpecializationMapEntry uniform_buffer_size_entry(0, 0, sizeof(uint32_t));
         uint32_t uniform_buffer_size = model_render_data.size();
         vk::SpecializationInfo spec_info(1, &uniform_buffer_size_entry, sizeof(uint32_t), &uniform_buffer_size);
-        std::vector<ShaderInfo> default_info;
-        default_info.push_back(ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, spec_info});
-        default_info.push_back(ShaderInfo{"default.frag", vk::ShaderStageFlagBits::eFragment});
-        ros.at(ShaderFlavor::Default).construct(render_pass, default_info);
+        std::vector<ShaderInfo> shader_infos(2);
+        shader_infos[0] = ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, spec_info};
 
-        std::vector<ShaderInfo> basic_info;
-        basic_info.push_back(ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, spec_info});
-        basic_info.push_back(ShaderInfo{"basic.frag", vk::ShaderStageFlagBits::eFragment});
-        ros.at(ShaderFlavor::Basic).construct(render_pass, basic_info);
+        shader_infos[1] = ShaderInfo{"default.frag", vk::ShaderStageFlagBits::eFragment};
+        ros.at(ShaderFlavor::Default).construct(render_pass, shader_infos);
 
-        std::vector<ShaderInfo> emissive_info;
-        emissive_info.push_back(ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, spec_info});
-        emissive_info.push_back(ShaderInfo{"emissive.frag", vk::ShaderStageFlagBits::eFragment});
-        ros.at(ShaderFlavor::Emissive).construct(render_pass, emissive_info);
+        shader_infos[1] = ShaderInfo{"basic.frag", vk::ShaderStageFlagBits::eFragment};
+        ros.at(ShaderFlavor::Basic).construct(render_pass, shader_infos);
+
+        shader_infos[1] = ShaderInfo{"emissive.frag", vk::ShaderStageFlagBits::eFragment};
+        ros.at(ShaderFlavor::Emissive).construct(render_pass, shader_infos);
     }
 
     void Scene::self_destruct()
     {
-        vsc.destroy_buffer(vertex_buffer);
-        vsc.destroy_buffer(index_buffer);
-        if (material_buffer > -1) vsc.destroy_buffer(material_buffer);
+        storage.destroy_buffer(vertex_buffer);
+        storage.destroy_buffer(index_buffer);
+        if (material_buffer > -1) storage.destroy_buffer(material_buffer);
         material_buffer = -1;
-        for (auto& buffer : model_render_data_buffers) vsc.destroy_buffer(buffer);
+        for (auto& buffer : model_render_data_buffers) storage.destroy_buffer(buffer);
         model_render_data_buffers.clear();
         model_render_data.clear();
-        if (texture_image > -1) vsc.destroy_image(texture_image);
+        if (texture_image > -1) storage.destroy_image(texture_image);
         texture_image = -1;
         for (auto& ro : ros) ro.second.self_destruct();
         ros.clear(); 
@@ -96,7 +114,7 @@ namespace ve
             for (const auto& d : data.at("model_files"))
             {
                 const std::string name = d.value("name", "");
-                Model model = ModelLoader::load(vmc, vsc, std::string("../assets/models/") + std::string(d.value("file", "")), indices.size(), vertices.size(), materials.size(), texture_data.size());
+                Model model = ModelLoader::load(vmc, storage, std::string("../assets/models/") + std::string(d.value("file", "")), indices.size(), vertices.size(), materials.size(), texture_data.size());
                 add_model(model, name);
 
                 // apply transformations to model
@@ -123,20 +141,20 @@ namespace ve
             for (const auto& d : data["custom_models"])
             {
                 std::string name = d.value("name", "");
-                Model model = ModelLoader::load(vmc, vsc, d, indices.size(), vertices.size(), materials.size());
+                Model model = ModelLoader::load(vmc, storage, d, indices.size(), vertices.size(), materials.size());
                 add_model(model, name);
             }
         }
-        vertex_buffer = vsc.add_named_buffer(std::string("vertices"), vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
-        index_buffer = vsc.add_named_buffer(std::string("indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        vertex_buffer = storage.add_named_buffer(std::string("vertices"), vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        index_buffer = storage.add_named_buffer(std::string("indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         if (!materials.empty())
         {
-            material_buffer = vsc.add_named_buffer(std::string("materials"), materials, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+            material_buffer = storage.add_named_buffer(std::string("materials"), materials, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         }
         materials.clear();
         if (!texture_data.empty())
         {
-            texture_image = vsc.add_named_image(std::string("textures"), texture_data, texture_dimensions.width, texture_dimensions.height, true, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer});
+            texture_image = storage.add_named_image(std::string("textures"), texture_data, texture_dimensions.width, texture_dimensions.height, true, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer});
         }
         texture_data.clear();
         model_render_data.resize(model_transformations.size());
@@ -144,26 +162,6 @@ namespace ve
         indices.clear();
         vertices.clear();
         loaded = true;
-    }
-
-    void Scene::add_bindings()
-    {
-        model_render_data_buffers.push_back(vsc.add_buffer(model_render_data, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
-
-        ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(0, vsc.get_buffer(model_render_data_buffers.back()));
-        if (texture_image > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(2, vsc.get_image(texture_image));
-        if (material_buffer > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(3, vsc.get_buffer(material_buffer));
-        ros.at(ShaderFlavor::Default).add_bindings(vsc);
-        ros.at(ShaderFlavor::Default).dsh.reset_auto_apply_bindings();
-
-        ros.at(ShaderFlavor::Emissive).dsh.apply_descriptor_to_new_sets(0, vsc.get_buffer(model_render_data_buffers.back()));
-        if (material_buffer > -1) ros.at(ShaderFlavor::Emissive).dsh.apply_descriptor_to_new_sets(3, vsc.get_buffer(material_buffer));
-        ros.at(ShaderFlavor::Emissive).add_bindings(vsc);
-        ros.at(ShaderFlavor::Emissive).dsh.reset_auto_apply_bindings();
-
-        ros.at(ShaderFlavor::Basic).dsh.apply_descriptor_to_new_sets(0, vsc.get_buffer(model_render_data_buffers.back()));
-        ros.at(ShaderFlavor::Basic).add_bindings(vsc);
-        ros.at(ShaderFlavor::Basic).dsh.reset_auto_apply_bindings();
     }
 
     void Scene::translate(const std::string& model, const glm::vec3& trans)
@@ -213,13 +211,13 @@ namespace ve
 
     void Scene::draw(vk::CommandBuffer& cb, DrawInfo& di)
     {
-        vcc.graphics_cb[di.current_frame].bindVertexBuffers(0, vsc.get_buffer(vertex_buffer).get(), {0});
-        vcc.graphics_cb[di.current_frame].bindIndexBuffer(vsc.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
+        vcc.graphics_cb[di.current_frame].bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
+        vcc.graphics_cb[di.current_frame].bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
         for (uint32_t i = 0; i < model_transformations.size(); ++i)
         {
             model_render_data[i].MVP = di.vp * model_transformations[i];
         }
-        vsc.get_buffer(model_render_data_buffers[di.current_frame]).update_data(model_render_data);
+        storage.get_buffer(model_render_data_buffers[di.current_frame]).update_data(model_render_data);
         for (auto& ro : ros)
         {
             ro.second.draw(cb, di);

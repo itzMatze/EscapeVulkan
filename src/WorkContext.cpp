@@ -1,4 +1,4 @@
-#include "vk/VulkanRenderContext.hpp"
+#include "WorkContext.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -7,9 +7,12 @@
 
 namespace ve
 {
-    VulkanRenderContext::VulkanRenderContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc, VulkanStorageContext& vsc) : vmc(vmc), vcc(vcc), vsc(vsc), swapchain(vmc), scene(vmc, vcc, vsc), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
+    constexpr uint32_t frames_in_flight = 2;
+
+    WorkContext::WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), storage(vmc, vcc), swapchain(vmc), scene(vmc, vcc, storage), ui(vmc, swapchain.get_render_pass(), frames_in_flight), co(vmc)
     {
         vcc.add_graphics_buffers(frames_in_flight);
+        vcc.add_compute_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
 
         ui.upload_font_textures(vcc);
@@ -17,54 +20,44 @@ namespace ve
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             timers.emplace_back(vmc);
-            sync_indices[SyncNames::SImageAvailable].push_back(vcc.sync.add_semaphore());
-            sync_indices[SyncNames::SRenderFinished].push_back(vcc.sync.add_semaphore());
-            sync_indices[SyncNames::FRenderFinished].push_back(vcc.sync.add_fence());
+            syncs.emplace_back(vmc.logical_device.get());
         }
 
-        spdlog::info("Created VulkanRenderContext");
+        spdlog::info("Created WorkContext");
     }
 
-    void VulkanRenderContext::self_destruct()
+    void WorkContext::self_destruct()
     {
+        for (auto& sync : syncs) sync.self_destruct();
+        syncs.clear();
         for (auto& timer : timers) timer.self_destruct();
         timers.clear();
         ui.self_destruct();
         scene.self_destruct();
         swapchain.self_destruct(true);
-        spdlog::info("Destroyed VulkanRenderContext");
+        spdlog::info("Destroyed WorkContext");
     }
 
-    void VulkanRenderContext::load_scene(const std::string& filename)
+    void WorkContext::load_scene(const std::string& filename)
     {
-        auto t1 = std::chrono::high_resolution_clock::now();
-
-        vcc.sync.wait_idle();
+        HostTimer timer;
+        syncs[0].wait_idle();
         if (scene.loaded) scene.self_destruct();
         scene.load(std::string("../assets/scenes/") + filename);
-
-        // add one descriptor set for every frame
-        for (uint32_t i = 0; i < frames_in_flight; ++i)
-        {
-            scene.add_bindings();
-        }
-
-        scene.construct(swapchain.get_render_pass());
-
-        auto t2 = std::chrono::high_resolution_clock::now();
-        spdlog::info("Loading scene took: {} ms", (std::chrono::duration<double, std::milli>(t2 - t1).count()));
+        scene.construct(swapchain.get_render_pass(), frames_in_flight);
+        spdlog::info("Loading scene took: {} ms", (timer.elapsed()));
     }
 
-    void VulkanRenderContext::draw_frame(DrawInfo& di)
+    void WorkContext::draw_frame(DrawInfo& di)
     {
         total_time += di.time_diff;
         //scene.rotate("Player", di.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
         scene.rotate("floor", di.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
 
-        vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), vcc.sync.get_semaphore(sync_indices[SyncNames::SImageAvailable][di.current_frame]));
+        vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), syncs[di.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
-        vcc.sync.wait_for_fence(sync_indices[SyncNames::FRenderFinished][di.current_frame]);
-        vcc.sync.reset_fence(sync_indices[SyncNames::FRenderFinished][di.current_frame]);
+        syncs[di.current_frame].wait_for_fence(Synchronization::F_RENDER_FINISHED);
+        syncs[di.current_frame].reset_fence(Synchronization::F_RENDER_FINISHED);
         record_graphics_command_buffer(image_idx.value, di);
         submit_graphics(image_idx.value, di);
         di.current_frame = (di.current_frame + 1) % frames_in_flight;
@@ -75,15 +68,15 @@ namespace ve
         }
     }
 
-    vk::Extent2D VulkanRenderContext::recreate_swapchain()
+    vk::Extent2D WorkContext::recreate_swapchain()
     {
-        vcc.sync.wait_idle();
+        syncs[0].wait_idle();
         swapchain.self_destruct(false);
         swapchain.create();
         return swapchain.get_extent();
     }
 
-    void VulkanRenderContext::record_graphics_command_buffer(uint32_t image_idx, DrawInfo& di)
+    void WorkContext::record_graphics_command_buffer(uint32_t image_idx, DrawInfo& di)
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[di.current_frame]);
         timers[di.current_frame].reset_all(cb);
@@ -130,24 +123,24 @@ namespace ve
         cb.end();
     }
 
-    void VulkanRenderContext::submit_graphics(uint32_t image_idx, DrawInfo& di)
+    void WorkContext::submit_graphics(uint32_t image_idx, DrawInfo& di)
     {
         vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
         vk::SubmitInfo si{};
         si.sType = vk::StructureType::eSubmitInfo;
         si.waitSemaphoreCount = 1;
-        si.pWaitSemaphores = &vcc.sync.get_semaphore(sync_indices[SyncNames::SImageAvailable][di.current_frame]);
+        si.pWaitSemaphores = &syncs[di.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE);
         si.pWaitDstStageMask = &wait_stage;
         si.commandBufferCount = 1;
         si.pCommandBuffers = &vcc.graphics_cb[di.current_frame];
         si.signalSemaphoreCount = 1;
-        si.pSignalSemaphores = &vcc.sync.get_semaphore(sync_indices[SyncNames::SRenderFinished][di.current_frame]);
-        vmc.get_graphics_queue().submit(si, vcc.sync.get_fence(sync_indices[SyncNames::FRenderFinished][di.current_frame]));
+        si.pSignalSemaphores = &syncs[di.current_frame].get_semaphore(Synchronization::S_RENDER_FINISHED);
+        vmc.get_graphics_queue().submit(si, syncs[di.current_frame].get_fence(Synchronization::F_RENDER_FINISHED));
 
         vk::PresentInfoKHR present_info{};
         present_info.sType = vk::StructureType::ePresentInfoKHR;
         present_info.waitSemaphoreCount = 1;
-        present_info.pWaitSemaphores = &vcc.sync.get_semaphore(sync_indices[SyncNames::SRenderFinished][di.current_frame]);
+        present_info.pWaitSemaphores = &syncs[di.current_frame].get_semaphore(Synchronization::S_RENDER_FINISHED);
         present_info.swapchainCount = 1;
         present_info.pSwapchains = &swapchain.get();
         present_info.pImageIndices = &image_idx;

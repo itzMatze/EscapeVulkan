@@ -1,11 +1,11 @@
-#include "vk/VulkanStorageContext.hpp"
+#include "Storage.hpp"
 
 namespace ve
 {
-    VulkanStorageContext::VulkanStorageContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc)
+    Storage::Storage(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc)
     {}
 
-    void VulkanStorageContext::destroy_buffer(uint32_t idx)
+    void Storage::destroy_buffer(uint32_t idx)
     {
         if (buffers.at(idx).has_value())
         {
@@ -18,7 +18,7 @@ namespace ve
         }
     }
 
-    void VulkanStorageContext::destroy_image(uint32_t idx)
+    void Storage::destroy_image(uint32_t idx)
     {
         if (images.at(idx).has_value())
         {
@@ -31,17 +31,17 @@ namespace ve
         }
     }
 
-    void VulkanStorageContext::destroy_buffer(const std::string& name)
+    void Storage::destroy_buffer(const std::string& name)
     {
         destroy_buffer(buffer_names.at(name));
     }
 
-    void VulkanStorageContext::destroy_image(const std::string& name)
+    void Storage::destroy_image(const std::string& name)
     {
         destroy_image(image_names.at(name));
     }
 
-    void VulkanStorageContext::clear()
+    void Storage::clear()
     {
         for (auto& b : buffers)
         {
@@ -57,7 +57,7 @@ namespace ve
         image_names.clear();
     }
 
-    Buffer& VulkanStorageContext::get_buffer(uint32_t idx)
+    Buffer& Storage::get_buffer(uint32_t idx)
     {
         if (buffers.at(idx).has_value())
         {
@@ -69,7 +69,7 @@ namespace ve
         }
     }
 
-    Image& VulkanStorageContext::get_image(uint32_t idx)
+    Image& Storage::get_image(uint32_t idx)
     {
         if (images.at(idx).has_value())
         {
@@ -81,12 +81,12 @@ namespace ve
         }
     }
 
-    Buffer& VulkanStorageContext::get_buffer_by_name(const std::string& name)
+    Buffer& Storage::get_buffer_by_name(const std::string& name)
     {
         return get_buffer(buffer_names.at(name));
     }
 
-    Image& VulkanStorageContext::get_image_by_name(const std::string& name)
+    Image& Storage::get_image_by_name(const std::string& name)
     {
         return get_image(image_names.at(name));
     }

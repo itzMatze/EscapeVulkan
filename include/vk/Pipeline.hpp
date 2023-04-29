@@ -14,7 +14,8 @@ namespace ve
     public:
         Pipeline(const VulkanMainContext& vmc);
         void self_destruct();
-        void construct(const RenderPass& render_pass, vk::DescriptorSetLayout set_layout, const std::vector<ShaderInfo>& shader_names, vk::PolygonMode polygon_mode);
+        void construct(const RenderPass& render_pass, vk::DescriptorSetLayout set_layout, const std::vector<ShaderInfo>& shader_infos, vk::PolygonMode polygon_mode);
+        void construct(vk::DescriptorSetLayout set_layout, const ShaderInfo& shader_info);
         const vk::Pipeline& get() const;
         const vk::PipelineLayout& get_layout() const;
 
