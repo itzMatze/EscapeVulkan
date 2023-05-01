@@ -137,6 +137,13 @@ private:
             di.normal_view = !di.normal_view;
             eh.set_pressed_key(Key::N, false);
         }
+        if (eh.is_key_released(Key::X) && eh.is_controller_available())
+        {
+            std::pair<glm::vec2, glm::vec2> joystick_pos = eh.get_controller_joystick_pos();
+            camera.onMouseMove(joystick_pos.second.x * 1.5f, joystick_pos.second.y * 1.5f);
+            camera.rotate(joystick_pos.first.x * move_amount * 5.0f);
+            camera.moveFront(-joystick_pos.first.y * move_amount);
+        }
         if (eh.is_key_pressed(Key::MouseLeft))
         {
             if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);

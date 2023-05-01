@@ -54,6 +54,8 @@ public:
 
     EventHandler();
     void dispatch_event(SDL_Event e);
+    std::pair<glm::vec2, glm::vec2> get_controller_joystick_pos();
+    bool is_controller_available();
     bool is_key_pressed(Key key) const;
     bool is_key_released(Key key) const;
     void set_pressed_key(Key key, bool value);
@@ -63,6 +65,7 @@ private:
     ImGuiIO& io;
     std::vector<bool> pressed_keys;
     std::vector<bool> released_keys;
+    SDL_GameController* controller = nullptr;
     void apply_key_event(Key k, uint32_t et);
     static uint32_t get_idx(Key key);
 };
