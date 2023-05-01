@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FixVector.hpp"
+#include "vk/Timer.hpp"
 #include "vk/Model.hpp"
 #include "vk/Pipeline.hpp"
 #include "vk/RenderPass.hpp"
@@ -18,7 +19,7 @@ namespace ve
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
         void compute(vk::CommandBuffer& cb, const DrawInfo& di);
         // move tunnel one segment forward if player enters the n-th segment
-        bool advance(const DrawInfo& di);
+        bool advance(const DrawInfo& di, DeviceTimer& timer);
 
     private:
         struct SegmentPlane

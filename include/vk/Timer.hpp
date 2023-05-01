@@ -37,15 +37,17 @@ namespace ve
     {
     public:
         enum TimerNames {
-            ALL_RENDERING = 0,
-            APP_RENDERING = 1,
-            UI_RENDERING = 2,
+            RENDERING_ALL = 0,
+            RENDERING_APP = 1,
+            RENDERING_UI = 2,
+            RENDERING_TUNNEL = 3,
+            COMPUTE_TUNNEL_ADVANCE = 4,
             TIMER_COUNT
         };
 
         DeviceTimer(const VulkanMainContext& vmc);
         void self_destruct();
-        void reset_all(vk::CommandBuffer& cb);
+        void reset(vk::CommandBuffer& cb, const std::vector<TimerNames>& timers);
         void start(vk::CommandBuffer& cb, TimerNames t, vk::PipelineStageFlagBits stage);
         void stop(vk::CommandBuffer& cb, TimerNames t, vk::PipelineStageFlagBits stage);
 
@@ -66,6 +68,9 @@ namespace ve
         template<class Precision>
         double inline get_result(uint32_t i)
         {
+            // prevent repeated reading of the same timestamp
+            if (result_fetched[i]) return -1.0;
+            result_fetched[i] = true;
             std::array<uint64_t, 2> results; 
             vk::Result result = vmc.logical_device.get().getQueryPoolResults(qp, i * 2, 2, results.size() * sizeof(uint64_t), results.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64);
             return (result == vk::Result::eSuccess) ? (double(timestamp_period * (results[1] - results[0])) / double(std::ratio_divide<std::nano, Precision>::den)) : -1.0;
@@ -74,5 +79,6 @@ namespace ve
         const VulkanMainContext& vmc;
         vk::QueryPool qp;
         float timestamp_period;
+        std::vector<bool> result_fetched;
     };
 } // namespace ve

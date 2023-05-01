@@ -16,6 +16,9 @@ namespace ve
     UI::UI(const VulkanMainContext& vmc, const RenderPass& render_pass, uint32_t frames) : vmc(vmc), frametime_values(plot_value_count, 0.0f), devicetimings(DeviceTimer::TIMER_COUNT, 0.0f)
     {
         for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT; ++i) devicetiming_values.push_back(FixVector<float>(plot_value_count, 0.0f));
+        // use less values for plotting as the tunnel advancement happens not so often, there should still be a plot visible though
+        devicetiming_values[DeviceTimer::COMPUTE_TUNNEL_ADVANCE] = FixVector<float>(128, 0.0f);
+
         std::vector<vk::DescriptorPoolSize> pool_sizes =
         {
             { vk::DescriptorType::eSampler, 1000 },
@@ -111,24 +114,38 @@ namespace ve
         frametime_values.push_back(di.frametime);
         for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT; ++i)
         {
-            devicetimings[i] = devicetimings[i] * (1 - update_weight) + di.devicetimings[i] * update_weight;
-            devicetiming_values[i].push_back(di.devicetimings[i]);
+            if (!std::signbit(di.devicetimings[i])) 
+            {
+                devicetimings[i] = devicetimings[i] * (1 - update_weight) + di.devicetimings[i] * update_weight;
+                devicetiming_values[i].push_back(di.devicetimings[i]);
+            }
         }
         if (ImGui::CollapsingHeader("Timings"))
         {
             ImGui::Text((ve::to_string(time_diff * 1000, 4) + " ms; FPS: " + ve::to_string(1.0 / time_diff) + " (" + ve::to_string(frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / frametime) + ")").c_str());
-            ImGui::Text(("ALL_RENDERING: " + ve::to_string(devicetimings[DeviceTimer::ALL_RENDERING], 4) + " ms").c_str());
-            ImGui::Text(("APP_RENDERING: " + ve::to_string(devicetimings[DeviceTimer::APP_RENDERING], 4) + " ms").c_str());
-            ImGui::Text(("UI_RENDERING: " + ve::to_string(devicetimings[DeviceTimer::UI_RENDERING], 4) + " ms").c_str());
+            ImGui::Text(("RENDERING_ALL: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_ALL], 4) + " ms").c_str());
+            ImGui::Text(("RENDERING_APP: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_APP], 4) + " ms").c_str());
+            ImGui::Text(("RENDERING_UI: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_UI], 4) + " ms").c_str());
+            ImGui::Text(("RENDERING_TUNNEL: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_TUNNEL], 4) + " ms").c_str());
+            ImGui::Text(("COMPUTE_TUNNEL_ADVANCE: " + ve::to_string(devicetimings[DeviceTimer::COMPUTE_TUNNEL_ADVANCE], 4) + " ms").c_str());
         }
         if (ImGui::CollapsingHeader("Plots"))
         {
-            if (ImPlot::BeginPlot("Device Timings"))
+            if (ImPlot::BeginPlot("Rendering Timings"))
             {
-                ImPlot::SetupAxes("Frame", "Time [ms]", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
-                ImPlot::PlotLine("ALL_RENDERING", devicetiming_values[DeviceTimer::ALL_RENDERING].data(), plot_value_count);
-                ImPlot::PlotLine("APP_RENDERING", devicetiming_values[DeviceTimer::APP_RENDERING].data(), plot_value_count);
-                ImPlot::PlotLine("UI_RENDERING", devicetiming_values[DeviceTimer::UI_RENDERING].data(), plot_value_count);
+                ImPlot::SetupAxisLimitsConstraints(ImAxis_Y1, 0.0, 100.0);
+                ImPlot::SetupAxes("Frame", "Time [ms]", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_LockMin | ImPlotAxisFlags_AutoFit);
+                ImPlot::PlotLine("RENDERING_ALL", devicetiming_values[DeviceTimer::RENDERING_ALL].data(), devicetiming_values[DeviceTimer::RENDERING_ALL].size());
+                ImPlot::PlotLine("RENDERING_APP", devicetiming_values[DeviceTimer::RENDERING_APP].data(), devicetiming_values[DeviceTimer::RENDERING_APP].size());
+                ImPlot::PlotLine("RENDERING_UI", devicetiming_values[DeviceTimer::RENDERING_UI].data(), devicetiming_values[DeviceTimer::RENDERING_UI].size());
+                ImPlot::PlotLine("RENDERING_TUNNEL", devicetiming_values[DeviceTimer::RENDERING_TUNNEL].data(), devicetiming_values[DeviceTimer::RENDERING_TUNNEL].size());
+                ImPlot::EndPlot();
+            }
+            if (ImPlot::BeginPlot("Compute Timings"))
+            {
+                ImPlot::SetupAxisLimitsConstraints(ImAxis_Y1, 0.0, 100.0);
+                ImPlot::SetupAxes("Frame", "Time [ms]", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_LockMin | ImPlotAxisFlags_AutoFit);
+                ImPlot::PlotLine("COMPUTE_TUNNEL_ADVANCE", devicetiming_values[DeviceTimer::COMPUTE_TUNNEL_ADVANCE].data(), devicetiming_values[DeviceTimer::COMPUTE_TUNNEL_ADVANCE].size());
                 ImPlot::EndPlot();
             }
         }

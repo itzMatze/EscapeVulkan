@@ -139,7 +139,7 @@ namespace ve
         cb.dispatch((vertices_per_sample * samples_per_segment + 31) / 32, 1, 1);
     }
 
-    bool Tunnel::advance(const DrawInfo& di)
+    bool Tunnel::advance(const DrawInfo& di, DeviceTimer& timer)
     {
         if (glm::dot(glm::normalize(di.player_pos - segment_planes[1].pos), segment_planes[1].normal) > 0.0f)
         {
@@ -163,6 +163,8 @@ namespace ve
             }
 
             vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[di.current_frame]);
+            timer.reset(cb, {DeviceTimer::COMPUTE_TUNNEL_ADVANCE});
+            timer.start(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
             compute(cb, di);
             // write copy of data to the first half of the buffer if idx is in the past half of the data
             if (cpc.indices_start_idx > index_count)
@@ -171,6 +173,7 @@ namespace ve
                 compute(cb, di);
                 cpc.indices_start_idx += (index_count + indices_per_segment);
             }
+            timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
             cb.end();
             return true;
         }

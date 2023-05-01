@@ -46,5 +46,5 @@ public:
 private:
     std::vector<T> content;
     uint32_t current_idx;
-    const uint32_t capacity;
+    uint32_t capacity;
 };

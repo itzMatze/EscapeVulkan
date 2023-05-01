@@ -62,13 +62,13 @@ namespace ve
         syncs[di.current_frame].wait_for_fence(Synchronization::F_RENDER_FINISHED);
         syncs[di.current_frame].reset_fence(Synchronization::F_RENDER_FINISHED);
         record_graphics_command_buffer(image_idx.value, di);
-        bool advance_step_required = tunnel.advance(di);
+        bool advance_step_required = tunnel.advance(di, timers[di.current_frame]);
         submit(image_idx.value, di, advance_step_required);
         di.current_frame = (di.current_frame + 1) % frames_in_flight;
         for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT; ++i)
         {
             double timing = timers[di.current_frame].get_result_by_idx(i);
-            if (!std::signbit(timing)) di.devicetimings[i] = timing;
+            di.devicetimings[i] = timing;
         }
     }
 
@@ -83,8 +83,8 @@ namespace ve
     void WorkContext::record_graphics_command_buffer(uint32_t image_idx, DrawInfo& di)
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[di.current_frame]);
-        timers[di.current_frame].reset_all(cb);
-        timers[di.current_frame].start(cb, DeviceTimer::ALL_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].reset(cb, {DeviceTimer::RENDERING_ALL, DeviceTimer::RENDERING_APP, DeviceTimer::RENDERING_UI, DeviceTimer::RENDERING_TUNNEL});
+        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllCommands);
         vk::RenderPassBeginInfo rpbi{};
         rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
         rpbi.renderPass = swapchain.get_render_pass().get();
@@ -115,16 +115,18 @@ namespace ve
 
         std::vector<vk::DeviceSize> offsets(1, 0);
 
-        timers[di.current_frame].start(cb, DeviceTimer::APP_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eAllCommands);
         scene.draw(cb, di);
+        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
         tunnel.draw(cb, di);
-        timers[di.current_frame].stop(cb, DeviceTimer::APP_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
-        timers[di.current_frame].start(cb, DeviceTimer::UI_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eAllCommands);
         if (di.show_ui) ui.draw(cb, di);
-        timers[di.current_frame].stop(cb, DeviceTimer::UI_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eAllCommands);
 
         cb.endRenderPass();
-        timers[di.current_frame].stop(cb, DeviceTimer::ALL_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllCommands);
         cb.end();
     }
 
