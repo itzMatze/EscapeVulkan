@@ -9,7 +9,7 @@
 #include "vk/common.hpp"
 #include "vk/Buffer.hpp"
 #include "vk/Scene.hpp"
-#include "vk/ComputeObject.hpp"
+#include "vk/Tunnel.hpp"
 #include "vk/Swapchain.hpp"
 #include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanMainContext.hpp"
@@ -32,7 +32,7 @@ namespace ve
         Swapchain swapchain;
         Scene scene;
         UI ui;
-        ComputeObject co;
+        Tunnel tunnel;
         std::vector<Synchronization> syncs;
         std::vector<DeviceTimer> timers;
 
@@ -43,6 +43,6 @@ namespace ve
         float total_time = 0.0f;
 
         void record_graphics_command_buffer(uint32_t image_idx, DrawInfo& di);
-        void submit_graphics(uint32_t image_idx, DrawInfo& di);
+        void submit(uint32_t image_idx, DrawInfo& di, bool submit_tunnel_compute);
     };
 } // namespace ve

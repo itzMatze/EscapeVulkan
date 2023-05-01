@@ -7,12 +7,12 @@ src/vk/CommandPool.cpp src/vk/DescriptorSetHandler.cpp src/vk/ExtensionsHandler.
 src/vk/Instance.cpp src/vk/LogicalDevice.cpp src/vk/PhysicalDevice.cpp
 src/vk/Pipeline.cpp src/vk/RenderPass.cpp src/vk/Swapchain.cpp
 src/vk/Shader.cpp src/vk/Synchronization.cpp src/vk/Image.cpp
-src/vk/RenderObject.cpp src/vk/ComputeObject.cpp
+src/vk/RenderObject.cpp src/vk/Tunnel.cpp
 src/vk/Scene.cpp src/vk/Model.cpp src/vk/Mesh.cpp src/vk/Timer.cpp
 src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/WorkContext.cpp src/Storage.cpp
 "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_draw.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_widgets.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_tables.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/backends/imgui_impl_vulkan.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/backends/imgui_impl_sdl.cpp" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/implot.cpp" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/implot_items.cpp")
 
-set(SHADER_FILES default.vert default.frag basic.frag emissive.frag)
+set(SHADER_FILES default.vert default.frag basic.frag emissive.frag tunnel.comp)
 
 add_executable(Vulkan_Engine ${SOURCE_FILES})
 include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/dependencies/VulkanMemoryAllocator-3.0.1/include" "${PROJECT_SOURCE_DIR}/dependencies/tinygltf-2.6.3/" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/")

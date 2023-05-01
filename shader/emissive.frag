@@ -4,14 +4,14 @@
 #include "common.glsl"
 
 layout(location = 0) in vec3 frag_normal;
-layout(location = 1) in vec3 frag_color;
+layout(location = 1) in vec4 frag_color;
 layout(location = 2) in vec2 frag_tex;
 
 layout(location = 0) out vec4 out_color;
 
-layout(push_constant) uniform PushConstants
+layout(push_constant) uniform PushConstant
 {
-    PushConstant pc;
+    PushConstants pc;
 };
 
 layout(binding = 3) buffer material_buffer {

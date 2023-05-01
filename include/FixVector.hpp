@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vector>
+#include <cstdint>
+#include <cassert>
 
 // push elements until FixVector is full, then every push_back will push the first element out of the FixVector
 template<class T>
@@ -34,6 +36,11 @@ public:
     uint32_t size()
     {
         return capacity;
+    }
+
+    T& operator[](uint32_t idx)
+    {
+        return content[current_idx + idx];
     }
 
 private:

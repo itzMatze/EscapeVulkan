@@ -44,21 +44,25 @@ namespace ve
     };
 
     struct ComputePushConstants {
-
+        alignas(16) glm::vec3 p0;
+        alignas(16) glm::vec3 p1;
+        alignas(16) glm::vec3 p2;
+        uint32_t indices_start_idx;
     };
 
     struct DrawInfo {
+        glm::mat4 vp = glm::mat4(1.0);
         std::vector<const char*> scene_names;
-        int32_t current_scene = 0;
-        bool load_scene = false;
+        std::vector<float> devicetimings;
+        glm::vec3 player_pos;
         float time_diff = 0.000001f;
 		float frametime = 0.0f;
-        std::vector<float> devicetimings;
+        int32_t current_scene = 0;
+        uint32_t current_frame = 0;
+        bool load_scene = false;
         bool show_ui = true;
         bool mesh_view = false;
         bool normal_view = false;
-        uint32_t current_frame = 0;
-        glm::mat4 vp = glm::mat4(1.0);
     };
 
     struct Vertex {

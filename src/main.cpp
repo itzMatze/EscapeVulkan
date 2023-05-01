@@ -61,6 +61,7 @@ public:
             {
                 std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - di.frametime));
                 di.time_diff /= 1000.0f;
+                di.player_pos = camera.getPosition();
                 wc.draw_frame(di);
             }
             catch (const vk::OutOfDateKHRError e)

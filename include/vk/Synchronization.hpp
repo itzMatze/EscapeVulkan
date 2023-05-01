@@ -11,6 +11,7 @@ namespace ve
         {
             S_IMAGE_AVAILABLE = 0,
             S_RENDER_FINISHED = 1,
+            S_TUNNEL_ADVANCE_FINISHED = 2,
             SEMAPHORE_COUNT
         };
 

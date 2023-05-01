@@ -9,7 +9,7 @@ namespace ve
 {
     constexpr uint32_t frames_in_flight = 2;
 
-    WorkContext::WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), storage(vmc, vcc), swapchain(vmc), scene(vmc, vcc, storage), ui(vmc, swapchain.get_render_pass(), frames_in_flight), co(vmc)
+    WorkContext::WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), storage(vmc, vcc), swapchain(vmc), scene(vmc, vcc, storage), ui(vmc, swapchain.get_render_pass(), frames_in_flight), tunnel(vmc, vcc, storage)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_compute_buffers(frames_in_flight);
@@ -22,6 +22,8 @@ namespace ve
             timers.emplace_back(vmc);
             syncs.emplace_back(vmc.logical_device.get());
         }
+        // initialize tunnel
+        tunnel.construct(swapchain.get_render_pass(), frames_in_flight);
 
         spdlog::info("Created WorkContext");
     }
@@ -34,6 +36,7 @@ namespace ve
         timers.clear();
         ui.self_destruct();
         scene.self_destruct();
+        tunnel.self_destruct();
         swapchain.self_destruct(true);
         spdlog::info("Destroyed WorkContext");
     }
@@ -59,7 +62,8 @@ namespace ve
         syncs[di.current_frame].wait_for_fence(Synchronization::F_RENDER_FINISHED);
         syncs[di.current_frame].reset_fence(Synchronization::F_RENDER_FINISHED);
         record_graphics_command_buffer(image_idx.value, di);
-        submit_graphics(image_idx.value, di);
+        bool advance_step_required = tunnel.advance(di);
+        submit(image_idx.value, di, advance_step_required);
         di.current_frame = (di.current_frame + 1) % frames_in_flight;
         for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT; ++i)
         {
@@ -113,6 +117,7 @@ namespace ve
 
         timers[di.current_frame].start(cb, DeviceTimer::APP_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
         scene.draw(cb, di);
+        tunnel.draw(cb, di);
         timers[di.current_frame].stop(cb, DeviceTimer::APP_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
         timers[di.current_frame].start(cb, DeviceTimer::UI_RENDERING, vk::PipelineStageFlagBits::eAllCommands);
         if (di.show_ui) ui.draw(cb, di);
@@ -123,19 +128,39 @@ namespace ve
         cb.end();
     }
 
-    void WorkContext::submit_graphics(uint32_t image_idx, DrawInfo& di)
+    void WorkContext::submit(uint32_t image_idx, DrawInfo& di, bool submit_tunnel_compute)
     {
-        vk::PipelineStageFlags wait_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-        vk::SubmitInfo si{};
-        si.sType = vk::StructureType::eSubmitInfo;
-        si.waitSemaphoreCount = 1;
-        si.pWaitSemaphores = &syncs[di.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE);
-        si.pWaitDstStageMask = &wait_stage;
-        si.commandBufferCount = 1;
-        si.pCommandBuffers = &vcc.graphics_cb[di.current_frame];
-        si.signalSemaphoreCount = 1;
-        si.pSignalSemaphores = &syncs[di.current_frame].get_semaphore(Synchronization::S_RENDER_FINISHED);
-        vmc.get_graphics_queue().submit(si, syncs[di.current_frame].get_fence(Synchronization::F_RENDER_FINISHED));
+        if (submit_tunnel_compute)
+        {
+            vk::SubmitInfo compute_si{};
+            compute_si.sType = vk::StructureType::eSubmitInfo;
+            compute_si.waitSemaphoreCount = 0;
+            compute_si.commandBufferCount = 1;
+            compute_si.pCommandBuffers = &vcc.compute_cb[di.current_frame];
+            compute_si.signalSemaphoreCount = 1;
+            compute_si.pSignalSemaphores = &syncs[di.current_frame].get_semaphore(Synchronization::S_TUNNEL_ADVANCE_FINISHED);
+            vmc.get_compute_queue().submit(compute_si);
+        }
+
+        std::vector<vk::PipelineStageFlags> wait_stages;
+        wait_stages.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+        std::vector<vk::Semaphore> render_wait_semaphores;
+        render_wait_semaphores.push_back(syncs[di.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
+        if (submit_tunnel_compute)
+        {
+            wait_stages.push_back(vk::PipelineStageFlagBits::eVertexInput);
+            render_wait_semaphores.push_back(syncs[di.current_frame].get_semaphore(Synchronization::S_TUNNEL_ADVANCE_FINISHED));
+        }
+        vk::SubmitInfo render_si{};
+        render_si.sType = vk::StructureType::eSubmitInfo;
+        render_si.waitSemaphoreCount = render_wait_semaphores.size();
+        render_si.pWaitSemaphores = render_wait_semaphores.data();
+        render_si.pWaitDstStageMask = wait_stages.data();
+        render_si.commandBufferCount = 1;
+        render_si.pCommandBuffers = &vcc.graphics_cb[di.current_frame];
+        render_si.signalSemaphoreCount = 1;
+        render_si.pSignalSemaphores = &syncs[di.current_frame].get_semaphore(Synchronization::S_RENDER_FINISHED);
+        vmc.get_graphics_queue().submit(render_si, syncs[di.current_frame].get_fence(Synchronization::F_RENDER_FINISHED));
 
         vk::PresentInfoKHR present_info{};
         present_info.sType = vk::StructureType::ePresentInfoKHR;
