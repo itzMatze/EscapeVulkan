@@ -77,7 +77,7 @@ namespace ve
             }
             model_data.materials.push_back(material);
             material_indices[mat_idx] = model_data.materials.size() + total_material_count - 1;
-            return model_data.materials[material_indices[mat_idx]];
+            return model_data.materials.back();
         }
 
         void process_mesh(const VulkanMainContext& vmc, Storage& storage, const tinygltf::Mesh& mesh, const tinygltf::Model& model, const glm::mat4 matrix, Model& model_data)
@@ -207,6 +207,32 @@ namespace ve
                 process_node(vmc, storage, model.nodes[child_idx], model, matrix, model_data);
             }
             if (node.mesh > -1) (process_mesh(vmc, storage, model.meshes[node.mesh], model, matrix, model_data));
+            if (node.extensions.contains("KHR_lights_punctual"))
+            {
+                const auto& lights = node.extensions.at("KHR_lights_punctual");
+                int32_t light_idx = lights.Get("light").GetNumberAsInt();
+                const auto& light = model.lights[light_idx];
+                
+                Light l;
+                l.dir = glm::vec3(glm::normalize(matrix * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f)));
+                glm::vec4 pos = matrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+                pos.x /= pos.w;
+                pos.y /= pos.w;
+                pos.z /= pos.w;
+                l.pos = glm::vec3(pos);
+
+                VE_ASSERT(light.color.size() > 2, "Light with less than 3 color components found!");
+                l.color.r = light.color[0];
+                l.color.g = light.color[1];
+                l.color.b = light.color[2];
+
+                l.intensity = light.intensity;
+                std::cout << l.intensity << std::endl;
+
+                l.innerConeAngle = std::cos(light.spot.innerConeAngle);
+                l.outerConeAngle = std::cos(light.spot.outerConeAngle);
+                model_data.lights.push_back(l);
+            }
         }
 
         Model load(const VulkanMainContext& vmc, Storage& storage, const std::string& path, uint32_t idx_count, uint32_t vertex_count, uint32_t material_count, uint32_t texture_count)

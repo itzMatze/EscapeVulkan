@@ -21,7 +21,7 @@
 class MainContext
 {
 public:
-    MainContext() : extent(1000, 800), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(45.0f, extent.width, extent.height)
+    MainContext() : extent(1000, 800), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(45.0f, extent.width, extent.height), di{.cam = camera}
     {
         di.devicetimings.resize(ve::DeviceTimer::TIMER_COUNT, 0.0f);
         extent = wc.swapchain.get_extent();
@@ -56,7 +56,7 @@ public:
         {
             move_amount = di.time_diff * move_speed;
             dispatch_pressed_keys();
-            di.vp = camera.getVP();
+            di.cam.updateVP();
             try
             {
                 std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - di.frametime));
@@ -135,6 +135,11 @@ private:
         {
             di.normal_view = !di.normal_view;
             eh.set_pressed_key(Key::N, false);
+        }
+        if (eh.is_key_pressed(Key::F))
+        {
+            di.free_flight_cam = !di.free_flight_cam;
+            eh.set_pressed_key(Key::F, false);
         }
         if (eh.is_key_pressed(Key::MouseLeft))
         {

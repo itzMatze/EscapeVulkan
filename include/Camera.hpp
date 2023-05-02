@@ -13,7 +13,8 @@ public:
     glm::mat4 view;
 
     Camera(float fov, float width, float height);
-    const glm::mat4 getVP();
+    void updateVP();
+    const glm::mat4& getVP();
     void translate(glm::vec3 v);
     void onMouseMove(float xRel, float yRel);
     void moveFront(float amount);
@@ -26,6 +27,7 @@ public:
     float getFar() const;
 
 private:
+    glm::mat4 vp;
     glm::quat orientation;
     glm::vec3 u, v, w;
     float near, far;

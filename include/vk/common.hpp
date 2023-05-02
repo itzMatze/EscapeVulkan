@@ -6,6 +6,8 @@
 #include <glm/vec3.hpp>
 #include <vulkan/vulkan.hpp>
 
+#include "Camera.hpp"
+
 namespace ve
 {
     enum class ShaderFlavor
@@ -18,6 +20,7 @@ namespace ve
 
     struct ModelRenderData {
         glm::mat4 MVP;
+        glm::mat4 M;
     };
 
     struct PushConstants {
@@ -25,6 +28,7 @@ namespace ve
         uint32_t mvp_idx;
         // fragment push constants
         int32_t mat_idx;
+        uint32_t light_count;
         bool normal_view;
 
         void* get_fragment_push_constant_pointer()
@@ -32,9 +36,6 @@ namespace ve
 
         static uint32_t get_vertex_push_constant_size()
         { return offsetof(PushConstants, mat_idx); }
-
-        static uint32_t get_vertex_push_constant_offset()
-        { return 0; }
 
         static uint32_t get_fragment_push_constant_size()
         { return sizeof(PushConstants) - offsetof(PushConstants, mat_idx); }
@@ -49,16 +50,18 @@ namespace ve
 
     struct DrawInfo {
         std::vector<const char*> scene_names;
-        int32_t current_scene = 0;
-        bool load_scene = false;
+        std::vector<float> devicetimings;
+        Camera& cam;
         float time_diff = 0.000001f;
 		float frametime = 0.0f;
-        std::vector<float> devicetimings;
+        int32_t current_scene = 0;
+        uint32_t current_frame = 0;
+        uint32_t light_count;
+        bool load_scene = false;
         bool show_ui = true;
         bool mesh_view = false;
         bool normal_view = false;
-        uint32_t current_frame = 0;
-        glm::mat4 vp = glm::mat4(1.0);
+        bool free_flight_cam = true;
     };
 
     struct Vertex {
@@ -113,5 +116,14 @@ namespace ve
         //int32_t normal_texture = -1;
         //int32_t occlusion_texture = -1;
         //int32_t emissive_texture = -1;
+    };
+
+    struct Light {
+        glm::vec3 dir;
+        float intensity = 1.0f;
+        glm::vec3 pos;
+        float innerConeAngle;
+        glm::vec3 color;
+        float outerConeAngle;
     };
 } // namespace ve

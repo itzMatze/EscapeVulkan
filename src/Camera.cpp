@@ -13,7 +13,7 @@ Camera::Camera(float fov, float width, float height) : fov(fov), yaw(0.0f), pitc
     orientation = glm::quatLookAt(glm::normalize(-position), glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f)));
 }
 
-const glm::mat4 Camera::getVP()
+void Camera::updateVP()
 {
     // rotate initial coordinate system to camera orientation
     glm::quat q_front = glm::normalize(orientation * glm::quat(0.0f, front) * glm::conjugate(orientation));
@@ -40,8 +40,12 @@ const glm::mat4 Camera::getVP()
     pitch = 0;
     yaw = 0;
     roll = 0;
+    vp = projection * view;
+}
 
-    return projection * view;
+const glm::mat4& Camera::getVP()
+{
+    return vp;
 }
 
 void Camera::translate(glm::vec3 amount)

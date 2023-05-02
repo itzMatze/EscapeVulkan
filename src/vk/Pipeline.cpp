@@ -113,7 +113,7 @@ namespace ve
         pcbsci.blendConstants[3] = 0.0f;
 
         std::array<vk::PushConstantRange, 2> pcrs;
-        pcrs[0].offset = PushConstants::get_vertex_push_constant_offset();
+        pcrs[0].offset = 0;
         pcrs[0].size = PushConstants::get_vertex_push_constant_size();
         pcrs[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
         pcrs[1].offset = PushConstants::get_fragment_push_constant_offset();

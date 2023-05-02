@@ -20,6 +20,7 @@ namespace ve
             ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
             if (texture_image > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(2, storage.get_image(texture_image));
             if (material_buffer > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(3, storage.get_buffer(material_buffer));
+            if (light_buffer > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(4, storage.get_buffer(light_buffer));
             ros.at(ShaderFlavor::Default).add_bindings();
             ros.at(ShaderFlavor::Default).dsh.reset_auto_apply_bindings();
 
@@ -29,6 +30,7 @@ namespace ve
             ros.at(ShaderFlavor::Emissive).dsh.reset_auto_apply_bindings();
 
             ros.at(ShaderFlavor::Basic).dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
+            if (light_buffer > -1) ros.at(ShaderFlavor::Basic).dsh.apply_descriptor_to_new_sets(4, storage.get_buffer(light_buffer));
             ros.at(ShaderFlavor::Basic).add_bindings();
             ros.at(ShaderFlavor::Basic).dsh.reset_auto_apply_bindings();
         }
@@ -55,6 +57,8 @@ namespace ve
         storage.destroy_buffer(index_buffer);
         if (material_buffer > -1) storage.destroy_buffer(material_buffer);
         material_buffer = -1;
+        if (light_buffer > -1) storage.destroy_buffer(light_buffer);
+        light_buffer = -1;
         for (auto& buffer : model_render_data_buffers) storage.destroy_buffer(buffer);
         model_render_data_buffers.clear();
         model_render_data.clear();
@@ -63,7 +67,7 @@ namespace ve
         for (auto& ro : ros) ro.second.self_destruct();
         ros.clear(); 
         model_handles.clear();
-        model_transformations.clear();
+        model_render_data.clear();
         loaded = false;
     }
 
@@ -78,14 +82,15 @@ namespace ve
             vertices.insert(vertices.end(), model.vertices.begin(), model.vertices.end());
             indices.insert(indices.end(), model.indices.begin(), model.indices.end());
             materials.insert(materials.end(), model.materials.begin(), model.materials.end());
+            lights.insert(lights.end(), model.lights.begin(), model.lights.end());
             texture_data.insert(texture_data.begin(), model.texture_data.begin(), model.texture_data.end());
             if (!model.texture_data.empty())
             {
                 VE_ASSERT(texture_dimensions == model.texture_dimensions || texture_dimensions == 0, "Textures have different dimensions!");
                 texture_dimensions = model.texture_dimensions;
             }
-            model_transformations.push_back(glm::mat4(1.0f));
-            model_handles.emplace(name, model_transformations.size() - 1);
+            model_render_data.push_back(ModelRenderData{.M = glm::mat4(1.0f)});
+            model_handles.emplace(name, model_render_data.size() - 1);
             for (auto& ro : ros)
             {
                 ro.second.add_model_meshes(model.get_mesh_list(ro.first));
@@ -99,8 +104,10 @@ namespace ve
         ros.at(ShaderFlavor::Default).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Default).dsh.add_binding(2, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
@@ -152,12 +159,20 @@ namespace ve
             material_buffer = storage.add_named_buffer(std::string("materials"), materials, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         }
         materials.clear();
+        if (!lights.empty())
+        {
+            for (const auto& light : lights)
+            {
+                initial_light_values.push_back(std::make_pair(light.pos, light.dir));
+            }
+            light_buffer = storage.add_named_buffer(std::string("lights"), lights, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        }
+
         if (!texture_data.empty())
         {
             texture_image = storage.add_named_image(std::string("textures"), texture_data, texture_dimensions.width, texture_dimensions.height, true, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer});
         }
         texture_data.clear();
-        model_render_data.resize(model_transformations.size());
         // delete vertices and indices on host
         indices.clear();
         vertices.clear();
@@ -168,7 +183,7 @@ namespace ve
     {
         if (model_handles.contains(model))
         {
-            model_transformations[model_handles.at(model)] = glm::translate(trans) * model_transformations[model_handles.at(model)];
+            model_render_data[model_handles.at(model)].M = glm::translate(trans) * model_render_data[model_handles.at(model)].M;
         }
         else
         {
@@ -180,7 +195,7 @@ namespace ve
     {
         if (model_handles.contains(model))
         {
-            model_transformations[model_handles.at(model)] = glm::scale(scale) * model_transformations[model_handles.at(model)];
+            model_render_data[model_handles.at(model)].M = glm::scale(scale) * model_render_data[model_handles.at(model)].M;
         }
         else
         {
@@ -192,7 +207,7 @@ namespace ve
     {
         if (model_handles.contains(model))
         {
-            glm::mat4& transformation = model_transformations[model_handles.at(model)];
+            glm::mat4& transformation = model_render_data[model_handles.at(model)].M;
             glm::vec3 translation = transformation[3];
             transformation[3] = glm::vec4(0.0f, 0.0f, 0.0f, transformation[3].w);
             transformation = glm::rotate(glm::radians(degree), axis) * transformation;
@@ -211,12 +226,35 @@ namespace ve
 
     void Scene::draw(vk::CommandBuffer& cb, DrawInfo& di)
     {
+        uint32_t player_idx = model_handles.at("Player");
+        glm::mat4 vp = di.cam.getVP();
+        // let camera follow the players object
+        // world position of players object is camera position, camera is 10 behind the object
+        if (!di.free_flight_cam)
+        {
+            model_render_data[player_idx].M = glm::rotate(glm::inverse(di.cam.view), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            vp = di.cam.projection * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * di.cam.view;
+        }
+        di.light_count = lights.size();
         vcc.graphics_cb[di.current_frame].bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
         vcc.graphics_cb[di.current_frame].bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
-        for (uint32_t i = 0; i < model_transformations.size(); ++i)
+        for (uint32_t i = 0; i < model_render_data.size(); ++i)
         {
-            model_render_data[i].MVP = di.vp * model_transformations[i];
+            model_render_data[i].MVP = vp * model_render_data[i].M;
         }
+        // update lights with current position of player object
+        for (uint32_t i = 0; i < lights.size(); ++i) 
+        {
+            glm::vec4 tmp_pos = model_render_data[player_idx].M * glm::vec4(initial_light_values[i].first, 1.0f);
+            tmp_pos.x /= tmp_pos.w;
+            tmp_pos.y /= tmp_pos.w;
+            tmp_pos.z /= tmp_pos.w;
+            lights[i].pos = glm::vec3(tmp_pos);
+            glm::vec4 tmp_dir = model_render_data[player_idx].M * glm::vec4(initial_light_values[i].second, 0.0f);
+            lights[i].dir = glm::vec3(tmp_dir);
+        }
+        
+        if (!lights.empty()) storage.get_buffer(light_buffer).update_data(lights);
         storage.get_buffer(model_render_data_buffers[di.current_frame]).update_data(model_render_data);
         for (auto& ro : ros)
         {
