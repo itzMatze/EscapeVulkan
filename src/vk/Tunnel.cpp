@@ -26,6 +26,7 @@ namespace ve
         storage.destroy_buffer(vertex_buffer);
         storage.destroy_buffer(index_buffer);
         for (auto i : model_render_data_buffers) storage.destroy_buffer(i);
+        model_render_data_buffers.clear();
     }
 
     void Tunnel::construct(const RenderPass& render_pass, uint32_t parallel_units)
@@ -65,6 +66,7 @@ namespace ve
         index_buffer = storage.add_named_buffer(std::string("tunnel_indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
 
         render_dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
+        render_dsh.add_binding(4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         compute_dsh.add_binding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
 
@@ -74,6 +76,7 @@ namespace ve
             model_render_data_buffers.push_back(storage.add_buffer(std::vector<ModelRenderData>{mrd}, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
 
             render_dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
+            render_dsh.apply_descriptor_to_new_sets(4, storage.get_buffer_by_name("spaceship_lights"));
             render_dsh.new_set();
             render_dsh.reset_auto_apply_bindings();
 
@@ -111,7 +114,7 @@ namespace ve
             cpc.p1 = glm::vec3(0.0f, 0.0f, -100.0f * (float(i) + 0.5f));
             cpc.p2 = glm::vec3(0.0f, 0.0f, -100.0f * (i + 1));
             segment_planes.push_back(SegmentPlane{cpc.p0, glm::normalize(cpc.p1 - cpc.p0)});
-            compute(cb, DrawInfo{.current_frame = 0});
+            compute(cb, 0);
         }
         vcc.submit_compute(cb, true);
     }
@@ -120,21 +123,21 @@ namespace ve
     {
         cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
         cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
-        mrd.MVP = di.vp;
+        mrd.MVP = di.cam.getVP();
         storage.get_buffer(model_render_data_buffers[di.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
         const vk::PipelineLayout& pipeline_layout = di.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, di.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[di.current_frame], {});
-        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .normal_view = di.normal_view};
-        cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, PushConstants::get_vertex_push_constant_offset(), PushConstants::get_vertex_push_constant_size(), &pc);
+        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .light_count = di.light_count, .normal_view = di.normal_view};
+        cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.drawIndexed(index_count, 1, render_index_start, 0, 0);
     }
 
-    void Tunnel::compute(vk::CommandBuffer& cb, const DrawInfo& di)
+    void Tunnel::compute(vk::CommandBuffer& cb, uint32_t current_frame)
     {
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[di.current_frame], {});
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[current_frame], {});
         cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(ComputePushConstants), &cpc);
         cb.dispatch((vertices_per_sample * samples_per_segment + 31) / 32, 1, 1);
     }
@@ -165,12 +168,12 @@ namespace ve
             vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[di.current_frame]);
             timer.reset(cb, {DeviceTimer::COMPUTE_TUNNEL_ADVANCE});
             timer.start(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
-            compute(cb, di);
+            compute(cb, di.current_frame);
             // write copy of data to the first half of the buffer if idx is in the past half of the data
             if (cpc.indices_start_idx > index_count)
             {
                 cpc.indices_start_idx -= (index_count + indices_per_segment);
-                compute(cb, di);
+                compute(cb, di.current_frame);
                 cpc.indices_start_idx += (index_count + indices_per_segment);
             }
             timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);

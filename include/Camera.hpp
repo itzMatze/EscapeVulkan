@@ -11,9 +11,11 @@ public:
     glm::vec3 position;
     glm::mat4 projection;
     glm::mat4 view;
+    bool is_tracking_camera = false;
 
     Camera(float fov, float width, float height);
-    const glm::mat4 getVP();
+    void updateVP();
+    glm::mat4 getVP();
     void translate(glm::vec3 v);
     void onMouseMove(float xRel, float yRel);
     void moveFront(float amount);
@@ -26,6 +28,7 @@ public:
     float getFar() const;
 
 private:
+    glm::mat4 vp;
     glm::quat orientation;
     glm::vec3 u, v, w;
     float near, far;

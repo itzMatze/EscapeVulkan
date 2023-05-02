@@ -7,7 +7,7 @@ namespace ve
 
     void Mesh::draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, const std::vector<vk::DescriptorSet>& sets, DrawInfo& di)
     {
-        PushConstants pc{.mat_idx = mat_idx, .normal_view = di.normal_view};
+        PushConstants pc{.mat_idx = mat_idx, .light_count = di.light_count, .normal_view = di.normal_view};
         cb.pushConstants(layout, vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.drawIndexed(index_count, 1, index_offset, 0, 0);
     }

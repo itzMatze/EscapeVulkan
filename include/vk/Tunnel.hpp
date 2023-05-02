@@ -17,7 +17,7 @@ namespace ve
         void add_bindings();
         void construct(const RenderPass& render_pass, uint32_t parallel_units);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
-        void compute(vk::CommandBuffer& cb, const DrawInfo& di);
+        void compute(vk::CommandBuffer& cb, uint32_t current_frame);
         // move tunnel one segment forward if player enters the n-th segment
         bool advance(const DrawInfo& di, DeviceTimer& timer);
 

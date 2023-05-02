@@ -31,6 +31,7 @@ namespace ve
         std::vector<uint32_t> indices;
         std::vector<uint32_t> texture_indices;
         std::vector<Material> materials;
+        std::vector<Light> lights;
         std::vector<std::vector<unsigned char>> texture_data;
         vk::Extent2D texture_dimensions;
     private:

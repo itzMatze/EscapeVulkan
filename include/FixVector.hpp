@@ -38,6 +38,12 @@ public:
         return capacity;
     }
 
+    void clear()
+    {
+        current_idx = 0;
+        content = std::vector<T>(size, T());
+    }
+
     T& operator[](uint32_t idx)
     {
         return content[current_idx + idx];

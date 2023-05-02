@@ -22,8 +22,6 @@ namespace ve
             timers.emplace_back(vmc);
             syncs.emplace_back(vmc.logical_device.get());
         }
-        // initialize tunnel
-        tunnel.construct(swapchain.get_render_pass(), frames_in_flight);
 
         spdlog::info("Created WorkContext");
     }
@@ -45,9 +43,15 @@ namespace ve
     {
         HostTimer timer;
         syncs[0].wait_idle();
-        if (scene.loaded) scene.self_destruct();
+        if (scene.loaded)
+        {
+            scene.self_destruct();
+            tunnel.self_destruct();
+        }
         scene.load(std::string("../assets/scenes/") + filename);
         scene.construct(swapchain.get_render_pass(), frames_in_flight);
+        // initialize tunnel
+        tunnel.construct(swapchain.get_render_pass(), frames_in_flight);
         spdlog::info("Loading scene took: {} ms", (timer.elapsed()));
     }
 
