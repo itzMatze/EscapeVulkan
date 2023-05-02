@@ -59,6 +59,8 @@ namespace ve
         material_buffer = -1;
         if (light_buffer > -1) storage.destroy_buffer(light_buffer);
         light_buffer = -1;
+        lights.clear();
+        initial_light_values.clear();
         for (auto& buffer : model_render_data_buffers) storage.destroy_buffer(buffer);
         model_render_data_buffers.clear();
         model_render_data.clear();
@@ -165,7 +167,7 @@ namespace ve
             {
                 initial_light_values.push_back(std::make_pair(light.pos, light.dir));
             }
-            light_buffer = storage.add_named_buffer(std::string("lights"), lights, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+            light_buffer = storage.add_named_buffer(std::string("spaceship_lights"), lights, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         }
 
         if (!texture_data.empty())
@@ -230,10 +232,9 @@ namespace ve
         glm::mat4 vp = di.cam.getVP();
         // let camera follow the players object
         // world position of players object is camera position, camera is 10 behind the object
-        if (!di.free_flight_cam)
+        if (di.cam.is_tracking_camera)
         {
             model_render_data[player_idx].M = glm::rotate(glm::inverse(di.cam.view), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-            vp = di.cam.projection * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * di.cam.view;
         }
         di.light_count = lights.size();
         vcc.graphics_cb[di.current_frame].bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});

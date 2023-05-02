@@ -144,6 +144,9 @@ namespace ve
         for (auto& dsl : layouts) vmc.logical_device.get().destroyDescriptorSetLayout(dsl);
         layouts.clear();
         vmc.logical_device.get().destroyDescriptorPool(pool);
+        descriptor_sets.clear();
+        layout_bindings.clear();
+        sets.clear();
     }
 
     const std::vector<vk::DescriptorSetLayout>& DescriptorSetHandler::get_layouts() const

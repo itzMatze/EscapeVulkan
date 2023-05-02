@@ -11,10 +11,11 @@ public:
     glm::vec3 position;
     glm::mat4 projection;
     glm::mat4 view;
+    bool is_tracking_camera = false;
 
     Camera(float fov, float width, float height);
     void updateVP();
-    const glm::mat4& getVP();
+    glm::mat4 getVP();
     void translate(glm::vec3 v);
     void onMouseMove(float xRel, float yRel);
     void moveFront(float amount);

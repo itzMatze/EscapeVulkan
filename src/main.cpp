@@ -61,6 +61,7 @@ public:
             {
                 std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - di.frametime));
                 di.time_diff /= 1000.0f;
+                di.player_pos = camera.getPosition();
                 wc.draw_frame(di);
             }
             catch (const vk::OutOfDateKHRError e)
@@ -138,8 +139,15 @@ private:
         }
         if (eh.is_key_pressed(Key::F))
         {
-            di.free_flight_cam = !di.free_flight_cam;
+            camera.is_tracking_camera = !camera.is_tracking_camera;
             eh.set_pressed_key(Key::F, false);
+        }
+        if (eh.is_key_released(Key::X) && eh.is_controller_available())
+        {
+            std::pair<glm::vec2, glm::vec2> joystick_pos = eh.get_controller_joystick_pos();
+            camera.onMouseMove(joystick_pos.second.x * 1.5f, joystick_pos.second.y * 1.5f);
+            camera.rotate(joystick_pos.first.x * move_amount * 5.0f);
+            camera.moveFront(-joystick_pos.first.y * move_amount);
         }
         if (eh.is_key_pressed(Key::MouseLeft))
         {

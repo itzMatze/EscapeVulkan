@@ -43,9 +43,9 @@ void Camera::updateVP()
     vp = projection * view;
 }
 
-const glm::mat4& Camera::getVP()
+glm::mat4 Camera::getVP()
 {
-    return vp;
+    return is_tracking_camera ? projection * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * view : vp;
 }
 
 void Camera::translate(glm::vec3 amount)

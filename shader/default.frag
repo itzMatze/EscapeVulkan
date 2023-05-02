@@ -5,7 +5,7 @@
 
 layout(location = 0) in vec3 frag_pos;
 layout(location = 1) in vec3 frag_normal;
-layout(location = 2) in vec3 frag_color;
+layout(location = 2) in vec4 frag_color;
 layout(location = 3) in vec2 frag_tex;
 
 layout(location = 0) out vec4 out_color;
@@ -20,9 +20,9 @@ layout(binding = 4) buffer light_buffer {
     Light lights[];
 };
 
-layout(push_constant) uniform PushConstants
+layout(push_constant) uniform PushConstant
 {
-    PushConstant pc;
+    PushConstants pc;
 };
 
 void main()

@@ -19,8 +19,8 @@ namespace ve
     };
 
     struct ModelRenderData {
-        glm::mat4 MVP;
-        glm::mat4 M;
+        glm::mat4 MVP = glm::mat4(1.0f);
+        glm::mat4 M = glm::mat4(1.0f);
     };
 
     struct PushConstants {
@@ -45,12 +45,16 @@ namespace ve
     };
 
     struct ComputePushConstants {
-
+        alignas(16) glm::vec3 p0;
+        alignas(16) glm::vec3 p1;
+        alignas(16) glm::vec3 p2;
+        uint32_t indices_start_idx;
     };
 
     struct DrawInfo {
         std::vector<const char*> scene_names;
         std::vector<float> devicetimings;
+        glm::vec3 player_pos;
         Camera& cam;
         float time_diff = 0.000001f;
 		float frametime = 0.0f;
@@ -61,7 +65,6 @@ namespace ve
         bool show_ui = true;
         bool mesh_view = false;
         bool normal_view = false;
-        bool free_flight_cam = true;
     };
 
     struct Vertex {

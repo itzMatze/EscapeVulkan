@@ -185,9 +185,12 @@ namespace ve
 
         pipeline_layout = vmc.logical_device.get().createPipelineLayout(plci);
 
+        vk::PipelineShaderStageCreateInfo pssci = shader.get_stage_create_info();
+        pssci.pSpecializationInfo = &shader_info.spec_info;
+
         vk::ComputePipelineCreateInfo cpci{};
         cpci.sType = vk::StructureType::eComputePipelineCreateInfo;
-        cpci.stage = shader.get_stage_create_info();
+        cpci.stage = pssci;
         cpci.layout = pipeline_layout;
 
         vk::ResultValue<vk::Pipeline> comute_pipeline_result_value = vmc.logical_device.get().createComputePipeline(VK_NULL_HANDLE, cpci);
