@@ -44,7 +44,8 @@ enum class Key
     MouseLeft = 33,
     MouseMiddle = 34,
     MouseRight = 35,
-    Size = 36
+    F12 = 36,
+    Size = 37
 };
 
 class EventHandler

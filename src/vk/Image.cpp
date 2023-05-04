@@ -1,11 +1,16 @@
 #include "vk/Image.hpp"
 
+#include <fstream>
+
+#include <ctime>
+#include <filesystem>
+
 #include "ve_log.hpp"
 #include "vk/VulkanCommandContext.hpp"
 
 namespace ve
 {
-    void blit_image(const vk::CommandBuffer& cb, vk::Image& src, uint32_t src_mip_map_lvl, vk::Offset3D src_offset, vk::Image& dst, uint32_t dst_mip_map_lvl, vk::Offset3D dst_offset, uint32_t layer_count)
+    void blit_image(vk::CommandBuffer& cb, vk::Image& src, uint32_t src_mip_map_lvl, vk::Offset3D src_offset, vk::Image& dst, uint32_t dst_mip_map_lvl, vk::Offset3D dst_offset, uint32_t layer_count)
     {
         vk::ImageBlit blit{};
         blit.srcOffsets[0] = vk::Offset3D(0, 0, 0);
@@ -23,7 +28,21 @@ namespace ve
         cb.blitImage(src, vk::ImageLayout::eTransferSrcOptimal, dst, vk::ImageLayout::eTransferDstOptimal, blit, vk::Filter::eLinear);
     }
 
-    std::pair<vk::Image, VmaAllocation> Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::SampleCountFlagBits sample_count, bool use_mip_levels, vk::Format format, vk::Extent3D extent, uint32_t layer_count, const VmaAllocator& va)
+    void copy_image(vk::CommandBuffer& cb, vk::Image& src, vk::Image& dst, uint32_t width, uint32_t height, uint32_t layer_count)
+    {
+        vk::ImageCopy ic{};
+        ic.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        ic.srcSubresource.layerCount = layer_count;
+        ic.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        ic.dstSubresource.layerCount = layer_count;
+        ic.extent.width = width;
+        ic.extent.height = height;
+        ic.extent.depth = 1;
+
+        cb.copyImage(src, vk::ImageLayout::eTransferSrcOptimal, dst, vk::ImageLayout::eTransferDstOptimal, 1, &ic);
+    }
+
+    std::pair<vk::Image, VmaAllocation> Image::create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::SampleCountFlagBits sample_count, bool use_mip_levels, vk::Format format, vk::Extent3D extent, uint32_t layer_count, const VmaAllocator& va, bool host_visible)
     {
         uint32_t mip_levels = use_mip_levels ? std::floor(std::log2(std::max(extent.width, extent.height))) + 1 : 1;
         if (mip_levels > 1) usage |= vk::ImageUsageFlagBits::eTransferSrc;
@@ -35,7 +54,7 @@ namespace ve
         ici.mipLevels = mip_levels;
         ici.arrayLayers = layer_count;
         ici.format = format;
-        ici.tiling = vk::ImageTiling::eOptimal;
+        ici.tiling = host_visible ? vk::ImageTiling::eLinear : vk::ImageTiling::eOptimal;
         ici.initialLayout = vk::ImageLayout::eUndefined;
         ici.usage = usage;
         ici.sharingMode = queue_family_indices.size() == 1 ? vk::SharingMode::eExclusive : vk::SharingMode::eConcurrent;
@@ -46,12 +65,21 @@ namespace ve
 
         std::pair<vk::Image, VmaAllocation> image;
         VmaAllocationCreateInfo vaci{};
-        vaci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        if (host_visible)
+        {
+            vaci.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        }
+        else
+        {
+            vaci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+            vaci.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            vaci.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+        }
         vmaCreateImage(va, (VkImageCreateInfo*) (&ici), &vaci, (VkImage*) (&image.first), &image.second, nullptr);
         return image;
     }
 
-    void perform_image_layout_transition(const vk::CommandBuffer& cb, vk::Image image, vk::ImageLayout old_layout, vk::ImageLayout new_layout, vk::PipelineStageFlags src_stage_flags, vk::PipelineStageFlags dst_stage_flags, vk::AccessFlags src_access_flags, vk::AccessFlags dst_access_flags, uint32_t base_mip_level, uint32_t mip_levels, uint32_t layer_count)
+    void perform_image_layout_transition(vk::CommandBuffer& cb, vk::Image image, vk::ImageLayout old_layout, vk::ImageLayout new_layout, vk::PipelineStageFlags src_stage_flags, vk::PipelineStageFlags dst_stage_flags, vk::AccessFlags src_access_flags, vk::AccessFlags dst_access_flags, uint32_t base_mip_level, uint32_t mip_levels, uint32_t layer_count)
     {
         // perform actual image layout transition independent from this image
         // functionality is needed without changing the state of the class to enable setting a base_mip_map_level
@@ -63,7 +91,7 @@ namespace ve
         imb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         imb.image = image;
         imb.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-        imb.subresourceRange.baseMipLevel = 0;
+        imb.subresourceRange.baseMipLevel = base_mip_level;
         imb.subresourceRange.levelCount = mip_levels;
         imb.subresourceRange.baseArrayLayer = 0;
         imb.subresourceRange.layerCount = layer_count;
@@ -206,6 +234,68 @@ namespace ve
         layout = new_layout;
     }
 
+    void Image::save_to_file()
+    {
+        // create target directory if needed
+        std::string filename("../images/");
+        std::filesystem::path images_path(filename);
+        if (!std::filesystem::exists(images_path))
+        {
+            std::filesystem::create_directory(images_path);
+        }
+        // getting time to add it to filename
+        {
+            time_t now = time(nullptr);
+            tm tstruct;
+            char buf[80];
+            localtime_r(&now, &tstruct);
+            strftime(buf, sizeof(buf), "%Y-%m-%d_%H-%M-%S", &tstruct);
+            std::string time(buf);
+            filename.append(time);
+        }
+        filename.append(".png");
+
+        // get resource layout of image to read it correctly
+        vk::ImageSubresource sub_resource{vk::ImageAspectFlagBits::eColor, 0, 0};
+        vk::SubresourceLayout sub_resource_layout;
+        vmc.logical_device.get().getImageSubresourceLayout(image, &sub_resource, &sub_resource_layout);
+
+        char* data;
+        vmaMapMemory(vmc.va, vmaa, (void**)&data);
+        data += sub_resource_layout.offset;
+
+        std::vector<vk::Format> bgr_formats = {vk::Format::eB8G8R8A8Srgb, vk::Format::eB8G8R8A8Unorm, vk::Format::eB8G8R8A8Snorm};
+        bool color_swizzle = (std::find(bgr_formats.begin(), bgr_formats.end(), format) != bgr_formats.end());
+
+        std::vector<char> image_data(w * h * c);
+        for (uint32_t y = 0; y < h; ++y)
+        {
+            char* row = data;
+            for (uint32_t x = 0; x < w; ++x)
+            {
+                if (color_swizzle)
+                {
+                    image_data[4 * (y * w + x)] = (*(row + 2));
+                    image_data[4 * (y * w + x) + 1] = (*(row + 1));
+                    image_data[4 * (y * w + x) + 2] = (*row);
+                    image_data[4 * (y * w + x) + 3] = 255; //(*(row + 3));
+                }
+                else
+                {
+                    image_data[4 * (y * w + x)] = (*row);
+                    image_data[4 * (y * w + x) + 1] = (*(row + 1));
+                    image_data[4 * (y * w + x) + 2] = (*(row + 2));
+                    image_data[4 * (y * w + x) + 3] = 255; //(*(row + 3));
+                }
+                row += 4;
+            }
+            data += sub_resource_layout.rowPitch;
+        }
+
+        stbi_write_png(filename.c_str(), w, h, c, (void**)image_data.data(), w * c);
+        vmaUnmapMemory(vmc.va, vmaa);
+    }
+
     vk::DeviceSize Image::get_byte_size() const
     {
         return byte_size;
@@ -216,17 +306,17 @@ namespace ve
         return layer_count;
     }
 
-    vk::Image Image::get_image() const
+    vk::Image& Image::get_image()
     {
         return image;
     }
 
-    vk::ImageView Image::get_view() const
+    vk::ImageView& Image::get_view()
     {
         return view;
     }
 
-    vk::Sampler Image::get_sampler() const
+    vk::Sampler& Image::get_sampler()
     {
         return sampler;
     }

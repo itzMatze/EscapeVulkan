@@ -18,6 +18,7 @@ namespace ve
         vk::Extent2D get_extent() const;
         vk::Framebuffer get_framebuffer(uint32_t idx) const;
         void create();
+        void save_screenshot(VulkanCommandContext& vcc, uint32_t image_idx, uint32_t current_frame);
 
     private:
         const VulkanMainContext& vmc;

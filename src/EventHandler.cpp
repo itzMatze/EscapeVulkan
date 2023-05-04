@@ -155,6 +155,9 @@ void EventHandler::dispatch_event(SDL_Event e)
         case SDLK_RSHIFT:
             apply_key_event(Key::Shift, e.type);
             break;
+        case SDLK_F12:
+            apply_key_event(Key::F12, e.type);
+            break;
     }
 }
 

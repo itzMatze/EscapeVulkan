@@ -55,7 +55,7 @@ namespace ve
         sci.imageColorSpace = surface_format.colorSpace;
         sci.imageExtent = extent;
         sci.imageArrayLayers = 1;
-        sci.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
+        sci.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc;
         sci.preTransform = capabilities.currentTransform;
         sci.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
         sci.presentMode = choose_present_mode();
@@ -199,4 +199,22 @@ namespace ve
         return Image(vmc, extent.width, extent.height, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment, surface_format.format, render_pass.get_sample_count(), false, 0, {vmc.queue_family_indices.graphics});
     }
 
+    void Swapchain::save_screenshot(VulkanCommandContext& vcc, uint32_t image_idx, uint32_t current_frame)
+    {
+		vk::Image& src_image = images[image_idx];
+        Image dst_image(vmc, extent.width, extent.height, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc, surface_format.format, vk::SampleCountFlagBits::e1, false, 0, {vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer}, false);
+
+		vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[current_frame]);
+        perform_image_layout_transition(cb, dst_image.get_image(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite, 0, 1, 1);
+        perform_image_layout_transition(cb, src_image, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::eTransferSrcOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eMemoryRead ,vk::AccessFlagBits::eTransferRead, 0, 1, 1);
+
+        copy_image(cb, src_image, dst_image.get_image(), extent.width, extent.height, 1);
+
+        perform_image_layout_transition(cb, dst_image.get_image(), vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eMemoryRead, 0, 1, 1);
+        perform_image_layout_transition(cb, src_image, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::ePresentSrcKHR, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eTransferRead, vk::AccessFlagBits::eMemoryRead, 0, 1, 1);
+        vcc.submit_graphics(cb, true);
+
+        dst_image.save_to_file();
+        dst_image.self_destruct();
+    }
 } // namespace ve

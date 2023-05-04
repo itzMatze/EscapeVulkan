@@ -65,6 +65,11 @@ namespace ve
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
         syncs[di.current_frame].wait_for_fence(Synchronization::F_RENDER_FINISHED);
         syncs[di.current_frame].reset_fence(Synchronization::F_RENDER_FINISHED);
+        if (di.save_screenshot)
+        {
+            swapchain.save_screenshot(vcc, image_idx.value, di.current_frame);
+            di.save_screenshot = false;
+        }
         record_graphics_command_buffer(image_idx.value, di);
         bool advance_step_required = tunnel.advance(di, timers[di.current_frame]);
         submit(image_idx.value, di, advance_step_required);

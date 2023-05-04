@@ -14,10 +14,10 @@ namespace ve
         DescriptorSetHandler(const VulkanMainContext& vmc);
         uint32_t new_set();
         void add_binding(uint32_t binding, vk::DescriptorType type, vk::ShaderStageFlags stages);
-        void add_descriptor(uint32_t binding, const Image& image);
+        void add_descriptor(uint32_t binding, Image& image);
         void add_descriptor(uint32_t binding, const Buffer& buffer);
         void apply_descriptor_to_new_sets(uint32_t binding, const Buffer& buffer);
-        void apply_descriptor_to_new_sets(uint32_t binding, const Image& image);
+        void apply_descriptor_to_new_sets(uint32_t binding, Image& image);
         void reset_auto_apply_bindings();
         void construct();
         void self_destruct();

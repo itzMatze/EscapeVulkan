@@ -142,6 +142,11 @@ private:
             camera.is_tracking_camera = !camera.is_tracking_camera;
             eh.set_pressed_key(Key::F, false);
         }
+        if (eh.is_key_pressed(Key::F12))
+        {
+            di.save_screenshot = true;
+            eh.set_pressed_key(Key::F12, false);
+        }
         if (eh.is_key_released(Key::X) && eh.is_controller_available())
         {
             std::pair<glm::vec2, glm::vec2> joystick_pos = eh.get_controller_joystick_pos();
