@@ -36,7 +36,7 @@ namespace ve
         descriptor_sets.back().push_back(Descriptor(binding, dbi, {}));
     }
 
-    void DescriptorSetHandler::add_descriptor(uint32_t binding, const Image& image)
+    void DescriptorSetHandler::add_descriptor(uint32_t binding, Image& image)
     {
         // add image descriptor to current descriptor set
         // every set needs to be build one after another
@@ -57,7 +57,7 @@ namespace ve
         new_set_descriptors.push_back(Descriptor(binding, dbi, {}));
     }
 
-    void DescriptorSetHandler::apply_descriptor_to_new_sets(uint32_t binding, const Image& image)
+    void DescriptorSetHandler::apply_descriptor_to_new_sets(uint32_t binding, Image& image)
     {
         // add buffer descriptor to be added to every new descriptor set (used for e.g. uniform buffers)
         vk::DescriptorImageInfo dii{};

@@ -65,6 +65,7 @@ namespace ve
         bool show_ui = true;
         bool mesh_view = false;
         bool normal_view = false;
+        bool save_screenshot = false;
     };
 
     struct Vertex {
