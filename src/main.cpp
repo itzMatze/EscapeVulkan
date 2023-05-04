@@ -96,6 +96,7 @@ private:
     float move_amount;
     float move_speed = 0.02f;
     ve::DrawInfo di;
+    bool use_controller = false;
 
     void dispatch_pressed_keys()
     {
@@ -112,42 +113,47 @@ private:
         if (eh.is_key_pressed(Key::Down)) camera.onMouseMove(0.0f, panning_speed);
 
         // reset state of keys that are used to execute a one time action
-        if (eh.is_key_pressed(Key::Plus))
+        if (eh.is_key_released(Key::Plus))
         {
             move_speed *= 2.0f;
-            eh.set_pressed_key(Key::Plus, false);
+            eh.set_released_key(Key::Plus, false);
         }
-        if (eh.is_key_pressed(Key::Minus))
+        if (eh.is_key_released(Key::Minus))
         {
             move_speed /= 2.0f;
-            eh.set_pressed_key(Key::Minus, false);
+            eh.set_released_key(Key::Minus, false);
         }
-        if (eh.is_key_pressed(Key::G))
+        if (eh.is_key_released(Key::G))
         {
             di.show_ui = !di.show_ui;
-            eh.set_pressed_key(Key::G, false);
+            eh.set_released_key(Key::G, false);
         }
-        if (eh.is_key_pressed(Key::M))
+        if (eh.is_key_released(Key::M))
         {
             di.mesh_view = !di.mesh_view;
-            eh.set_pressed_key(Key::M, false);
+            eh.set_released_key(Key::M, false);
         }
-        if (eh.is_key_pressed(Key::N))
+        if (eh.is_key_released(Key::N))
         {
             di.normal_view = !di.normal_view;
-            eh.set_pressed_key(Key::N, false);
+            eh.set_released_key(Key::N, false);
         }
-        if (eh.is_key_pressed(Key::F))
+        if (eh.is_key_released(Key::F))
         {
             camera.is_tracking_camera = !camera.is_tracking_camera;
-            eh.set_pressed_key(Key::F, false);
+            eh.set_released_key(Key::F, false);
         }
-        if (eh.is_key_pressed(Key::F12))
+        if (eh.is_key_released(Key::F12))
         {
             di.save_screenshot = true;
-            eh.set_pressed_key(Key::F12, false);
+            eh.set_released_key(Key::F12, false);
         }
         if (eh.is_key_released(Key::X) && eh.is_controller_available())
+        {
+            use_controller = !use_controller;
+            eh.set_released_key(Key::X, false);
+        }
+        if (use_controller)
         {
             std::pair<glm::vec2, glm::vec2> joystick_pos = eh.get_controller_joystick_pos();
             camera.onMouseMove(joystick_pos.second.x * 1.5f, joystick_pos.second.y * 1.5f);
