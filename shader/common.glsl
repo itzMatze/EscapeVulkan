@@ -3,6 +3,7 @@ struct PushConstants {
     int mat_idx;
     uint light_count;
     bool normal_view;
+    bool tex_view;
 };
 
 struct UBO {

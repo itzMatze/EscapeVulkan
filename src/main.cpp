@@ -138,6 +138,11 @@ private:
             di.normal_view = !di.normal_view;
             eh.set_released_key(Key::N, false);
         }
+        if (eh.is_key_released(Key::T))
+        {
+            di.tex_view = !di.tex_view;
+            eh.set_released_key(Key::T, false);
+        }
         if (eh.is_key_released(Key::F))
         {
             camera.is_tracking_camera = !camera.is_tracking_camera;

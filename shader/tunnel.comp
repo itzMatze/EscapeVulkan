@@ -58,5 +58,5 @@ void main()
 
     vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].pos_normal_x = vec4(vertex_pos, normal.x);
     vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].normal_yz_color_rg = vec4(normal.yz, 0.0, 0.0);
-    vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].color_ba_tex.xy = vec2(0.8, 1.0);
+    vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].color_ba_tex = vec4(0.8, 1.0, float(sample_circle_id) / float(SAMPLES_PER_SEGMENT - 1), float(vertex_id) / float(VERTICES_PER_SAMPLE - 1));
 }

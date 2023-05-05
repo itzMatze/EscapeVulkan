@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(Vulkan_Engine)
+project(EscapeVulkan)
 set(CMAKE_CXX_STANDARD 20)
 
 set(SOURCE_FILES src/main.cpp src/Camera.cpp src/EventHandler.cpp src/Window.cpp src/UI.cpp
@@ -14,15 +14,15 @@ src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/WorkContext.cpp
 
 set(SHADER_FILES default.vert default.frag basic.frag emissive.frag tunnel.comp)
 
-add_executable(Vulkan_Engine ${SOURCE_FILES})
-include_directories(Vulkan_Engine PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/dependencies/VulkanMemoryAllocator-3.0.1/include" "${PROJECT_SOURCE_DIR}/dependencies/tinygltf-2.6.3/" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/")
+add_executable(EscapeVulkan ${SOURCE_FILES})
+include_directories(EscapeVulkan PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/dependencies/VulkanMemoryAllocator-3.0.1/include" "${PROJECT_SOURCE_DIR}/dependencies/tinygltf-2.6.3/" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/")
 
 find_package(glm REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(spdlog REQUIRED)
 
-target_link_libraries(Vulkan_Engine ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES} spdlog::spdlog)
+target_link_libraries(EscapeVulkan ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES} spdlog::spdlog)
 
 set(SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shader")
 
@@ -44,5 +44,5 @@ function(add_shader TARGET SHADER)
 endfunction(add_shader)
 
 foreach(SHADER_FILE ${SHADER_FILES})
-    add_shader(Vulkan_Engine "${SHADER_FILE}")
+    add_shader(EscapeVulkan "${SHADER_FILE}")
 endforeach()

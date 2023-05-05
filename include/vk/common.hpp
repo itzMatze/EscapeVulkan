@@ -29,7 +29,8 @@ namespace ve
         // fragment push constants
         int32_t mat_idx;
         uint32_t light_count;
-        bool normal_view;
+        alignas(4) bool normal_view;
+        alignas(4) bool tex_view;
 
         void* get_fragment_push_constant_pointer()
         { return &mat_idx; }
@@ -65,6 +66,7 @@ namespace ve
         bool show_ui = true;
         bool mesh_view = false;
         bool normal_view = false;
+        bool tex_view = false;
         bool save_screenshot = false;
     };
 

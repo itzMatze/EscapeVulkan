@@ -32,6 +32,11 @@ void main()
         out_color = vec4((frag_normal + 1.0) / 2.0, 1.0);
         return;
     }
+    if (pc.tex_view)
+    {
+        out_color = vec4(frag_tex, 1.0f, 1.0f);
+        return;
+    }
 
     vec3 texture_color = texture(tex_sampler, vec3(frag_tex, materials[pc.mat_idx].base_texture)).rgb;
     vec3 ambient = texture_color * 0.1;
