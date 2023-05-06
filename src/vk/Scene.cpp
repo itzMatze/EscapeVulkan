@@ -35,18 +35,19 @@ namespace ve
             ros.at(ShaderFlavor::Basic).dsh.reset_auto_apply_bindings();
         }
 
-        vk::SpecializationMapEntry uniform_buffer_size_entry(0, 0, sizeof(uint32_t));
-        uint32_t uniform_buffer_size = model_render_data.size();
-        vk::SpecializationInfo spec_info(1, &uniform_buffer_size_entry, sizeof(uint32_t), &uniform_buffer_size);
+        vk::SpecializationMapEntry model_render_data_buffer_size_entry(0, 0, sizeof(uint32_t));
+        uint32_t model_render_data_buffer_size = model_render_data.size();
+        vk::SpecializationInfo model_render_spec_info(1, &model_render_data_buffer_size_entry, sizeof(uint32_t), &model_render_data_buffer_size);
         std::vector<ShaderInfo> shader_infos(2);
-        shader_infos[0] = ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, spec_info};
+        shader_infos[0] = ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, model_render_spec_info};
 
-        shader_infos[1] = ShaderInfo{"default.frag", vk::ShaderStageFlagBits::eFragment};
+        vk::SpecializationMapEntry lights_buffer_size_entry(0, 0, sizeof(uint32_t));
+        uint32_t lights_buffer_size = lights.size();
+        vk::SpecializationInfo lights_spec_info(1, &lights_buffer_size_entry, sizeof(uint32_t), &lights_buffer_size);
+        shader_infos[1] = ShaderInfo{"default.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
         ros.at(ShaderFlavor::Default).construct(render_pass, shader_infos);
-
-        shader_infos[1] = ShaderInfo{"basic.frag", vk::ShaderStageFlagBits::eFragment};
+        shader_infos[1] = ShaderInfo{"basic.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
         ros.at(ShaderFlavor::Basic).construct(render_pass, shader_infos);
-
         shader_infos[1] = ShaderInfo{"emissive.frag", vk::ShaderStageFlagBits::eFragment};
         ros.at(ShaderFlavor::Emissive).construct(render_pass, shader_infos);
     }
@@ -106,10 +107,10 @@ namespace ve
         ros.at(ShaderFlavor::Default).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Default).dsh.add_binding(2, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
-        ros.at(ShaderFlavor::Default).dsh.add_binding(4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
-        ros.at(ShaderFlavor::Basic).dsh.add_binding(4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
@@ -167,7 +168,7 @@ namespace ve
             {
                 initial_light_values.push_back(std::make_pair(light.pos, light.dir));
             }
-            light_buffer = storage.add_named_buffer(std::string("spaceship_lights"), lights, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+            light_buffer = storage.add_named_buffer(std::string("spaceship_lights"), lights, vk::BufferUsageFlagBits::eUniformBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         }
 
         if (!texture_data.empty())
@@ -254,7 +255,7 @@ namespace ve
             glm::vec4 tmp_dir = model_render_data[player_idx].M * glm::vec4(initial_light_values[i].second, 0.0f);
             lights[i].dir = glm::vec3(tmp_dir);
         }
-        
+
         if (!lights.empty()) storage.get_buffer(light_buffer).update_data(lights);
         storage.get_buffer(model_render_data_buffers[di.current_frame]).update_data(model_render_data);
         for (auto& ro : ros)

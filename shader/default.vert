@@ -15,8 +15,8 @@ layout(location = 1) out vec3 frag_normal;
 layout(location = 2) out vec4 frag_color;
 layout(location = 3) out vec2 frag_tex;
 
-layout(binding = 0) uniform UniformBuffer {
-    UBO ubo[NUM_MVPS];
+layout(binding = 0) uniform ModelRenderDataBuffer {
+    ModelRenderData mrd[NUM_MVPS];
 };
 
 layout(push_constant) uniform PushConstant {
@@ -24,8 +24,8 @@ layout(push_constant) uniform PushConstant {
 };
 
 void main() {
-    gl_Position = ubo[pc.mvp_idx].mvp * vec4(pos, 1.0);
-    frag_pos = vec3(ubo[pc.mvp_idx].m * vec4(pos, 1.0));
+    gl_Position = mrd[pc.mvp_idx].mvp * vec4(pos, 1.0);
+    frag_pos = vec3(mrd[pc.mvp_idx].m * vec4(pos, 1.0));
     frag_normal = (vec4(normal, 1.0)).rgb;
     frag_color = color;
     frag_tex = tex;

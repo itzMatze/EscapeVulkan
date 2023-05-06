@@ -6,7 +6,7 @@ struct PushConstants {
     bool tex_view;
 };
 
-struct UBO {
+struct ModelRenderData {
     mat4 mvp;
     mat4 m;
 };

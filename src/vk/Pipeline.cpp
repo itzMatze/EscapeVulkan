@@ -74,7 +74,7 @@ namespace ve
         prsci.depthClampEnable = VK_FALSE;
         prsci.rasterizerDiscardEnable = VK_FALSE;
         prsci.polygonMode = polygon_mode;
-        prsci.lineWidth = 1.0f;
+        prsci.lineWidth = 4.0f;
         prsci.cullMode = vk::CullModeFlagBits::eNone;
         prsci.frontFace = vk::FrontFace::eCounterClockwise;
         prsci.depthBiasEnable = VK_FALSE;

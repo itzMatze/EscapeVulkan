@@ -3,6 +3,8 @@
 #extension GL_GOOGLE_include_directive: require
 #include "common.glsl"
 
+layout(constant_id = 0) const uint NUM_LIGHTS = 1;
+
 layout(location = 0) in vec3 frag_pos;
 layout(location = 1) in vec3 frag_normal;
 layout(location = 2) in vec4 frag_color;
@@ -15,8 +17,8 @@ layout(push_constant) uniform PushConstant
     PushConstants pc;
 };
 
-layout(binding = 4) buffer light_buffer {
-    Light lights[];
+layout(binding = 4) uniform LightsBuffer {
+    Light lights[NUM_LIGHTS];
 };
 
 void main()
