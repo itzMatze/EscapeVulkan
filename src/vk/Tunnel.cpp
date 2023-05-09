@@ -2,6 +2,7 @@
 
 namespace ve
 {
+    constexpr float segment_scale = 50.0f;
     constexpr uint32_t segment_count = 16; // how many segments are in the tunnel (must be power of two)
     static_assert((segment_count & (segment_count - 1)) == 0);
     constexpr uint32_t samples_per_segment = 32; // how many sample rings one segment is made of
@@ -11,7 +12,7 @@ namespace ve
     constexpr uint32_t indices_per_segment = (samples_per_segment - 1) * vertices_per_sample * 6;
     constexpr uint32_t index_count = indices_per_segment * segment_count;
 
-    Tunnel::Tunnel(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : render_dsh(vmc), compute_dsh(vmc), vmc(vmc), vcc(vcc), storage(storage), pipeline(vmc), mesh_view_pipeline(vmc), compute_pipeline(vmc), segment_planes(segment_count)
+    Tunnel::Tunnel(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : render_dsh(vmc), compute_dsh(vmc), vmc(vmc), vcc(vcc), storage(storage), pipeline(vmc), mesh_view_pipeline(vmc), compute_pipeline(vmc), segment_planes(segment_count), rnd(0), dis(0.0f, 1.0f)
     {
         cpc.indices_start_idx = 0;
     }
@@ -107,13 +108,20 @@ namespace ve
         compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"tunnel.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info});
 
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
-        for (uint32_t i = 0; i < segment_count; ++i)
+        cpc.p0 = glm::vec3(0.0f, 0.0f, -50.0f);
+        cpc.p1 = glm::vec3(0.0f, 0.0f, -50.0f - segment_scale / 2.0f);
+        cpc.p2 = glm::vec3(0.0f, 0.0f, -50.0f - segment_scale);
+        segment_planes.push_back(SegmentPlane{cpc.p0, glm::normalize(cpc.p1 - cpc.p0)});
+        compute(cb, 0);
+
+        for (uint32_t i = 1; i < segment_count; ++i)
         {
             cpc.indices_start_idx = i * index_count / segment_count;
-            cpc.p0 = glm::vec3(0.0f, 0.0f, -100.0f * i);
-            cpc.p1 = glm::vec3(0.0f, 0.0f, -100.0f * (float(i) + 0.5f));
-            cpc.p2 = glm::vec3(0.0f, 0.0f, -100.0f * (i + 1));
-            segment_planes.push_back(SegmentPlane{cpc.p0, glm::normalize(cpc.p1 - cpc.p0)});
+            const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
+            segment_planes.push_back(SegmentPlane{cpc.p2, normal});
+            cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
+            cpc.p0 = cpc.p2;
+            cpc.p2 = cpc.p0 + segment_scale * random_cosine(normal);
             compute(cb, 0);
         }
         vcc.submit_compute(cb, true);
@@ -142,15 +150,29 @@ namespace ve
         cb.dispatch((vertices_per_sample * samples_per_segment + 31) / 32, 1, 1);
     }
 
+    glm::vec3 Tunnel::random_cosine(const glm::vec3& normal)
+    {
+        constexpr float cosine_weight = 20.0f;
+        float theta = std::acos(std::pow(1.0f - std::abs(dis(rnd)), 1.0f / (1.0f + cosine_weight)));
+        float phi = 2.0f * M_PIf * dis(rnd);
+        glm::vec3 up = abs(normal.z) < 0.999f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+        glm::vec3 tangent = glm::normalize(glm::cross(up, normal));
+        glm::vec3 bitangent = glm::cross(normal, tangent);
+
+        glm::vec3 sample = glm::vec3(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta));
+        return glm::normalize(tangent * sample.x + bitangent * sample.y + normal * sample.z);
+    }
+
     bool Tunnel::advance(const DrawInfo& di, DeviceTimer& timer)
     {
         if (glm::dot(glm::normalize(di.player_pos - segment_planes[1].pos), segment_planes[1].normal) > 0.0f)
         {
             // add new segment points
-            segment_planes.push_back(SegmentPlane{cpc.p2, glm::normalize(cpc.p2 - cpc.p1)});
-            cpc.p1 = cpc.p2 + cpc.p1 - cpc.p0;
+            const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
+            segment_planes.push_back(SegmentPlane{cpc.p2, normal});
+            cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
             cpc.p0 = cpc.p2;
-            cpc.p2 = cpc.p1 + cpc.p1 - cpc.p0;
+            cpc.p2 = cpc.p2 + segment_scale * random_cosine(normal);
 
             // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
             // increment the idx at which the rendering starts by the same amount

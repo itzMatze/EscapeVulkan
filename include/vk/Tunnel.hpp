@@ -1,5 +1,8 @@
 #pragma once
 
+#include <random>
+#include <cmath>
+
 #include "FixVector.hpp"
 #include "vk/Timer.hpp"
 #include "vk/Model.hpp"
@@ -43,6 +46,10 @@ namespace ve
         Pipeline pipeline;
         Pipeline mesh_view_pipeline;
         Pipeline compute_pipeline;
+        std::mt19937 rnd;
+        std::uniform_real_distribution<float> dis;
+
+        glm::vec3 random_cosine(const glm::vec3& normal);
     };
 } // namespace ve
 
