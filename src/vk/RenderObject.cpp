@@ -5,11 +5,14 @@ namespace ve
     RenderObject::RenderObject(const VulkanMainContext& vmc) : dsh(vmc), vmc(vmc), pipeline(vmc), mesh_view_pipeline(vmc)
     {}
 
-    void RenderObject::self_destruct()
+    void RenderObject::self_destruct(bool full)
     {
         pipeline.self_destruct();
         mesh_view_pipeline.self_destruct();
-        dsh.self_destruct();
+        if (full)
+        {
+            dsh.self_destruct();
+        }
     }
 
     void RenderObject::add_model_meshes(std::vector<Mesh>& mesh_list)
@@ -23,11 +26,23 @@ namespace ve
         dsh.new_set();
     }
 
-    void RenderObject::construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_infos)
+    void RenderObject::construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_infos, bool reload)
     {
         if (meshes.empty()) return;
-        model_indices.push_back(meshes.size());
-        dsh.construct();
+        if (!reload)
+        {
+            model_indices.push_back(meshes.size());
+            dsh.construct();
+        }
+        else
+        {
+            self_destruct(false);
+        }
+        construct_pipelines(render_pass, shader_infos);
+    }
+
+    void RenderObject::construct_pipelines(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_infos)
+    {
         pipeline.construct(render_pass, dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill);
         mesh_view_pipeline.construct(render_pass, dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine);
     }

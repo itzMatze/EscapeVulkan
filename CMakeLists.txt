@@ -15,6 +15,8 @@ src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/WorkContext.cpp
 set(SHADER_FILES default.vert default.frag basic.frag emissive.frag tunnel.comp)
 
 add_executable(EscapeVulkan ${SOURCE_FILES})
+add_custom_target(Shaders)
+add_dependencies(EscapeVulkan Shaders)
 include_directories(EscapeVulkan PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/dependencies/VulkanMemoryAllocator-3.0.1/include" "${PROJECT_SOURCE_DIR}/dependencies/tinygltf-2.6.3/" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/")
 
 find_package(glm REQUIRED)
@@ -44,5 +46,5 @@ function(add_shader TARGET SHADER)
 endfunction(add_shader)
 
 foreach(SHADER_FILE ${SHADER_FILES})
-    add_shader(EscapeVulkan "${SHADER_FILE}")
+    add_shader(Shaders "${SHADER_FILE}")
 endforeach()

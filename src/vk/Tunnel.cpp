@@ -17,17 +17,20 @@ namespace ve
         cpc.indices_start_idx = 0;
     }
 
-    void Tunnel::self_destruct()
+    void Tunnel::self_destruct(bool full)
     {
         pipeline.self_destruct();
         mesh_view_pipeline.self_destruct();
         compute_pipeline.self_destruct();
-        render_dsh.self_destruct();
-        compute_dsh.self_destruct();
-        storage.destroy_buffer(vertex_buffer);
-        storage.destroy_buffer(index_buffer);
-        for (auto i : model_render_data_buffers) storage.destroy_buffer(i);
-        model_render_data_buffers.clear();
+        if (full)
+        {
+            render_dsh.self_destruct();
+            compute_dsh.self_destruct();
+            storage.destroy_buffer(vertex_buffer);
+            storage.destroy_buffer(index_buffer);
+            for (auto i : model_render_data_buffers) storage.destroy_buffer(i);
+            model_render_data_buffers.clear();
+        }
     }
 
     void Tunnel::construct(const RenderPass& render_pass, uint32_t parallel_units)
@@ -86,26 +89,10 @@ namespace ve
             compute_dsh.new_set();
             compute_dsh.reset_auto_apply_bindings();
         }
-
-        vk::SpecializationMapEntry uniform_buffer_size_entry(0, 0, sizeof(uint32_t));
-        uint32_t uniform_buffer_size = 1;
-        vk::SpecializationInfo render_spec_info(1, &uniform_buffer_size_entry, sizeof(uint32_t), &uniform_buffer_size);
-        std::vector<ShaderInfo> shader_infos(2);
-        shader_infos[0] = ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, render_spec_info};
-        shader_infos[1] = ShaderInfo{"basic.frag", vk::ShaderStageFlagBits::eFragment};
-
         render_dsh.construct();
-        pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill);
-        mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine);
-
-        std::array<vk::SpecializationMapEntry, 2> compute_entries;
-        compute_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
-        compute_entries[1] = vk::SpecializationMapEntry(1, sizeof(uint32_t), sizeof(uint32_t));
-        std::array<uint32_t, 2> compute_entries_data{samples_per_segment, vertices_per_sample};
-        vk::SpecializationInfo compute_spec_info(compute_entries.size(), compute_entries.data(), compute_entries_data.size() * sizeof(uint32_t), compute_entries_data.data());
-
         compute_dsh.construct();
-        compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"tunnel.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info});
+
+        construct_pipelines(render_pass);
 
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
         cpc.p0 = glm::vec3(0.0f, 0.0f, -50.0f);
@@ -125,6 +112,37 @@ namespace ve
             compute(cb, 0);
         }
         vcc.submit_compute(cb, true);
+    }
+
+    void Tunnel::construct_pipelines(const RenderPass& render_pass)
+    {
+        vk::SpecializationMapEntry uniform_buffer_size_entry(0, 0, sizeof(uint32_t));
+        uint32_t uniform_buffer_size = 1;
+        vk::SpecializationInfo render_spec_info(1, &uniform_buffer_size_entry, sizeof(uint32_t), &uniform_buffer_size);
+        std::vector<ShaderInfo> shader_infos(2);
+        shader_infos[0] = ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, render_spec_info};
+
+        vk::SpecializationMapEntry lights_buffer_size_entry(0, 0, sizeof(uint32_t));
+        uint32_t lights_buffer_size = storage.get_buffer_by_name("spaceship_lights").get_element_count();
+        vk::SpecializationInfo lights_spec_info(1, &lights_buffer_size_entry, sizeof(uint32_t), &lights_buffer_size);
+        shader_infos[1] = ShaderInfo{"stone_noise.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
+
+        pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill);
+        mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine);
+
+        std::array<vk::SpecializationMapEntry, 2> compute_entries;
+        compute_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
+        compute_entries[1] = vk::SpecializationMapEntry(1, sizeof(uint32_t), sizeof(uint32_t));
+        std::array<uint32_t, 2> compute_entries_data{samples_per_segment, vertices_per_sample};
+        vk::SpecializationInfo compute_spec_info(compute_entries.size(), compute_entries.data(), compute_entries_data.size() * sizeof(uint32_t), compute_entries_data.data());
+
+        compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"tunnel.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info});
+    }
+
+    void Tunnel::reload_shaders(const RenderPass& render_pass)
+    {
+        self_destruct(false);
+        construct_pipelines(render_pass);
     }
 
     void Tunnel::draw(vk::CommandBuffer& cb, DrawInfo& di)
@@ -165,7 +183,7 @@ namespace ve
 
     bool Tunnel::advance(const DrawInfo& di, DeviceTimer& timer)
     {
-        if (glm::dot(glm::normalize(di.player_pos - segment_planes[1].pos), segment_planes[1].normal) > 0.0f)
+        if (glm::dot(glm::normalize(di.player_pos - segment_planes[2].pos), segment_planes[2].normal) > 0.0f)
         {
             // add new segment points
             const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);

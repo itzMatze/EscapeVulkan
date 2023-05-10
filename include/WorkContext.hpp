@@ -23,7 +23,7 @@ namespace ve
     public:
         WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc);
         void self_destruct();
-        void construct();
+        void reload_shaders();
         void load_scene(const std::string& filename);
 
     public:

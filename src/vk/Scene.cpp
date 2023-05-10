@@ -34,22 +34,7 @@ namespace ve
             ros.at(ShaderFlavor::Basic).add_bindings();
             ros.at(ShaderFlavor::Basic).dsh.reset_auto_apply_bindings();
         }
-
-        vk::SpecializationMapEntry model_render_data_buffer_size_entry(0, 0, sizeof(uint32_t));
-        uint32_t model_render_data_buffer_size = model_render_data.size();
-        vk::SpecializationInfo model_render_spec_info(1, &model_render_data_buffer_size_entry, sizeof(uint32_t), &model_render_data_buffer_size);
-        std::vector<ShaderInfo> shader_infos(2);
-        shader_infos[0] = ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, model_render_spec_info};
-
-        vk::SpecializationMapEntry lights_buffer_size_entry(0, 0, sizeof(uint32_t));
-        uint32_t lights_buffer_size = lights.size();
-        vk::SpecializationInfo lights_spec_info(1, &lights_buffer_size_entry, sizeof(uint32_t), &lights_buffer_size);
-        shader_infos[1] = ShaderInfo{"default.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
-        ros.at(ShaderFlavor::Default).construct(render_pass, shader_infos);
-        shader_infos[1] = ShaderInfo{"basic.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
-        ros.at(ShaderFlavor::Basic).construct(render_pass, shader_infos);
-        shader_infos[1] = ShaderInfo{"emissive.frag", vk::ShaderStageFlagBits::eFragment};
-        ros.at(ShaderFlavor::Emissive).construct(render_pass, shader_infos);
+        construct_pipelines(render_pass, false);
     }
 
     void Scene::self_destruct()
@@ -72,6 +57,30 @@ namespace ve
         model_handles.clear();
         model_render_data.clear();
         loaded = false;
+    }
+
+    void Scene::construct_pipelines(const RenderPass& render_pass, bool reload)
+    {
+        vk::SpecializationMapEntry model_render_data_buffer_size_entry(0, 0, sizeof(uint32_t));
+        uint32_t model_render_data_buffer_size = model_render_data.size();
+        vk::SpecializationInfo model_render_spec_info(1, &model_render_data_buffer_size_entry, sizeof(uint32_t), &model_render_data_buffer_size);
+        std::vector<ShaderInfo> shader_infos(2);
+        shader_infos[0] = ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, model_render_spec_info};
+
+        vk::SpecializationMapEntry lights_buffer_size_entry(0, 0, sizeof(uint32_t));
+        uint32_t lights_buffer_size = lights.size();
+        vk::SpecializationInfo lights_spec_info(1, &lights_buffer_size_entry, sizeof(uint32_t), &lights_buffer_size);
+        shader_infos[1] = ShaderInfo{"default.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
+        ros.at(ShaderFlavor::Default).construct(render_pass, shader_infos, reload);
+        shader_infos[1] = ShaderInfo{"stone_noise.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
+        ros.at(ShaderFlavor::Basic).construct(render_pass, shader_infos, reload);
+        shader_infos[1] = ShaderInfo{"emissive.frag", vk::ShaderStageFlagBits::eFragment};
+        ros.at(ShaderFlavor::Emissive).construct(render_pass, shader_infos, reload);
+    }
+
+    void Scene::reload_shaders(const RenderPass& render_pass)
+    {
+        construct_pipelines(render_pass, true);
     }
 
     void Scene::load(const std::string& path)

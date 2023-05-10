@@ -13,6 +13,7 @@ namespace ve
         Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
         void construct(const RenderPass& render_pass, uint32_t parallel_units);
         void self_destruct();
+        void reload_shaders(const RenderPass& render_pass);
         void load(const std::string& path);
         void translate(const std::string& model, const glm::vec3& trans);
         void scale(const std::string& model, const glm::vec3& scale);
@@ -41,6 +42,7 @@ namespace ve
         int32_t light_buffer = -1;
         std::vector<uint32_t> model_render_data_buffers;
 
+        void construct_pipelines(const RenderPass& render_pass, bool reload);
         void add_model(Model& model, const std::string& name);
     };
 } // namespace ve
