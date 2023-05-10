@@ -158,6 +158,12 @@ private:
             use_controller = !use_controller;
             eh.set_released_key(Key::X, false);
         }
+        if (eh.is_key_released(Key::R))
+        {
+            system("cmake --build . --target Shaders");
+            eh.set_released_key(Key::R, false);
+            wc.reload_shaders();
+        }
         if (use_controller)
         {
             std::pair<glm::vec2, glm::vec2> joystick_pos = eh.get_controller_joystick_pos();

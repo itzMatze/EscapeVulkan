@@ -100,6 +100,8 @@ namespace ve
             ImGui::Text("'+'-': change movement speed");
             ImGui::Text("'M': toggle mesh view");
             ImGui::Text("'N': toggle normal view");
+            ImGui::Text("'T': toggle texel view");
+            ImGui::Text("'R': reload shaders");
             ImGui::Text("'G': Show/Hide UI");
             ImGui::Text("'F': toggle tracking camera");
             ImGui::Text("'X': toggle controller steering");
@@ -111,6 +113,8 @@ namespace ve
         ImGui::Checkbox("Meshview", &(di.mesh_view));
         ImGui::SameLine();
         ImGui::Checkbox("NormalView", &(di.normal_view));
+        ImGui::SameLine();
+        ImGui::Checkbox("TexelView", &(di.tex_view));
         ImGui::Separator();
         time_diff = time_diff * (1 - update_weight) + di.time_diff * update_weight;
         frametime = frametime * (1 - update_weight) + di.frametime * update_weight;

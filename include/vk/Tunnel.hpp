@@ -16,9 +16,10 @@ namespace ve
     {
     public:
         Tunnel(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
-        void self_destruct();
+        void self_destruct(bool full = true);
         void add_bindings();
         void construct(const RenderPass& render_pass, uint32_t parallel_units);
+        void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
         void compute(vk::CommandBuffer& cb, uint32_t current_frame);
         // move tunnel one segment forward if player enters the n-th segment
@@ -49,6 +50,7 @@ namespace ve
         std::mt19937 rnd;
         std::uniform_real_distribution<float> dis;
 
+        void construct_pipelines(const RenderPass& render_pass);
         glm::vec3 random_cosine(const glm::vec3& normal);
     };
 } // namespace ve

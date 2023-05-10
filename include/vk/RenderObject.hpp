@@ -12,10 +12,10 @@ namespace ve
     {
     public:
         RenderObject(const VulkanMainContext& vmc);
-        void self_destruct();
+        void self_destruct(bool full = true);
         void add_model_meshes(std::vector<Mesh>& mesh_list);
         void add_bindings();
-        void construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_names);
+        void construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_names, bool reload = false);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
 
         DescriptorSetHandler dsh;
@@ -27,5 +27,7 @@ namespace ve
         std::vector<uint32_t> model_indices;
         Pipeline pipeline;
         Pipeline mesh_view_pipeline;
+
+        void construct_pipelines(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_infos);
     };
 } // namespace ve

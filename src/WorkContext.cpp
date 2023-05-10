@@ -39,6 +39,13 @@ namespace ve
         spdlog::info("Destroyed WorkContext");
     }
 
+    void WorkContext::reload_shaders()
+    {
+        syncs[0].wait_idle();
+        tunnel.reload_shaders(swapchain.get_render_pass());
+        scene.reload_shaders(swapchain.get_render_pass());
+    }
+
     void WorkContext::load_scene(const std::string& filename)
     {
         HostTimer timer;
