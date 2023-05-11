@@ -45,12 +45,12 @@ void main()
     vec3 plane_vector = abs(dot(plane_normal, vec3(1.0, 0.0, 0.0))) >= 0.999999 ? cross(plane_normal, vec3(0.0, 0.0, 1.0)) : cross(plane_normal, vec3(1.0, 0.0, 0.0));
     // vector from center of circle to vertex position
     vec3 vertex_pos = normalize(rotate(plane_vector, plane_normal, (360.0 / VERTICES_PER_SAMPLE) * vertex_id));
+    vec3 normal = -vertex_pos;
     vertex_pos *= 20.0;
     // actual position of vertex
     vertex_pos += sample_pos;
-    vec3 normal = normalize(sample_pos - vertex_pos);
 
     vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].pos_normal_x = vec4(vertex_pos, normal.x);
     vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].normal_yz_color_rg = vec4(normal.yz, 0.0, 0.0);
-    vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].color_ba_tex = vec4(0.8, 1.0, float(sample_circle_id) / float(SAMPLES_PER_SEGMENT - 1), float(vertex_id) / float(VERTICES_PER_SAMPLE - 1));
+    vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].color_ba_tex = vec4(0.8, 1.0, abs((pc.segment_idx % 2) - float(sample_circle_id) / float(SAMPLES_PER_SEGMENT - 1)), abs((float(vertex_id) / float(VERTICES_PER_SAMPLE)) * 2.0 - 1.0));
 }

@@ -75,6 +75,7 @@ public:
                 eh.dispatch_event(e);
             }
             di.time_diff = timer.restart();
+            di.time += di.time_diff;
             // calculate actual frametime by subtracting the waiting time
             di.frametime = di.time_diff - std::max(0.0f, min_frametime - di.frametime);
             if (di.load_scene)

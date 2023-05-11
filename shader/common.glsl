@@ -2,6 +2,7 @@ struct PushConstants {
     uint mvp_idx;
     int mat_idx;
     uint light_count;
+    float time;
     bool normal_view;
     bool tex_view;
 };
@@ -22,6 +23,7 @@ struct ComputePushConstants {
     vec3 p1;
     vec3 p2;
     uint indices_start_idx;
+    uint segment_idx;
 };
 
 struct Material {

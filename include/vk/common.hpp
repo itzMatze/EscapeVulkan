@@ -29,6 +29,7 @@ namespace ve
         // fragment push constants
         int32_t mat_idx;
         uint32_t light_count;
+        float time;
         alignas(4) bool normal_view;
         alignas(4) bool tex_view;
 
@@ -50,6 +51,7 @@ namespace ve
         alignas(16) glm::vec3 p1;
         alignas(16) glm::vec3 p2;
         uint32_t indices_start_idx;
+        uint32_t segment_idx;
     };
 
     struct DrawInfo {
@@ -58,6 +60,7 @@ namespace ve
         glm::vec3 player_pos;
         Camera& cam;
         float time_diff = 0.000001f;
+        float time = 0.0f;
 		float frametime = 0.0f;
         int32_t current_scene = 0;
         uint32_t current_frame = 0;
