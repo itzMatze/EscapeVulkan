@@ -95,6 +95,7 @@ namespace ve
         construct_pipelines(render_pass);
 
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
+        cpc.segment_idx = 0;
         cpc.p0 = glm::vec3(0.0f, 0.0f, -50.0f);
         cpc.p1 = glm::vec3(0.0f, 0.0f, -50.0f - segment_scale / 2.0f);
         cpc.p2 = glm::vec3(0.0f, 0.0f, -50.0f - segment_scale);
@@ -103,6 +104,7 @@ namespace ve
 
         for (uint32_t i = 1; i < segment_count; ++i)
         {
+            cpc.segment_idx++;
             cpc.indices_start_idx = i * index_count / segment_count;
             const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
             segment_planes.push_back(SegmentPlane{cpc.p2, normal});
@@ -154,7 +156,7 @@ namespace ve
         const vk::PipelineLayout& pipeline_layout = di.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, di.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[di.current_frame], {});
-        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .light_count = di.light_count, .normal_view = di.normal_view, .tex_view = di.tex_view};
+        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .light_count = di.light_count, .time = di.time, .normal_view = di.normal_view, .tex_view = di.tex_view};
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.drawIndexed(index_count, 1, render_index_start, 0, 0);
@@ -194,6 +196,7 @@ namespace ve
 
             // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
             // increment the idx at which the rendering starts by the same amount
+            cpc.segment_idx++;
             cpc.indices_start_idx += indices_per_segment;
             render_index_start += indices_per_segment;
             // reset indices; compute shader inserts data at the last segment of the region that will be rendered now

@@ -26,7 +26,7 @@ layout(push_constant) uniform PushConstant {
 void main() {
     gl_Position = mrd[pc.mvp_idx].mvp * vec4(pos, 1.0);
     frag_pos = vec3(mrd[pc.mvp_idx].m * vec4(pos, 1.0));
-    frag_normal = (vec4(normal, 1.0)).rgb;
+    frag_normal = normal;
     frag_color = color;
     frag_tex = tex;
 }
