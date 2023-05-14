@@ -10,6 +10,8 @@
 
 namespace ve
 {
+    constexpr uint32_t frames_in_flight = 2;
+
     enum class ShaderFlavor
     {
         Basic = 0,
@@ -46,12 +48,17 @@ namespace ve
         { return offsetof(PushConstants, mat_idx); }
     };
 
-    struct ComputePushConstants {
+    struct NewSegmentPushConstants {
         alignas(16) glm::vec3 p0;
         alignas(16) glm::vec3 p1;
         alignas(16) glm::vec3 p2;
         uint32_t indices_start_idx;
         uint32_t segment_idx;
+    };
+
+    struct FireflyMovePushConstants {
+        float time;
+        float time_diff;
     };
 
     struct DrawInfo {
@@ -61,7 +68,7 @@ namespace ve
         Camera& cam;
         float time_diff = 0.000001f;
         float time = 0.0f;
-		float frametime = 0.0f;
+        float frametime = 0.0f;
         int32_t current_scene = 0;
         uint32_t current_frame = 0;
         uint32_t light_count;
@@ -79,18 +86,18 @@ namespace ve
         glm::vec4 color;
         glm::vec2 tex;
 
-        static vk::VertexInputBindingDescription get_binding_description()
+        static std::vector<vk::VertexInputBindingDescription> get_binding_descriptions()
         {
             vk::VertexInputBindingDescription binding_description{};
             binding_description.binding = 0;
             binding_description.stride = sizeof(Vertex);
             binding_description.inputRate = vk::VertexInputRate::eVertex;
-            return binding_description;
+            return {binding_description};
         }
 
-        static std::array<vk::VertexInputAttributeDescription, 4> get_attribute_descriptions()
+        static std::vector<vk::VertexInputAttributeDescription> get_attribute_descriptions()
         {
-            std::array<vk::VertexInputAttributeDescription, 4> attribute_descriptions{};
+            std::vector<vk::VertexInputAttributeDescription> attribute_descriptions(4);
             attribute_descriptions[0].binding = 0;
             attribute_descriptions[0].location = 0;
             attribute_descriptions[0].format = vk::Format::eR32G32B32Sfloat;
@@ -110,6 +117,48 @@ namespace ve
             attribute_descriptions[3].location = 3;
             attribute_descriptions[3].format = vk::Format::eR32G32Sfloat;
             attribute_descriptions[3].offset = offsetof(Vertex, tex);
+
+            return attribute_descriptions;
+        }
+    };
+
+    struct FireflyVertex {
+        glm::vec3 pos;
+        glm::vec3 col;
+        glm::vec3 vel;
+        glm::vec3 acc;
+
+        static std::vector<vk::VertexInputBindingDescription> get_binding_descriptions()
+        {
+            vk::VertexInputBindingDescription binding_description{};
+            binding_description.binding = 0;
+            binding_description.stride = sizeof(Vertex);
+            binding_description.inputRate = vk::VertexInputRate::eVertex;
+            return {binding_description};
+        }
+
+        static std::vector<vk::VertexInputAttributeDescription> get_attribute_descriptions()
+        {
+            std::vector<vk::VertexInputAttributeDescription> attribute_descriptions(4);
+            attribute_descriptions[0].binding = 0;
+            attribute_descriptions[0].location = 0;
+            attribute_descriptions[0].format = vk::Format::eR32G32B32Sfloat;
+            attribute_descriptions[0].offset = offsetof(FireflyVertex, pos);
+
+            attribute_descriptions[1].binding = 0;
+            attribute_descriptions[1].location = 1;
+            attribute_descriptions[1].format = vk::Format::eR32G32B32Sfloat;
+            attribute_descriptions[1].offset = offsetof(FireflyVertex, col);
+
+            attribute_descriptions[2].binding = 0;
+            attribute_descriptions[2].location = 2;
+            attribute_descriptions[2].format = vk::Format::eR32G32B32Sfloat;
+            attribute_descriptions[2].offset = offsetof(FireflyVertex, vel);
+
+            attribute_descriptions[3].binding = 0;
+            attribute_descriptions[3].location = 3;
+            attribute_descriptions[3].format = vk::Format::eR32G32B32Sfloat;
+            attribute_descriptions[3].offset = offsetof(FireflyVertex, acc);
 
             return attribute_descriptions;
         }

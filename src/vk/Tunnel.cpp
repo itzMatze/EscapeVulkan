@@ -1,31 +1,19 @@
 #include "vk/Tunnel.hpp"
+#include "vk/TunnelObjects.hpp"
 
 namespace ve
 {
-    constexpr float segment_scale = 50.0f;
-    constexpr uint32_t segment_count = 16; // how many segments are in the tunnel (must be power of two)
-    static_assert((segment_count & (segment_count - 1)) == 0);
-    constexpr uint32_t samples_per_segment = 32; // how many sample rings one segment is made of
-    constexpr uint32_t vertices_per_sample = 360; // how many vertices are sampled in one sample ring
-    constexpr uint32_t vertex_count = segment_count * samples_per_segment * vertices_per_sample;
-    // two triangles per vertex on a sample (3 indices per triangle); every sample of a segment except the last one has triangles
-    constexpr uint32_t indices_per_segment = (samples_per_segment - 1) * vertices_per_sample * 6;
-    constexpr uint32_t index_count = indices_per_segment * segment_count;
-
-    Tunnel::Tunnel(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : render_dsh(vmc), compute_dsh(vmc), vmc(vmc), vcc(vcc), storage(storage), pipeline(vmc), mesh_view_pipeline(vmc), compute_pipeline(vmc), segment_planes(segment_count), rnd(0), dis(0.0f, 1.0f)
+    Tunnel::Tunnel(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : render_dsh(vmc), vmc(vmc), vcc(vcc), storage(storage), pipeline(vmc), mesh_view_pipeline(vmc)
     {
-        cpc.indices_start_idx = 0;
     }
 
     void Tunnel::self_destruct(bool full)
     {
         pipeline.self_destruct();
         mesh_view_pipeline.self_destruct();
-        compute_pipeline.self_destruct();
         if (full)
         {
             render_dsh.self_destruct();
-            compute_dsh.self_destruct();
             storage.destroy_buffer(vertex_buffer);
             storage.destroy_buffer(index_buffer);
             for (auto i : model_render_data_buffers) storage.destroy_buffer(i);
@@ -71,8 +59,6 @@ namespace ve
 
         render_dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         render_dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
-        compute_dsh.add_binding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
-        compute_dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
 
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
         for (uint32_t i = 0; i < parallel_units; ++i)
@@ -84,36 +70,10 @@ namespace ve
             render_dsh.new_set();
             render_dsh.reset_auto_apply_bindings();
 
-            compute_dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(index_buffer));
-            compute_dsh.apply_descriptor_to_new_sets(1, storage.get_buffer(vertex_buffer));
-            compute_dsh.new_set();
-            compute_dsh.reset_auto_apply_bindings();
         }
         render_dsh.construct();
-        compute_dsh.construct();
 
         construct_pipelines(render_pass);
-
-        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
-        cpc.segment_idx = 0;
-        cpc.p0 = glm::vec3(0.0f, 0.0f, -50.0f);
-        cpc.p1 = glm::vec3(0.0f, 0.0f, -50.0f - segment_scale / 2.0f);
-        cpc.p2 = glm::vec3(0.0f, 0.0f, -50.0f - segment_scale);
-        segment_planes.push_back(SegmentPlane{cpc.p0, glm::normalize(cpc.p1 - cpc.p0)});
-        compute(cb, 0);
-
-        for (uint32_t i = 1; i < segment_count; ++i)
-        {
-            cpc.segment_idx++;
-            cpc.indices_start_idx = i * index_count / segment_count;
-            const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
-            segment_planes.push_back(SegmentPlane{cpc.p2, normal});
-            cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
-            cpc.p0 = cpc.p2;
-            cpc.p2 = cpc.p0 + segment_scale * random_cosine(normal);
-            compute(cb, 0);
-        }
-        vcc.submit_compute(cb, true);
     }
 
     void Tunnel::construct_pipelines(const RenderPass& render_pass)
@@ -132,13 +92,6 @@ namespace ve
         pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill);
         mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine);
 
-        std::array<vk::SpecializationMapEntry, 2> compute_entries;
-        compute_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
-        compute_entries[1] = vk::SpecializationMapEntry(1, sizeof(uint32_t), sizeof(uint32_t));
-        std::array<uint32_t, 2> compute_entries_data{samples_per_segment, vertices_per_sample};
-        vk::SpecializationInfo compute_spec_info(compute_entries.size(), compute_entries.data(), compute_entries_data.size() * sizeof(uint32_t), compute_entries_data.data());
-
-        compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"tunnel.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info});
     }
 
     void Tunnel::reload_shaders(const RenderPass& render_pass)
@@ -147,7 +100,7 @@ namespace ve
         construct_pipelines(render_pass);
     }
 
-    void Tunnel::draw(vk::CommandBuffer& cb, DrawInfo& di)
+    void Tunnel::draw(vk::CommandBuffer& cb, DrawInfo& di, uint32_t render_index_start)
     {
         cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
         cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
@@ -160,69 +113,5 @@ namespace ve
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.drawIndexed(index_count, 1, render_index_start, 0, 0);
-    }
-
-    void Tunnel::compute(vk::CommandBuffer& cb, uint32_t current_frame)
-    {
-        cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[current_frame], {});
-        cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(ComputePushConstants), &cpc);
-        cb.dispatch((vertices_per_sample * samples_per_segment + 31) / 32, 1, 1);
-    }
-
-    glm::vec3 Tunnel::random_cosine(const glm::vec3& normal)
-    {
-        constexpr float cosine_weight = 20.0f;
-        float theta = std::acos(std::pow(1.0f - std::abs(dis(rnd)), 1.0f / (1.0f + cosine_weight)));
-        float phi = 2.0f * M_PIf * dis(rnd);
-        glm::vec3 up = abs(normal.z) < 0.999f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
-        glm::vec3 tangent = glm::normalize(glm::cross(up, normal));
-        glm::vec3 bitangent = glm::cross(normal, tangent);
-
-        glm::vec3 sample = glm::vec3(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta));
-        return glm::normalize(tangent * sample.x + bitangent * sample.y + normal * sample.z);
-    }
-
-    bool Tunnel::advance(const DrawInfo& di, DeviceTimer& timer)
-    {
-        if (glm::dot(glm::normalize(di.player_pos - segment_planes[2].pos), segment_planes[2].normal) > 0.0f)
-        {
-            // add new segment points
-            const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
-            segment_planes.push_back(SegmentPlane{cpc.p2, normal});
-            cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
-            cpc.p0 = cpc.p2;
-            cpc.p2 = cpc.p2 + segment_scale * random_cosine(normal);
-
-            // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
-            // increment the idx at which the rendering starts by the same amount
-            cpc.segment_idx++;
-            cpc.indices_start_idx += indices_per_segment;
-            render_index_start += indices_per_segment;
-            // reset indices; compute shader inserts data at the last segment of the region that will be rendered now
-            // indices need to be resetted if compute shader would write outside of the buffer or if the render region goes beyond the buffer
-            // these 2 conditions are always met at the same time (as compute shader writes last rendered segment)
-            if (cpc.indices_start_idx >= index_count * 2)
-            {
-                cpc.indices_start_idx = index_count - indices_per_segment;
-                render_index_start = 0;
-            }
-
-            vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[di.current_frame]);
-            timer.reset(cb, {DeviceTimer::COMPUTE_TUNNEL_ADVANCE});
-            timer.start(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
-            compute(cb, di.current_frame);
-            // write copy of data to the first half of the buffer if idx is in the past half of the data
-            if (cpc.indices_start_idx > index_count)
-            {
-                cpc.indices_start_idx -= (index_count + indices_per_segment);
-                compute(cb, di.current_frame);
-                cpc.indices_start_idx += (index_count + indices_per_segment);
-            }
-            timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
-            cb.end();
-            return true;
-        }
-        return false;
     }
 } // namespace ve
