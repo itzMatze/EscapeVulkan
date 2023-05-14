@@ -15,6 +15,7 @@ public:
 
     Camera(float fov, float width, float height);
     void updateVP();
+    glm::mat4 getV();
     glm::mat4 getVP();
     void translate(glm::vec3 v);
     void onMouseMove(float xRel, float yRel);

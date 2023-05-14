@@ -1,0 +1,74 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive: require
+#include "common.glsl"
+
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+
+layout(constant_id = 0) const uint SAMPLES_PER_SEGMENT = 1;
+layout(constant_id = 1) const uint VERTICES_PER_SAMPLE = 1;
+layout(constant_id = 2) const uint FIREFLIES_COUNT = 1;
+
+layout(binding = 0) buffer in_vertex_buffer {
+    AlignedFireflyVertex in_vertices[];
+};
+
+layout(binding = 1) buffer out_vertex_buffer {
+    AlignedFireflyVertex out_vertices[];
+};
+
+layout(push_constant) uniform PushConstant {
+    FireflyMovePushConstants pc;
+};
+
+uint rng_state;
+
+uint PCGHashState()
+{
+    rng_state = rng_state * 747796405u + 2891336453u;
+    uint state = rng_state;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+uint PCGHash(uint seed)
+{
+    uint state = seed * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+float pcg_random_state()
+{
+    return ((float(PCGHashState()) / float(0xFFFFFFFFU)) - 0.5) * 2.0;
+}
+
+float pcg_random_state_clipped()
+{
+    return cos(PI * PCGHashState()) * (((float(PCGHashState()) / float(0xFFFFFFFFU)) * 0.5) + 0.5);
+}
+
+float pcg_random_clipped(uint seed)
+{
+    return cos(PI * PCGHashState()) * (((float(PCGHash(seed)) / float(0xFFFFFFFFU)) * 0.5) + 0.5);
+}
+
+void main()
+{
+    if (gl_GlobalInvocationID.x >= FIREFLIES_COUNT) return;
+    // different state every 2 seconds and for every firefly
+    rng_state = uint(pc.time / 2000.0 + gl_GlobalInvocationID.x);
+    // seed is used to have different random number in every frame
+    uint seed = uint(gl_GlobalInvocationID.x + FIREFLIES_COUNT * pc.time * pc.time_diff);
+
+    FireflyVertex v = unpack_firefly_vertex(in_vertices[gl_GlobalInvocationID.x]);
+
+    // set random acceleration every 2 seconds
+    v.acc = vec3(pcg_random_state_clipped() * pcg_random_state(), pcg_random_state_clipped() * pcg_random_state(), pcg_random_state_clipped() * pcg_random_state());
+    v.vel += v.acc * pc.time_diff;
+    // reduce applied velocity by random value to simulate insect like behavior
+    v.pos += pcg_random_clipped(seed) * v.vel * pc.time_diff;
+    v.col = vec3(pcg_random_state() + 1.0, pcg_random_state() + 1.0, pcg_random_state() + 1.0);
+
+    out_vertices[gl_GlobalInvocationID.x] = pack_firefly_vertex(v);
+}

@@ -5,8 +5,10 @@
 
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 
-layout(constant_id = 0) const uint SAMPLES_PER_SEGMENT = 1;
-layout(constant_id = 1) const uint VERTICES_PER_SAMPLE = 1;
+layout(constant_id = 0) const uint SEGMENT_COUNT = 1;
+layout(constant_id = 1) const uint SAMPLES_PER_SEGMENT = 1;
+layout(constant_id = 2) const uint VERTICES_PER_SAMPLE = 1;
+layout(constant_id = 3) const uint FIREFLIES_PER_SEGMENT = 1;
 
 layout(binding = 0) buffer index_buffer {
     uint indices[];
@@ -16,9 +18,18 @@ layout(binding = 1) buffer vertex_buffer {
     AlignedVertex vertices[];
 };
 
-layout(push_constant) uniform PushConstant {
-    ComputePushConstants pc;
+layout(binding = 2) buffer firefly_vertex_buffer {
+    AlignedFireflyVertex firefly_vertices[];
 };
+
+layout(push_constant) uniform PushConstant {
+    NewSegmentPushConstants pc;
+};
+
+float random(vec2 st){
+    st = vec2(dot(st,vec2(127.1, 311.7)), dot(st,vec2(269.5, 183.3)));
+    return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
+}
 
 // rotate v around k by angle degrees
 vec3 rotate(vec3 v, vec3 k, float angle)
@@ -31,26 +42,40 @@ vec3 rotate(vec3 v, vec3 k, float angle)
 
 void main()
 {
-    if (gl_GlobalInvocationID.x >= SAMPLES_PER_SEGMENT * VERTICES_PER_SAMPLE) return;
-    // what circle of vertices this thread belongs to
-    uint sample_circle_id = gl_GlobalInvocationID.x / VERTICES_PER_SAMPLE;
-    // what vertex in the circle this thread belongs to
-    uint vertex_id = gl_GlobalInvocationID.x % VERTICES_PER_SAMPLE;
-    // interpolate over bézier points to get position and normal of sample
-    float t = float(sample_circle_id) / float(SAMPLES_PER_SEGMENT - 1);
-    vec3 sample_pos = pow(1 - t, 2) * pc.p0 + (2 - 2 * t) * t * pc.p1 + pow(t, 2) * pc.p2;
-    // normal is given by derivative
-    vec3 plane_normal = normalize((2 - 2 * t) * (pc.p1 - pc.p0) + 2 * t * (pc.p2 - pc.p1));
-    // calculate vector that lies in the plane of the circle
-    vec3 plane_vector = abs(dot(plane_normal, vec3(1.0, 0.0, 0.0))) >= 0.999999 ? cross(plane_normal, vec3(0.0, 0.0, 1.0)) : cross(plane_normal, vec3(1.0, 0.0, 0.0));
-    // vector from center of circle to vertex position
-    vec3 vertex_pos = normalize(rotate(plane_vector, plane_normal, (360.0 / VERTICES_PER_SAMPLE) * vertex_id));
-    vec3 normal = -vertex_pos;
-    vertex_pos *= 20.0;
-    // actual position of vertex
-    vertex_pos += sample_pos;
+    if (gl_GlobalInvocationID.x < SAMPLES_PER_SEGMENT * VERTICES_PER_SAMPLE)
+    {
+        // what circle of vertices this thread belongs to
+        uint sample_circle_id = gl_GlobalInvocationID.x / VERTICES_PER_SAMPLE;
+        // what vertex in the circle this thread belongs to
+        uint vertex_id = gl_GlobalInvocationID.x % VERTICES_PER_SAMPLE;
+        // interpolate over bézier points to get position and normal of sample
+        float t = float(sample_circle_id) / float(SAMPLES_PER_SEGMENT - 1);
+        vec3 sample_pos = pow(1 - t, 2) * pc.p0 + (2 - 2 * t) * t * pc.p1 + pow(t, 2) * pc.p2;
+        // normal is given by derivative
+        vec3 plane_normal = normalize((2 - 2 * t) * (pc.p1 - pc.p0) + 2 * t * (pc.p2 - pc.p1));
+        // calculate vector that lies in the plane of the circle
+        vec3 plane_vector = abs(dot(plane_normal, vec3(1.0, 0.0, 0.0))) >= 0.999999 ? cross(plane_normal, normalize(vec3(0.99, 0.0, 0.01))) : cross(plane_normal, vec3(1.0, 0.0, 0.0));
+        // vector from center of circle to vertex position
+        vec3 vertex_pos = normalize(rotate(plane_vector, plane_normal, (360.0 / VERTICES_PER_SAMPLE) * vertex_id));
+        vec3 normal = -vertex_pos;
+        vertex_pos *= 20.0;
+        // actual position of vertex
+        vertex_pos += sample_pos;
 
-    vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].pos_normal_x = vec4(vertex_pos, normal.x);
-    vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].normal_yz_color_rg = vec4(normal.yz, 0.0, 0.0);
-    vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].color_ba_tex = vec4(0.8, 1.0, abs((pc.segment_idx % 2) - float(sample_circle_id) / float(SAMPLES_PER_SEGMENT - 1)), abs((float(vertex_id) / float(VERTICES_PER_SAMPLE)) * 2.0 - 1.0));
+        vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].pos_normal_x = vec4(vertex_pos, normal.x);
+        vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].normal_yz_color_rg = vec4(normal.yz, 0.0, 0.0);
+        vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].color_ba_tex = vec4(0.8, 1.0, abs((pc.segment_idx % 2) - float(sample_circle_id) / float(SAMPLES_PER_SEGMENT - 1)), abs((float(vertex_id) / float(VERTICES_PER_SAMPLE)) * 2.0 - 1.0));
+    }
+    if (gl_GlobalInvocationID.x < FIREFLIES_PER_SEGMENT)
+    {
+        float t = random(vec2(gl_GlobalInvocationID.x, pc.segment_idx));
+        uint idx = (pc.segment_idx % SEGMENT_COUNT) * FIREFLIES_PER_SEGMENT + gl_GlobalInvocationID.x;
+        // spawn lights in the middle of the tunnel by using a random position on the bézier curve
+        FireflyVertex v;
+        v.pos = pow(1 - t, 2) * pc.p0 + (2 - 2 * t) * t * pc.p1 + pow(t, 2) * pc.p2;
+        v.col = vec3(1.0, 0.0, 1.0);
+        v.vel = vec3(0.0, 0.0, 0.0);
+        v.acc = vec3(0.0, 0.0, 0.0);
+        firefly_vertices[idx] = pack_firefly_vertex(v);
+    }
 }

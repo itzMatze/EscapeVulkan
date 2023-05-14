@@ -42,6 +42,7 @@ namespace ve
             RENDERING_UI = 2,
             RENDERING_TUNNEL = 3,
             COMPUTE_TUNNEL_ADVANCE = 4,
+            FIREFLY_MOVE_STEP = 5,
             TIMER_COUNT
         };
 
@@ -71,7 +72,7 @@ namespace ve
             // prevent repeated reading of the same timestamp
             if (result_fetched[i]) return -1.0;
             result_fetched[i] = true;
-            std::array<uint64_t, 2> results; 
+            std::array<uint64_t, 2> results;
             vk::Result result = vmc.logical_device.get().getQueryPoolResults(qp, i * 2, 2, results.size() * sizeof(uint64_t), results.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64);
             return (result == vk::Result::eSuccess) ? (double(timestamp_period * (results[1] - results[0])) / double(std::ratio_divide<std::nano, Precision>::den)) : -1.0;
         }

@@ -48,6 +48,11 @@ glm::mat4 Camera::getVP()
     return is_tracking_camera ? projection * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * view : vp;
 }
 
+glm::mat4 Camera::getV()
+{
+    return is_tracking_camera ? glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * view : view;
+}
+
 void Camera::translate(glm::vec3 amount)
 {
     position += amount;

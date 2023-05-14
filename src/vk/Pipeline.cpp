@@ -15,7 +15,7 @@ namespace ve
         vmc.logical_device.get().destroyPipelineLayout(pipeline_layout);
     }
 
-    void Pipeline::construct(const RenderPass& render_pass, vk::DescriptorSetLayout set_layout, const std::vector<ShaderInfo>& shader_infos, vk::PolygonMode polygon_mode)
+    void Pipeline::construct(const RenderPass& render_pass, vk::DescriptorSetLayout set_layout, const std::vector<ShaderInfo>& shader_infos, vk::PolygonMode polygon_mode, const std::vector<vk::VertexInputBindingDescription>& binding_descriptions, const std::vector<vk::VertexInputAttributeDescription>& attribute_description, const vk::PrimitiveTopology& primitive_topology)
     {
         std::vector<Shader> shaders;
         std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
@@ -34,19 +34,16 @@ namespace ve
         pdsci.dynamicStateCount = dynamic_states.size();
         pdsci.pDynamicStates = dynamic_states.data();
 
-        auto binding_description = Vertex::get_binding_description();
-        auto attribute_descriptions = Vertex::get_attribute_descriptions();
-
         vk::PipelineVertexInputStateCreateInfo pvisci{};
         pvisci.sType = vk::StructureType::ePipelineVertexInputStateCreateInfo;
-        pvisci.vertexBindingDescriptionCount = 1;
-        pvisci.pVertexBindingDescriptions = &binding_description;
-        pvisci.vertexAttributeDescriptionCount = attribute_descriptions.size();
-        pvisci.pVertexAttributeDescriptions = attribute_descriptions.data();
+        pvisci.vertexBindingDescriptionCount = binding_descriptions.size();
+        pvisci.pVertexBindingDescriptions = binding_descriptions.data();
+        pvisci.vertexAttributeDescriptionCount = attribute_description.size();
+        pvisci.pVertexAttributeDescriptions = attribute_description.data();
 
         vk::PipelineInputAssemblyStateCreateInfo piasci{};
         piasci.sType = vk::StructureType::ePipelineInputAssemblyStateCreateInfo;
-        piasci.topology = vk::PrimitiveTopology::eTriangleList;
+        piasci.topology = primitive_topology;
         piasci.primitiveRestartEnable = VK_FALSE;
 
         /*
@@ -167,13 +164,13 @@ namespace ve
         for (auto& shader : shaders) shader.self_destruct();
     }
 
-    void Pipeline::construct(vk::DescriptorSetLayout set_layout, const ShaderInfo& shader_info)
+    void Pipeline::construct(vk::DescriptorSetLayout set_layout, const ShaderInfo& shader_info, uint32_t push_constant_byte_size)
     {
         Shader shader(vmc.logical_device.get(), shader_info.shader_name, vk::ShaderStageFlagBits::eCompute);
 
         vk::PushConstantRange pcr;
         pcr.offset = 0;
-        pcr.size = sizeof(ComputePushConstants);
+        pcr.size = push_constant_byte_size;
         pcr.stageFlags = vk::ShaderStageFlagBits::eCompute;
 
         vk::PipelineLayoutCreateInfo plci{};
