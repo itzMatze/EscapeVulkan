@@ -28,7 +28,7 @@ namespace ve
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
         // move tunnel one segment forward if player enters the n-th segment
-        bool advance(const DrawInfo& di, DeviceTimer& timer);
+        void advance(const DrawInfo& di, DeviceTimer& timer);
     private:
         struct SegmentPlane
         {

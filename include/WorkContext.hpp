@@ -44,6 +44,6 @@ namespace ve
         float total_time = 0.0f;
 
         void record_graphics_command_buffer(uint32_t image_idx, DrawInfo& di);
-        void submit(uint32_t image_idx, DrawInfo& di, bool submit_tunnel_compute);
+        void submit(uint32_t image_idx, DrawInfo& di);
     };
 } // namespace ve

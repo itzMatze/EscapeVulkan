@@ -15,7 +15,7 @@ namespace ve
         void construct(const RenderPass& render_pass, uint32_t parallel_units);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
-        void move_step(const DrawInfo& di, DeviceTimer& timer);
+        void move_step(vk::CommandBuffer& cb, const DrawInfo& di, DeviceTimer& timer);
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
@@ -27,7 +27,7 @@ namespace ve
         std::vector<uint32_t> model_render_data_buffers;
         Pipeline pipeline;
         Pipeline compute_pipeline;
-
+        
         void construct_pipelines(const RenderPass& render_pass);
     };
 } // namespace ve

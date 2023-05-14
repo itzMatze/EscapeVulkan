@@ -24,8 +24,8 @@ namespace ve
     void Fireflies::construct(const RenderPass& render_pass, uint32_t parallel_units)
     {
         std::vector<FireflyVertex> vertices(firefly_count);
-        vertex_buffers.push_back(storage.add_named_buffer(std::string("firefly_vertices_0"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
-        vertex_buffers.push_back(storage.add_named_buffer(std::string("firefly_vertices_1"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
+        vertex_buffers.push_back(storage.add_named_buffer(std::string("firefly_vertices_0"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute));
+        vertex_buffers.push_back(storage.add_named_buffer(std::string("firefly_vertices_1"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute));
 
         render_dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         compute_dsh.add_binding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
@@ -93,9 +93,8 @@ namespace ve
         cb.draw(firefly_count, 1, 0, 0);
     }
 
-    void Fireflies::move_step(const DrawInfo& di, DeviceTimer& timer)
+    void Fireflies::move_step(vk::CommandBuffer& cb, const DrawInfo& di, DeviceTimer& timer)
     {
-        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[di.current_frame + frames_in_flight]);
         timer.reset(cb, {DeviceTimer::FIREFLY_MOVE_STEP});
         timer.start(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllCommands);
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
@@ -104,6 +103,5 @@ namespace ve
         cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(FireflyMovePushConstants), &fmpc);
         cb.dispatch((firefly_count + 31) / 32, 1, 1);
         timer.stop(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllCommands);
-        cb.end();
     }
 } // namespace ve

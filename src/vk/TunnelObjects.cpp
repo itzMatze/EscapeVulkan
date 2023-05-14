@@ -110,9 +110,10 @@ namespace ve
         return glm::normalize(tangent * sample.x + bitangent * sample.y + normal * sample.z);
     }
 
-    bool TunnelObjects::advance(const DrawInfo& di, DeviceTimer& timer)
+    void TunnelObjects::advance(const DrawInfo& di, DeviceTimer& timer)
     {
-        fireflies.move_step(di, timer);
+        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[di.current_frame]);
+        fireflies.move_step(cb, di, timer);
         if (glm::dot(glm::normalize(di.player_pos - segment_planes[2].pos), segment_planes[2].normal) > 0.0f)
         {
             // add new segment points
@@ -136,9 +137,11 @@ namespace ve
                 tunnel_render_index_start = 0;
             }
 
-            vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[di.current_frame]);
             timer.reset(cb, {DeviceTimer::COMPUTE_TUNNEL_ADVANCE});
             timer.start(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
+            Buffer& buffer = storage.get_buffer_by_name("firefly_vertices_" + std::to_string(di.current_frame));
+            vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
+            cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {buffer_memory_barrier}, {});
             compute_new_segment(cb, di.current_frame);
             // write copy of data to the first half of the buffer if idx is in the past half of the data
             if (cpc.indices_start_idx > index_count)
@@ -148,9 +151,7 @@ namespace ve
                 cpc.indices_start_idx += (index_count + indices_per_segment);
             }
             timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
-            cb.end();
-            return true;
         }
-        return false;
+        cb.end();
     }
 }

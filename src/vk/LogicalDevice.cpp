@@ -25,18 +25,25 @@ namespace ve
             qci_s.push_back(qci);
         }
 
-        vk::PhysicalDeviceFeatures device_features{};
-        device_features.samplerAnisotropy = VK_TRUE;
-        device_features.sampleRateShading = VK_TRUE;
-        device_features.fillModeNonSolid = VK_TRUE;
-        device_features.wideLines = VK_TRUE;
+        vk::PhysicalDeviceFeatures core_device_features{};
+        core_device_features.samplerAnisotropy = VK_TRUE;
+        core_device_features.sampleRateShading = VK_TRUE;
+        core_device_features.fillModeNonSolid = VK_TRUE;
+        core_device_features.wideLines = VK_TRUE;
+
+        vk::PhysicalDeviceVulkan13Features device_features_13;
+        device_features_13.synchronization2 = VK_TRUE;
+
+        vk::PhysicalDeviceFeatures2 device_features;
+        device_features.features = core_device_features;
+        device_features.pNext = &device_features_13;
         vk::DeviceCreateInfo dci{};
         dci.sType = vk::StructureType::eDeviceCreateInfo;
+        dci.pNext = &device_features;
         dci.queueCreateInfoCount = qci_s.size();
         dci.pQueueCreateInfos = qci_s.data();
         dci.enabledExtensionCount = p_device.get_extensions().size();
         dci.ppEnabledExtensionNames = p_device.get_extensions().data();
-        dci.pEnabledFeatures = &device_features;
 
         device = p_device.get().createDevice(dci);
         queues.emplace(QueueIndex::Graphics, device.getQueue(queue_family_indices.graphics, 0));

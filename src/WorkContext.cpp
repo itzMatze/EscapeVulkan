@@ -10,7 +10,7 @@ namespace ve
     WorkContext::WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), storage(vmc, vcc), swapchain(vmc), scene(vmc, vcc, storage), ui(vmc, swapchain.get_render_pass(), frames_in_flight), tunnel(vmc, vcc, storage)
     {
         vcc.add_graphics_buffers(frames_in_flight);
-        vcc.add_compute_buffers(frames_in_flight * 2);
+        vcc.add_compute_buffers(frames_in_flight);
         vcc.add_transfer_buffers(1);
 
         ui.upload_font_textures(vcc);
@@ -81,8 +81,8 @@ namespace ve
             di.save_screenshot = false;
         }
         record_graphics_command_buffer(image_idx.value, di);
-        bool advance_step_required = tunnel.advance(di, timers[di.current_frame]);
-        submit(image_idx.value, di, advance_step_required);
+        tunnel.advance(di, timers[di.current_frame]);
+        submit(image_idx.value, di);
         di.current_frame = (di.current_frame + 1) % frames_in_flight;
     }
 
@@ -144,48 +144,23 @@ namespace ve
         cb.end();
     }
 
-    void WorkContext::submit(uint32_t image_idx, DrawInfo& di, bool submit_tunnel_compute)
+    void WorkContext::submit(uint32_t image_idx, DrawInfo& di)
     {
-        vk::SubmitInfo firefly_compute_si{};
-        firefly_compute_si.sType = vk::StructureType::eSubmitInfo;
-        firefly_compute_si.waitSemaphoreCount = 0;
-        firefly_compute_si.commandBufferCount = 1;
-        firefly_compute_si.pCommandBuffers = &vcc.compute_cb[di.current_frame + frames_in_flight];
-        firefly_compute_si.signalSemaphoreCount = 1;
-        firefly_compute_si.pSignalSemaphores = &syncs[di.current_frame].get_semaphore(Synchronization::S_FIREFLY_MOVE_FINISHED);
-        vmc.get_compute_queue().submit(firefly_compute_si);
-
-        if (submit_tunnel_compute)
-        {
-            std::vector<vk::PipelineStageFlags> wait_stages;
-            wait_stages.push_back(vk::PipelineStageFlagBits::eComputeShader);
-            std::vector<vk::Semaphore> wait_semaphores;
-            wait_semaphores.push_back(syncs[di.current_frame].get_semaphore(Synchronization::S_FIREFLY_MOVE_FINISHED));
-            vk::SubmitInfo compute_si{};
-            compute_si.sType = vk::StructureType::eSubmitInfo;
-            compute_si.waitSemaphoreCount = wait_semaphores.size();
-            compute_si.pWaitSemaphores = wait_semaphores.data();
-            compute_si.pWaitDstStageMask = wait_stages.data();
-            compute_si.commandBufferCount = 1;
-            compute_si.pCommandBuffers = &vcc.compute_cb[di.current_frame];
-            compute_si.signalSemaphoreCount = 1;
-            compute_si.pSignalSemaphores = &syncs[di.current_frame].get_semaphore(Synchronization::S_TUNNEL_ADVANCE_FINISHED);
-            vmc.get_compute_queue().submit(compute_si);
-        }
+        vk::SubmitInfo tunnel_firefly_compute_si{};
+        tunnel_firefly_compute_si.sType = vk::StructureType::eSubmitInfo;
+        tunnel_firefly_compute_si.waitSemaphoreCount = 0;
+        tunnel_firefly_compute_si.commandBufferCount = 1;
+        tunnel_firefly_compute_si.pCommandBuffers = &vcc.compute_cb[di.current_frame];
+        tunnel_firefly_compute_si.signalSemaphoreCount = 1;
+        tunnel_firefly_compute_si.pSignalSemaphores = &syncs[di.current_frame].get_semaphore(Synchronization::S_FIREFLY_MOVE_TUNNEL_ADVANCE_FINISHED);
+        vmc.get_compute_queue().submit(tunnel_firefly_compute_si);
 
         std::vector<vk::PipelineStageFlags> wait_stages;
         wait_stages.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
         std::vector<vk::Semaphore> render_wait_semaphores;
         render_wait_semaphores.push_back(syncs[di.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
         wait_stages.push_back(vk::PipelineStageFlagBits::eVertexInput);
-        if (submit_tunnel_compute)
-        {
-            render_wait_semaphores.push_back(syncs[di.current_frame].get_semaphore(Synchronization::S_TUNNEL_ADVANCE_FINISHED));
-        }
-        else
-        {
-            render_wait_semaphores.push_back(syncs[di.current_frame].get_semaphore(Synchronization::S_FIREFLY_MOVE_FINISHED));
-        }
+        render_wait_semaphores.push_back(syncs[di.current_frame].get_semaphore(Synchronization::S_FIREFLY_MOVE_TUNNEL_ADVANCE_FINISHED));
         vk::SubmitInfo render_si{};
         render_si.sType = vk::StructureType::eSubmitInfo;
         render_si.waitSemaphoreCount = render_wait_semaphores.size();
