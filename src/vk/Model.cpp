@@ -35,7 +35,7 @@ namespace ve
                 int texture_idx = mat.values.at(name).TextureIndex();
                 if (texture_indices[texture_idx] > -1) return texture_indices[texture_idx];
                 const tinygltf::Texture& tex = model.textures[texture_idx];
-                texture_indices[texture_idx] = storage.add_image(model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true, base_mip_level, std::vector<uint32_t>{vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics});
+                texture_indices[texture_idx] = storage.add_image(model.images[tex.source].image.data(), model.images[tex.source].width, model.images[tex.source].height, true, base_mip_level, std::vector<uint32_t>{vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics}, vk::ImageUsageFlagBits::eSampled);
                 std::cout << model.images[tex.source].width << ";" << model.images[tex.source].height << std::endl;
                 return texture_indices[texture_idx];
             };
@@ -290,7 +290,7 @@ namespace ve
             Material m;
             if (model.contains("base_texture"))
             {
-                texture_indices.emplace_back(storage.add_image(std::string("../assets/textures/") + std::string(model.value("base_texture", "")), true, 0, std::vector<uint32_t>{vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics}));
+                texture_indices.emplace_back(storage.add_image(std::string("../assets/textures/") + std::string(model.value("base_texture", "")), true, 0, std::vector<uint32_t>{vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics}, vk::ImageUsageFlagBits::eSampled));
                 m.base_texture = texture_indices.back();
             }
             model_data.materials.push_back(m);

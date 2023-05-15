@@ -11,17 +11,18 @@ namespace ve
     {
         pipeline.self_destruct();
         mesh_view_pipeline.self_destruct();
+        render_dsh.self_destruct();
+        storage.destroy_image(noise_textures);
+        for (auto i : model_render_data_buffers) storage.destroy_buffer(i);
+        model_render_data_buffers.clear();
         if (full)
         {
-            render_dsh.self_destruct();
             storage.destroy_buffer(vertex_buffer);
             storage.destroy_buffer(index_buffer);
-            for (auto i : model_render_data_buffers) storage.destroy_buffer(i);
-            model_render_data_buffers.clear();
         }
     }
 
-    void Tunnel::construct(const RenderPass& render_pass, uint32_t parallel_units)
+    void Tunnel::construct(const RenderPass& render_pass)
     {
         // double space is needed to enable that new vertices can replace old ones as the tunnel continuously moves forward
         std::vector<Vertex> vertices(vertex_count * 2);
@@ -57,27 +58,30 @@ namespace ve
         vertex_buffer = storage.add_named_buffer(std::string("tunnel_vertices"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         index_buffer = storage.add_named_buffer(std::string("tunnel_indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
 
-        render_dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
-        render_dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
-
-        // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
-        for (uint32_t i = 0; i < parallel_units; ++i)
-        {
-            model_render_data_buffers.push_back(storage.add_buffer(std::vector<ModelRenderData>{mrd}, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
-
-            render_dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
-            render_dsh.apply_descriptor_to_new_sets(4, storage.get_buffer_by_name("spaceship_lights"));
-            render_dsh.new_set();
-            render_dsh.reset_auto_apply_bindings();
-
-        }
-        render_dsh.construct();
-
         construct_pipelines(render_pass);
     }
 
     void Tunnel::construct_pipelines(const RenderPass& render_pass)
     {
+        create_noise_textures();
+
+        render_dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
+        render_dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
+
+        // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
+        for (uint32_t i = 0; i < frames_in_flight; ++i)
+        {
+            model_render_data_buffers.push_back(storage.add_buffer(std::vector<ModelRenderData>{mrd}, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
+
+            render_dsh.new_set();
+            render_dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
+            render_dsh.add_descriptor(1, storage.get_image(noise_textures));
+            render_dsh.add_descriptor(4, storage.get_buffer_by_name("spaceship_lights"));
+
+        }
+        render_dsh.construct();
+
         vk::SpecializationMapEntry uniform_buffer_size_entry(0, 0, sizeof(uint32_t));
         uint32_t uniform_buffer_size = 1;
         vk::SpecializationInfo render_spec_info(1, &uniform_buffer_size_entry, sizeof(uint32_t), &uniform_buffer_size);
@@ -91,7 +95,6 @@ namespace ve
 
         pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill);
         mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine);
-
     }
 
     void Tunnel::reload_shaders(const RenderPass& render_pass)
@@ -113,5 +116,30 @@ namespace ve
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.drawIndexed(index_count, 1, render_index_start, 0, 0);
+    }
+
+    void Tunnel::create_noise_textures()
+    {
+        constexpr uint32_t noise_texture_dim = 2048;
+        DescriptorSetHandler pre_process_dsh(vmc);
+        pre_process_dsh.add_binding(0, vk::DescriptorType::eStorageImage, vk::ShaderStageFlagBits::eCompute);
+        std::vector<std::vector<unsigned char>> texture_data;
+        for (uint32_t i = 0; i < 2; ++i) texture_data.push_back(std::vector<unsigned char>(noise_texture_dim * noise_texture_dim * 4, 0));
+        noise_textures = storage.add_named_image(std::string("noise_textures"), texture_data, noise_texture_dim, noise_texture_dim, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer, vmc.queue_family_indices.compute}, vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage);
+        storage.get_image(noise_textures).transition_image_layout(vcc, vk::ImageLayout::eGeneral, vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eNone);
+        pre_process_dsh.new_set();
+        pre_process_dsh.add_descriptor(0, storage.get_image(noise_textures));
+        pre_process_dsh.construct();
+
+        Pipeline pre_process_pipeline(vmc);
+        pre_process_pipeline.construct(pre_process_dsh.get_layouts()[0], ShaderInfo{"create_noise_textures.comp", vk::ShaderStageFlagBits::eCompute}, 0);
+        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
+        cb.bindPipeline(vk::PipelineBindPoint::eCompute, pre_process_pipeline.get());
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pre_process_pipeline.get_layout(), 0, pre_process_dsh.get_sets()[0], {});
+        cb.dispatch(noise_texture_dim / 32, noise_texture_dim / 32, 1);
+        vcc.submit_compute(cb, true);
+        storage.get_image(noise_textures).transition_image_layout(vcc, vk::ImageLayout::eShaderReadOnlyOptimal, vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eFragmentShader, vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eShaderRead);
+        pre_process_dsh.self_destruct();
+        pre_process_pipeline.self_destruct();
     }
 } // namespace ve

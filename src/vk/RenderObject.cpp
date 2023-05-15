@@ -21,11 +21,6 @@ namespace ve
         meshes.insert(meshes.end(), mesh_list.begin(), mesh_list.end());
     }
 
-    void RenderObject::add_bindings()
-    {
-        dsh.new_set();
-    }
-
     void RenderObject::construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_infos, bool reload)
     {
         if (meshes.empty()) return;

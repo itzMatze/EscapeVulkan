@@ -17,30 +17,30 @@ namespace ve
     {
     public:
         // used to create texture from raw data
-        Image(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const unsigned char* data, uint32_t width, uint32_t height, bool use_mip_maps, uint32_t base_mip_map_lvl, const std::vector<uint32_t>& queue_family_indices) : vmc(vmc), w(width), h(height), c(4), byte_size(width * height * 4), mip_levels(use_mip_maps ? std::floor(std::log2(std::max(w, h))) + 1 : 1), layer_count(1)
+        Image(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const unsigned char* data, uint32_t width, uint32_t height, bool use_mip_maps, uint32_t base_mip_map_lvl, const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage_flags) : vmc(vmc), w(width), h(height), c(4), byte_size(width * height * 4), mip_levels(use_mip_maps ? std::floor(std::log2(std::max(w, h))) + 1 : 1), layer_count(1)
         {
-            create_image_from_data(data, vcc, queue_family_indices, base_mip_map_lvl);
+            create_image_from_data(data, vcc, queue_family_indices, base_mip_map_lvl, usage_flags);
         }
 
         // used to create texture array from raw data
-        Image(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<std::vector<unsigned char>>& data, uint32_t width, uint32_t height, bool use_mip_maps, uint32_t base_mip_map_lvl, const std::vector<uint32_t>& queue_family_indices) : vmc(vmc), w(width), h(height), c(4), byte_size(width * height * 4 * data.size()), mip_levels(use_mip_maps ? std::floor(std::log2(std::max(w, h))) + 1 : 1), layer_count(data.size())
+        Image(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<std::vector<unsigned char>>& data, uint32_t width, uint32_t height, bool use_mip_maps, uint32_t base_mip_map_lvl, const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage_flags) : vmc(vmc), w(width), h(height), c(4), byte_size(width * height * 4 * data.size()), mip_levels(use_mip_maps ? std::floor(std::log2(std::max(w, h))) + 1 : 1), layer_count(data.size())
         {
             std::vector<unsigned char> copy_data;
             for (const auto& i : data)
             {
                 for (const auto& j : i) copy_data.push_back(j);
             }
-            create_image_from_data(copy_data.data(), vcc, queue_family_indices, base_mip_map_lvl);
+            create_image_from_data(copy_data.data(), vcc, queue_family_indices, base_mip_map_lvl, usage_flags);
         }
 
         // used to create texture from file
-        Image(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& filename, bool use_mip_maps, uint32_t base_mip_map_lvl, const std::vector<uint32_t>& queue_family_indices) : vmc(vmc), layer_count(1)
+        Image(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::string& filename, bool use_mip_maps, uint32_t base_mip_map_lvl, const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage_flags) : vmc(vmc), layer_count(1)
         {
             stbi_uc* pixels = stbi_load(filename.c_str(), &w, &h, &c, STBI_rgb_alpha);
             VE_ASSERT(pixels, "Failed to load image \"{}\"!", filename);
             byte_size = w * h * 4;
             mip_levels = use_mip_maps ? std::floor(std::log2(std::max(w, h))) + 1 : 1;
-            create_image_from_data(pixels, vcc, queue_family_indices, base_mip_map_lvl);
+            create_image_from_data(pixels, vcc, queue_family_indices, base_mip_map_lvl, usage_flags);
             stbi_image_free(pixels);
             pixels = nullptr;
         }
@@ -58,6 +58,7 @@ namespace ve
         void save_to_file();
         vk::DeviceSize get_byte_size() const;
         uint32_t get_layer_count() const;
+        vk::ImageLayout get_layout() const;
         vk::Image& get_image();
         vk::ImageView& get_view();
         vk::Sampler& get_sampler();
@@ -76,7 +77,7 @@ namespace ve
         vk::Sampler sampler;
 
         static std::pair<vk::Image, VmaAllocation> create_image(const std::vector<uint32_t>& queue_family_indices, vk::ImageUsageFlags usage, vk::SampleCountFlagBits sample_count, bool use_mip_levels, vk::Format format, vk::Extent3D extent, uint32_t layer_count, const VmaAllocator& va, bool host_visible = false);
-        void create_image_from_data(const unsigned char* data, VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, uint32_t base_mip_map_lvl);
+        void create_image_from_data(const unsigned char* data, VulkanCommandContext& vcc, const std::vector<uint32_t>& queue_family_indices, uint32_t base_mip_map_lvl, vk::ImageUsageFlags usage_flags);
         void create_image_view(vk::ImageAspectFlags aspects);
         void create_sampler();
         void generate_mipmaps(VulkanCommandContext& vcc);

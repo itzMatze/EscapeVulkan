@@ -41,7 +41,7 @@ namespace ve
         // add image descriptor to current descriptor set
         // every set needs to be build one after another
         vk::DescriptorImageInfo dii{};
-        dii.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        dii.imageLayout = image.get_layout();
         dii.imageView = image.get_view();
         dii.sampler = image.get_sampler();
         descriptor_sets.back().push_back(Descriptor(binding, {}, dii));
@@ -61,7 +61,7 @@ namespace ve
     {
         // add buffer descriptor to be added to every new descriptor set (used for e.g. uniform buffers)
         vk::DescriptorImageInfo dii{};
-        dii.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        dii.imageLayout = image.get_layout();
         dii.imageView = image.get_view();
         dii.sampler = image.get_sampler();
         new_set_descriptors.push_back(Descriptor(binding, {}, dii));

@@ -9,31 +9,30 @@ namespace ve
 
     void TunnelObjects::self_destruct(bool full)
     {
-        fireflies.self_destruct(full);
-        tunnel.self_destruct(full);
         compute_pipeline.self_destruct();
         if (full)
         {
+            fireflies.self_destruct();
+            tunnel.self_destruct();
             compute_dsh.self_destruct();
         }
     }
 
-    void TunnelObjects::construct(const RenderPass& render_pass, uint32_t parallel_units)
+    void TunnelObjects::construct(const RenderPass& render_pass)
     {
-        fireflies.construct(render_pass, parallel_units);
-        tunnel.construct(render_pass, parallel_units);
+        fireflies.construct(render_pass);
+        tunnel.construct(render_pass);
 
         compute_dsh.add_binding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
 
-        for (uint32_t i = 0; i < parallel_units; ++i)
+        for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
-            compute_dsh.apply_descriptor_to_new_sets(0, storage.get_buffer_by_name("tunnel_indices"));
-            compute_dsh.apply_descriptor_to_new_sets(1, storage.get_buffer_by_name("tunnel_vertices"));
-            compute_dsh.apply_descriptor_to_new_sets(2, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
             compute_dsh.new_set();
-            compute_dsh.reset_auto_apply_bindings();
+            compute_dsh.add_descriptor(0, storage.get_buffer_by_name("tunnel_indices"));
+            compute_dsh.add_descriptor(1, storage.get_buffer_by_name("tunnel_vertices"));
+            compute_dsh.add_descriptor(2, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
         }
         compute_dsh.construct();
         construct_pipelines(render_pass);

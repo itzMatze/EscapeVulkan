@@ -24,7 +24,7 @@ namespace ve
     public:
         TunnelObjects(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
         void self_destruct(bool full = true);
-        void construct(const RenderPass& render_pass, uint32_t parallel_units);
+        void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
         // move tunnel one segment forward if player enters the n-th segment

@@ -11,7 +11,7 @@ namespace ve
     {
     public:
         Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
-        void construct(const RenderPass& render_pass, uint32_t parallel_units);
+        void construct(const RenderPass& render_pass);
         void self_destruct();
         void reload_shaders(const RenderPass& render_pass);
         void load(const std::string& path);

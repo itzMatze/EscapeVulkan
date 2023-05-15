@@ -10,29 +10,26 @@ namespace ve
     Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage)
     {}
 
-    void Scene::construct(const RenderPass& render_pass, uint32_t parallel_units)
+    void Scene::construct(const RenderPass& render_pass)
     {
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
-        for (uint32_t i = 0; i < parallel_units; ++i)
+        for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             model_render_data_buffers.push_back(storage.add_buffer(model_render_data, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
 
-            ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
-            if (texture_image > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(2, storage.get_image(texture_image));
-            if (material_buffer > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(3, storage.get_buffer(material_buffer));
-            if (light_buffer > -1) ros.at(ShaderFlavor::Default).dsh.apply_descriptor_to_new_sets(4, storage.get_buffer(light_buffer));
-            ros.at(ShaderFlavor::Default).add_bindings();
-            ros.at(ShaderFlavor::Default).dsh.reset_auto_apply_bindings();
+            ros.at(ShaderFlavor::Default).dsh.new_set();
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
+            if (texture_image > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(2, storage.get_image(texture_image));
+            if (material_buffer > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(3, storage.get_buffer(material_buffer));
+            if (light_buffer > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(4, storage.get_buffer(light_buffer));
 
-            ros.at(ShaderFlavor::Emissive).dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
-            if (material_buffer > -1) ros.at(ShaderFlavor::Emissive).dsh.apply_descriptor_to_new_sets(3, storage.get_buffer(material_buffer));
-            ros.at(ShaderFlavor::Emissive).add_bindings();
-            ros.at(ShaderFlavor::Emissive).dsh.reset_auto_apply_bindings();
+            ros.at(ShaderFlavor::Emissive).dsh.new_set();
+            ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
+            if (material_buffer > -1) ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(3, storage.get_buffer(material_buffer));
 
-            ros.at(ShaderFlavor::Basic).dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
-            if (light_buffer > -1) ros.at(ShaderFlavor::Basic).dsh.apply_descriptor_to_new_sets(4, storage.get_buffer(light_buffer));
-            ros.at(ShaderFlavor::Basic).add_bindings();
-            ros.at(ShaderFlavor::Basic).dsh.reset_auto_apply_bindings();
+            ros.at(ShaderFlavor::Basic).dsh.new_set();
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
+            if (light_buffer > -1) ros.at(ShaderFlavor::Basic).dsh.add_descriptor(4, storage.get_buffer(light_buffer));
         }
         construct_pipelines(render_pass, false);
     }
@@ -72,7 +69,7 @@ namespace ve
         vk::SpecializationInfo lights_spec_info(1, &lights_buffer_size_entry, sizeof(uint32_t), &lights_buffer_size);
         shader_infos[1] = ShaderInfo{"default.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
         ros.at(ShaderFlavor::Default).construct(render_pass, shader_infos, reload);
-        shader_infos[1] = ShaderInfo{"stone_noise.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
+        shader_infos[1] = ShaderInfo{"basic.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
         ros.at(ShaderFlavor::Basic).construct(render_pass, shader_infos, reload);
         shader_infos[1] = ShaderInfo{"emissive.frag", vk::ShaderStageFlagBits::eFragment};
         ros.at(ShaderFlavor::Emissive).construct(render_pass, shader_infos, reload);
@@ -182,7 +179,7 @@ namespace ve
 
         if (!texture_data.empty())
         {
-            texture_image = storage.add_named_image(std::string("textures"), texture_data, texture_dimensions.width, texture_dimensions.height, true, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer});
+            texture_image = storage.add_named_image(std::string("textures"), texture_data, texture_dimensions.width, texture_dimensions.height, true, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer}, vk::ImageUsageFlagBits::eSampled);
         }
         texture_data.clear();
         // delete vertices and indices on host

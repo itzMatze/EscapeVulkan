@@ -21,7 +21,7 @@ namespace ve
         }
     }
 
-    void Fireflies::construct(const RenderPass& render_pass, uint32_t parallel_units)
+    void Fireflies::construct(const RenderPass& render_pass)
     {
         std::vector<FireflyVertex> vertices(firefly_count);
         vertex_buffers.push_back(storage.add_named_buffer(std::string("firefly_vertices_0"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute));
@@ -32,19 +32,17 @@ namespace ve
         compute_dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
 
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
-        for (uint32_t i = 0; i < parallel_units; ++i)
+        for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             model_render_data_buffers.push_back(storage.add_buffer(std::vector<ModelRenderData>{mrd}, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
 
-            render_dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(model_render_data_buffers.back()));
             render_dsh.new_set();
-            render_dsh.reset_auto_apply_bindings();
+            render_dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
 
             // ping-pong with firefly buffers to avoid data races
-            compute_dsh.apply_descriptor_to_new_sets(0, storage.get_buffer(vertex_buffers[1 - i]));
-            compute_dsh.apply_descriptor_to_new_sets(1, storage.get_buffer(vertex_buffers[i]));
             compute_dsh.new_set();
-            compute_dsh.reset_auto_apply_bindings();
+            compute_dsh.add_descriptor(0, storage.get_buffer(vertex_buffers[1 - i]));
+            compute_dsh.add_descriptor(1, storage.get_buffer(vertex_buffers[i]));
         }
         render_dsh.construct();
         compute_dsh.construct();

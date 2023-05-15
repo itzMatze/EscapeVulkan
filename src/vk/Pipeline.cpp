@@ -177,8 +177,11 @@ namespace ve
         plci.sType = vk::StructureType::ePipelineLayoutCreateInfo;
         plci.setLayoutCount = 1;
         plci.pSetLayouts = &set_layout;
-        plci.pushConstantRangeCount = 1;
-        plci.pPushConstantRanges = &pcr;
+        if (push_constant_byte_size > 0)
+        {
+            plci.pushConstantRangeCount = 1;
+            plci.pPushConstantRanges = &pcr;
+        }
 
         pipeline_layout = vmc.logical_device.get().createPipelineLayout(plci);
 

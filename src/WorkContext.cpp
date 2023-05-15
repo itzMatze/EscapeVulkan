@@ -40,8 +40,8 @@ namespace ve
     void WorkContext::reload_shaders()
     {
         syncs[0].wait_idle();
-        tunnel.reload_shaders(swapchain.get_render_pass());
         scene.reload_shaders(swapchain.get_render_pass());
+        tunnel.reload_shaders(swapchain.get_render_pass());
     }
 
     void WorkContext::load_scene(const std::string& filename)
@@ -54,9 +54,9 @@ namespace ve
             tunnel.self_destruct();
         }
         scene.load(std::string("../assets/scenes/") + filename);
-        scene.construct(swapchain.get_render_pass(), frames_in_flight);
+        scene.construct(swapchain.get_render_pass());
         // initialize tunnel
-        tunnel.construct(swapchain.get_render_pass(), frames_in_flight);
+        tunnel.construct(swapchain.get_render_pass());
         spdlog::info("Loading scene took: {} ms", (timer.elapsed()));
     }
 

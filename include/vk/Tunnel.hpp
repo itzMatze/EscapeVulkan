@@ -17,7 +17,7 @@ namespace ve
     public:
         Tunnel(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
         void self_destruct(bool full = true);
-        void construct(const RenderPass& render_pass, uint32_t parallel_units);
+        void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, DrawInfo& di, uint32_t render_index_start);
 
@@ -30,10 +30,12 @@ namespace ve
         uint32_t index_buffer;
         ModelRenderData mrd;
         std::vector<uint32_t> model_render_data_buffers;
+        uint32_t noise_textures;
         Pipeline pipeline;
         Pipeline mesh_view_pipeline;
 
         void construct_pipelines(const RenderPass& render_pass);
+        void create_noise_textures();
     };
 } // namespace ve
 
