@@ -3,7 +3,6 @@
 struct PushConstants {
     uint mvp_idx;
     int mat_idx;
-    uint light_count;
     float time;
     bool normal_view;
     bool tex_view;
@@ -12,6 +11,7 @@ struct PushConstants {
 struct ModelRenderData {
     mat4 mvp;
     mat4 m;
+    int segment_id;
 };
 
 struct Light {
@@ -116,5 +116,40 @@ AlignedFireflyVertex pack_firefly_vertex(FireflyVertex v)
     vert.col_gb_vel_xy.zw = v.vel.xy;
     vert.vel_z_acc.x = v.vel.z;
     vert.vel_z_acc.yzw = v.acc;
+    return vert;
+}
+
+struct AlignedTunnelVertex {
+    vec4 pos_normal_x;
+    vec4 normal_yz_tex_xy;
+    uint segment_idx;
+};
+
+struct TunnelVertex {
+    vec3 pos;
+    vec3 normal;
+    vec2 tex;
+    uint segment_idx;
+};
+
+TunnelVertex unpack_tunnel_vertex(AlignedTunnelVertex v)
+{
+    TunnelVertex vert;
+    vert.pos = v.pos_normal_x.xyz;
+    vert.normal.x = v.pos_normal_x.w;
+    vert.normal.yz = v.normal_yz_tex_xy.xy;
+    vert.tex = v.normal_yz_tex_xy.zw;
+    vert.segment_idx = v.segment_idx;
+    return vert;
+}
+
+AlignedTunnelVertex pack_tunnel_vertex(TunnelVertex v)
+{
+    AlignedTunnelVertex vert;
+    vert.pos_normal_x.xyz= v.pos ;
+    vert.pos_normal_x.w = v.normal.x;
+    vert.normal_yz_tex_xy.xy = v.normal.yz;
+    vert.normal_yz_tex_xy.zw = v.tex;
+    vert.segment_idx = v.segment_idx;
     return vert;
 }

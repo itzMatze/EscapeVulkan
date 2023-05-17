@@ -7,7 +7,7 @@
 
 namespace ve
 {
-    WorkContext::WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), storage(vmc, vcc), swapchain(vmc), scene(vmc, vcc, storage), ui(vmc, swapchain.get_render_pass(), frames_in_flight), tunnel(vmc, vcc, storage)
+    WorkContext::WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), storage(vmc, vcc), swapchain(vmc), scene(vmc, vcc, storage), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
     {
         vcc.add_graphics_buffers(frames_in_flight);
         vcc.add_compute_buffers(frames_in_flight);
@@ -32,7 +32,6 @@ namespace ve
         timers.clear();
         ui.self_destruct();
         scene.self_destruct();
-        tunnel.self_destruct();
         swapchain.self_destruct(true);
         spdlog::info("Destroyed WorkContext");
     }
@@ -41,7 +40,6 @@ namespace ve
     {
         syncs[0].wait_idle();
         scene.reload_shaders(swapchain.get_render_pass());
-        tunnel.reload_shaders(swapchain.get_render_pass());
     }
 
     void WorkContext::load_scene(const std::string& filename)
@@ -51,12 +49,9 @@ namespace ve
         if (scene.loaded)
         {
             scene.self_destruct();
-            tunnel.self_destruct();
         }
         scene.load(std::string("../assets/scenes/") + filename);
         scene.construct(swapchain.get_render_pass());
-        // initialize tunnel
-        tunnel.construct(swapchain.get_render_pass());
         spdlog::info("Loading scene took: {} ms", (timer.elapsed()));
     }
 
@@ -81,7 +76,6 @@ namespace ve
             di.save_screenshot = false;
         }
         record_graphics_command_buffer(image_idx.value, di);
-        tunnel.advance(di, timers[di.current_frame]);
         submit(image_idx.value, di);
         di.current_frame = (di.current_frame + 1) % frames_in_flight;
     }
@@ -98,7 +92,7 @@ namespace ve
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[di.current_frame]);
         timers[di.current_frame].reset(cb, {DeviceTimer::RENDERING_ALL, DeviceTimer::RENDERING_APP, DeviceTimer::RENDERING_UI, DeviceTimer::RENDERING_TUNNEL});
-        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllGraphics);
         vk::RenderPassBeginInfo rpbi{};
         rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
         rpbi.renderPass = swapchain.get_render_pass().get();
@@ -129,18 +123,15 @@ namespace ve
 
         std::vector<vk::DeviceSize> offsets(1, 0);
 
-        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eAllCommands);
-        scene.draw(cb, di);
-        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
-        tunnel.draw(cb, di);
-        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
-        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eAllCommands);
-        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eTopOfPipe);
+        scene.draw(cb, di, timers[di.current_frame]);
+        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eBottomOfPipe);
+        timers[di.current_frame].start(cb, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eTopOfPipe);
         if (di.show_ui) ui.draw(cb, di);
-        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eBottomOfPipe);
 
         cb.endRenderPass();
-        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllCommands);
+        timers[di.current_frame].stop(cb, DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllGraphics);
         cb.end();
     }
 
@@ -156,8 +147,8 @@ namespace ve
         vmc.get_compute_queue().submit(tunnel_firefly_compute_si);
 
         std::vector<vk::PipelineStageFlags> wait_stages;
-        wait_stages.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
         std::vector<vk::Semaphore> render_wait_semaphores;
+        wait_stages.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
         render_wait_semaphores.push_back(syncs[di.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
         wait_stages.push_back(vk::PipelineStageFlagBits::eVertexInput);
         render_wait_semaphores.push_back(syncs[di.current_frame].get_semaphore(Synchronization::S_FIREFLY_MOVE_TUNNEL_ADVANCE_FINISHED));

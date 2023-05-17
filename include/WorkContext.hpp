@@ -9,7 +9,6 @@
 #include "vk/common.hpp"
 #include "vk/Buffer.hpp"
 #include "vk/Scene.hpp"
-#include "vk/TunnelObjects.hpp"
 #include "vk/Swapchain.hpp"
 #include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanMainContext.hpp"
@@ -33,7 +32,6 @@ namespace ve
         Swapchain swapchain;
         Scene scene;
         UI ui;
-        TunnelObjects tunnel;
         std::vector<Synchronization> syncs;
         std::vector<DeviceTimer> timers;
 

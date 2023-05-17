@@ -4,14 +4,17 @@
 #include <glm/gtx/transform.hpp>
 
 #include "json.hpp"
+#include "vk/TunnelObjects.hpp"
 
 namespace ve
 {
-    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage)
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), tunnel_objects(vmc, vcc, storage)
     {}
 
     void Scene::construct(const RenderPass& render_pass)
     {
+        // initialize tunnel
+        tunnel_objects.construct(render_pass);
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -22,6 +25,7 @@ namespace ve
             if (texture_image > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(2, storage.get_image(texture_image));
             if (material_buffer > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(3, storage.get_buffer(material_buffer));
             if (light_buffer > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(4, storage.get_buffer(light_buffer));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
 
             ros.at(ShaderFlavor::Emissive).dsh.new_set();
             ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
@@ -30,6 +34,7 @@ namespace ve
             ros.at(ShaderFlavor::Basic).dsh.new_set();
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
             if (light_buffer > -1) ros.at(ShaderFlavor::Basic).dsh.add_descriptor(4, storage.get_buffer(light_buffer));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
         }
         construct_pipelines(render_pass, false);
     }
@@ -54,6 +59,7 @@ namespace ve
         model_handles.clear();
         model_render_data.clear();
         loaded = false;
+        tunnel_objects.self_destruct();
     }
 
     void Scene::construct_pipelines(const RenderPass& render_pass, bool reload)
@@ -64,12 +70,16 @@ namespace ve
         std::vector<ShaderInfo> shader_infos(2);
         shader_infos[0] = ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, model_render_spec_info};
 
-        vk::SpecializationMapEntry lights_buffer_size_entry(0, 0, sizeof(uint32_t));
-        uint32_t lights_buffer_size = lights.size();
-        vk::SpecializationInfo lights_spec_info(1, &lights_buffer_size_entry, sizeof(uint32_t), &lights_buffer_size);
-        shader_infos[1] = ShaderInfo{"default.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
+        std::array<vk::SpecializationMapEntry, 3> fragment_entries;
+        fragment_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
+        fragment_entries[1] = vk::SpecializationMapEntry(1, sizeof(uint32_t), sizeof(uint32_t));
+        fragment_entries[2] = vk::SpecializationMapEntry(2, sizeof(uint32_t) * 2, sizeof(uint32_t));
+        std::array<uint32_t, 3> fragment_entries_data{uint32_t(storage.get_buffer_by_name("spaceship_lights").get_element_count()), segment_count, fireflies_per_segment};
+        vk::SpecializationInfo fragment_spec_info(fragment_entries.size(), fragment_entries.data(), sizeof(uint32_t) * fragment_entries_data.size(), fragment_entries_data.data());
+
+        shader_infos[1] = ShaderInfo{"default.frag", vk::ShaderStageFlagBits::eFragment, fragment_spec_info};
         ros.at(ShaderFlavor::Default).construct(render_pass, shader_infos, reload);
-        shader_infos[1] = ShaderInfo{"basic.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
+        shader_infos[1] = ShaderInfo{"basic.frag", vk::ShaderStageFlagBits::eFragment, fragment_spec_info};
         ros.at(ShaderFlavor::Basic).construct(render_pass, shader_infos, reload);
         shader_infos[1] = ShaderInfo{"emissive.frag", vk::ShaderStageFlagBits::eFragment};
         ros.at(ShaderFlavor::Emissive).construct(render_pass, shader_infos, reload);
@@ -78,6 +88,7 @@ namespace ve
     void Scene::reload_shaders(const RenderPass& render_pass)
     {
         construct_pipelines(render_pass, true);
+        tunnel_objects.reload_shaders(render_pass);
     }
 
     void Scene::load(const std::string& path)
@@ -98,7 +109,7 @@ namespace ve
                 VE_ASSERT(texture_dimensions == model.texture_dimensions || texture_dimensions == 0, "Textures have different dimensions!");
                 texture_dimensions = model.texture_dimensions;
             }
-            model_render_data.push_back(ModelRenderData{.M = glm::mat4(1.0f)});
+            model_render_data.push_back(ModelRenderData{.M = glm::mat4(1.0f), .segment_id = 0});
             model_handles.emplace(name, model_render_data.size() - 1);
             for (auto& ro : ros)
             {
@@ -114,9 +125,11 @@ namespace ve
         ros.at(ShaderFlavor::Default).dsh.add_binding(2, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
@@ -174,7 +187,7 @@ namespace ve
             {
                 initial_light_values.push_back(std::make_pair(light.pos, light.dir));
             }
-            light_buffer = storage.add_named_buffer(std::string("spaceship_lights"), lights, vk::BufferUsageFlagBits::eUniformBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+            light_buffer = storage.add_named_buffer(std::string("spaceship_lights"), lights, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         }
 
         if (!texture_data.empty())
@@ -233,8 +246,9 @@ namespace ve
         return ros.at(flavor).dsh;
     }
 
-    void Scene::draw(vk::CommandBuffer& cb, DrawInfo& di)
+    void Scene::draw(vk::CommandBuffer& cb, DrawInfo& di, DeviceTimer& timer)
     {
+        tunnel_objects.advance(di, timer);
         uint32_t player_idx = model_handles.at("Player");
         glm::mat4 vp = di.cam.getVP();
         // let camera follow the players object
@@ -243,9 +257,14 @@ namespace ve
         {
             model_render_data[player_idx].M = glm::rotate(glm::inverse(di.cam.view), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         }
-        di.light_count = lights.size();
-        vcc.graphics_cb[di.current_frame].bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
-        vcc.graphics_cb[di.current_frame].bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
+        // get id of segment player is currently in
+        glm::vec3 player_position(model_render_data[player_idx].M[3][0], model_render_data[player_idx].M[3][1], model_render_data[player_idx].M[3][2]);
+        for (uint32_t j = 0; j < segment_count && tunnel_objects.is_pos_past_segment(player_position, model_render_data[player_idx].segment_id + 1, true); ++j)
+        {
+            model_render_data[player_idx].segment_id++;
+        }
+        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
+        cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
         for (uint32_t i = 0; i < model_render_data.size(); ++i)
         {
             model_render_data[i].MVP = vp * model_render_data[i].M;
@@ -268,5 +287,8 @@ namespace ve
         {
             ro.second.draw(cb, di);
         }
+        timer.start(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
+        tunnel_objects.draw(cb, di);
+        timer.stop(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
     }
 } // namespace ve

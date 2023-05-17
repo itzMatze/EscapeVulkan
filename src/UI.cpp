@@ -135,6 +135,7 @@ namespace ve
             ImGui::Text(("RENDERING_UI: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_UI], 4) + " ms").c_str());
             ImGui::Text(("RENDERING_TUNNEL: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_TUNNEL], 4) + " ms").c_str());
             ImGui::Text(("COMPUTE_TUNNEL_ADVANCE: " + ve::to_string(devicetimings[DeviceTimer::COMPUTE_TUNNEL_ADVANCE], 4) + " ms").c_str());
+            ImGui::Text(("FIREFLY_MOVE_STEP: " + ve::to_string(devicetimings[DeviceTimer::FIREFLY_MOVE_STEP], 4) + " ms").c_str());
         }
         if (ImGui::CollapsingHeader("Plots"))
         {
@@ -142,10 +143,12 @@ namespace ve
             {
                 ImPlot::SetupAxisLimitsConstraints(ImAxis_Y1, 0.0, 100.0);
                 ImPlot::SetupAxes("Frame", "Time [ms]", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_LockMin | ImPlotAxisFlags_AutoFit);
+                ImPlot::PlotLine("FRAMETIME", frametime_values.data(), frametime_values.size());
                 ImPlot::PlotLine("RENDERING_ALL", devicetiming_values[DeviceTimer::RENDERING_ALL].data(), devicetiming_values[DeviceTimer::RENDERING_ALL].size());
                 ImPlot::PlotLine("RENDERING_APP", devicetiming_values[DeviceTimer::RENDERING_APP].data(), devicetiming_values[DeviceTimer::RENDERING_APP].size());
                 ImPlot::PlotLine("RENDERING_UI", devicetiming_values[DeviceTimer::RENDERING_UI].data(), devicetiming_values[DeviceTimer::RENDERING_UI].size());
                 ImPlot::PlotLine("RENDERING_TUNNEL", devicetiming_values[DeviceTimer::RENDERING_TUNNEL].data(), devicetiming_values[DeviceTimer::RENDERING_TUNNEL].size());
+                ImPlot::PlotLine("FIREFLY_MOVE_STEP", devicetiming_values[DeviceTimer::FIREFLY_MOVE_STEP].data(), devicetiming_values[DeviceTimer::FIREFLY_MOVE_STEP].size());
                 ImPlot::EndPlot();
             }
             if (ImPlot::BeginPlot("Compute Timings"))

@@ -98,7 +98,7 @@ namespace ve
 
     glm::vec3 TunnelObjects::random_cosine(const glm::vec3& normal)
     {
-        constexpr float cosine_weight = 20.0f;
+        constexpr float cosine_weight = 40.0f;
         float theta = std::acos(std::pow(1.0f - std::abs(dis(rnd)), 1.0f / (1.0f + cosine_weight)));
         float phi = 2.0f * M_PIf * dis(rnd);
         glm::vec3 up = abs(normal.z) < 0.999f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
@@ -113,7 +113,7 @@ namespace ve
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[di.current_frame]);
         fireflies.move_step(cb, di, timer);
-        if (glm::dot(glm::normalize(di.player_pos - segment_planes[2].pos), segment_planes[2].normal) > 0.0f)
+        if (is_pos_past_segment(di.player_pos, 2, false))
         {
             // add new segment points
             const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
@@ -139,7 +139,7 @@ namespace ve
             timer.reset(cb, {DeviceTimer::COMPUTE_TUNNEL_ADVANCE});
             timer.start(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
             Buffer& buffer = storage.get_buffer_by_name("firefly_vertices_" + std::to_string(di.current_frame));
-            vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
+            vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryWrite, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
             cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {buffer_memory_barrier}, {});
             compute_new_segment(cb, di.current_frame);
             // write copy of data to the first half of the buffer if idx is in the past half of the data
@@ -152,5 +152,12 @@ namespace ve
             timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
         }
         cb.end();
+    }
+
+    bool TunnelObjects::is_pos_past_segment(glm::vec3 pos, uint32_t idx, bool use_global_id)
+    {
+        // calculate tunnel local index by subtracting the id of the first segment
+        if (use_global_id) idx = std::max(0, int32_t(idx) - int32_t(cpc.segment_idx - segment_count) - 1);
+        return glm::dot(glm::normalize(pos - segment_planes[idx].pos), segment_planes[idx].normal) > 0.0f;
     }
 }

@@ -21,7 +21,7 @@
 class MainContext
 {
 public:
-    MainContext() : extent(1000, 800), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(45.0f, extent.width, extent.height), di{.cam = camera}
+    MainContext() : extent(1000, 800), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(60.0f, extent.width, extent.height), di{.cam = camera}
     {
         di.devicetimings.resize(ve::DeviceTimer::TIMER_COUNT, 0.0f);
         extent = wc.swapchain.get_extent();
@@ -107,11 +107,11 @@ private:
         if (eh.is_key_pressed(Key::D)) camera.moveRight(move_amount);
         if (eh.is_key_pressed(Key::Q)) camera.moveDown(move_amount);
         if (eh.is_key_pressed(Key::E)) camera.moveDown(-move_amount);
-        float panning_speed = eh.is_key_pressed(Key::Shift) ? 0.2f : 2.0f;
-        if (eh.is_key_pressed(Key::Left)) camera.onMouseMove(-panning_speed, 0.0f);
-        if (eh.is_key_pressed(Key::Right)) camera.onMouseMove(panning_speed, 0.0f);
-        if (eh.is_key_pressed(Key::Up)) camera.onMouseMove(0.0f, -panning_speed);
-        if (eh.is_key_pressed(Key::Down)) camera.onMouseMove(0.0f, panning_speed);
+        float panning_speed = eh.is_key_pressed(Key::Shift) ? 0.2f : 0.6f;
+        if (eh.is_key_pressed(Key::Left)) camera.onMouseMove(-panning_speed * di.time_diff, 0.0f);
+        if (eh.is_key_pressed(Key::Right)) camera.onMouseMove(panning_speed * di.time_diff, 0.0f);
+        if (eh.is_key_pressed(Key::Up)) camera.onMouseMove(0.0f, -panning_speed * di.time_diff);
+        if (eh.is_key_pressed(Key::Down)) camera.onMouseMove(0.0f, panning_speed * di.time_diff);
 
         // reset state of keys that are used to execute a one time action
         if (eh.is_key_released(Key::Plus))

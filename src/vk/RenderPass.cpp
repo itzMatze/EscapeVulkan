@@ -94,8 +94,8 @@ namespace ve
     {
         vk::PhysicalDeviceProperties pdp = vmc.physical_device.get().getProperties();
         vk::Flags<vk::SampleCountFlagBits> counts = (pdp.limits.framebufferColorSampleCounts & pdp.limits.framebufferDepthSampleCounts);
-        if (counts & vk::SampleCountFlagBits::e4) return vk::SampleCountFlagBits::e4;
         if (counts & vk::SampleCountFlagBits::e2) return vk::SampleCountFlagBits::e2;
+        if (counts & vk::SampleCountFlagBits::e4) return vk::SampleCountFlagBits::e4;
         if (counts & vk::SampleCountFlagBits::e8) return vk::SampleCountFlagBits::e8;
         if (counts & vk::SampleCountFlagBits::e16) return vk::SampleCountFlagBits::e16;
         if (counts & vk::SampleCountFlagBits::e32) return vk::SampleCountFlagBits::e32;

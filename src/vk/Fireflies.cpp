@@ -85,7 +85,7 @@ namespace ve
         storage.get_buffer(model_render_data_buffers[di.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, render_dsh.get_sets()[di.current_frame], {});
-        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .light_count = di.light_count, .time = di.time, .normal_view = di.normal_view, .tex_view = di.tex_view};
+        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .time = di.time, .normal_view = di.normal_view, .tex_view = di.tex_view};
         cb.pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
         cb.pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.draw(firefly_count, 1, 0, 0);
@@ -94,12 +94,12 @@ namespace ve
     void Fireflies::move_step(vk::CommandBuffer& cb, const DrawInfo& di, DeviceTimer& timer)
     {
         timer.reset(cb, {DeviceTimer::FIREFLY_MOVE_STEP});
-        timer.start(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllCommands);
+        timer.start(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllGraphics);
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[di.current_frame], {});
         FireflyMovePushConstants fmpc{.time = di.time, .time_diff = di.time_diff};
         cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(FireflyMovePushConstants), &fmpc);
         cb.dispatch((firefly_count + 31) / 32, 1, 1);
-        timer.stop(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllCommands);
+        timer.stop(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eComputeShader);
     }
 } // namespace ve

@@ -68,6 +68,7 @@ namespace ve
         render_dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         render_dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
         render_dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
 
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
@@ -78,7 +79,7 @@ namespace ve
             render_dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
             render_dsh.add_descriptor(1, storage.get_image(noise_textures));
             render_dsh.add_descriptor(4, storage.get_buffer_by_name("spaceship_lights"));
-
+            render_dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
         }
         render_dsh.construct();
 
@@ -86,15 +87,18 @@ namespace ve
         uint32_t uniform_buffer_size = 1;
         vk::SpecializationInfo render_spec_info(1, &uniform_buffer_size_entry, sizeof(uint32_t), &uniform_buffer_size);
         std::vector<ShaderInfo> shader_infos(2);
-        shader_infos[0] = ShaderInfo{"default.vert", vk::ShaderStageFlagBits::eVertex, render_spec_info};
+        shader_infos[0] = ShaderInfo{"tunnel.vert", vk::ShaderStageFlagBits::eVertex, render_spec_info};
 
-        vk::SpecializationMapEntry lights_buffer_size_entry(0, 0, sizeof(uint32_t));
-        uint32_t lights_buffer_size = storage.get_buffer_by_name("spaceship_lights").get_element_count();
-        vk::SpecializationInfo lights_spec_info(1, &lights_buffer_size_entry, sizeof(uint32_t), &lights_buffer_size);
-        shader_infos[1] = ShaderInfo{"stone_noise.frag", vk::ShaderStageFlagBits::eFragment, lights_spec_info};
+        std::array<vk::SpecializationMapEntry, 3> fragment_entries;
+        fragment_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
+        fragment_entries[1] = vk::SpecializationMapEntry(1, sizeof(uint32_t), sizeof(uint32_t));
+        fragment_entries[2] = vk::SpecializationMapEntry(2, sizeof(uint32_t) * 2, sizeof(uint32_t));
+        std::array<uint32_t, 3> fragment_entries_data{uint32_t(storage.get_buffer_by_name("spaceship_lights").get_element_count()), segment_count, fireflies_per_segment};
+        vk::SpecializationInfo fragment_spec_info(fragment_entries.size(), fragment_entries.data(), sizeof(uint32_t) * fragment_entries_data.size(), fragment_entries_data.data());
+        shader_infos[1] = ShaderInfo{"tunnel.frag", vk::ShaderStageFlagBits::eFragment, fragment_spec_info};
 
-        pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill);
-        mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine);
+        pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions());
+        mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions());
     }
 
     void Tunnel::reload_shaders(const RenderPass& render_pass)
@@ -112,7 +116,7 @@ namespace ve
         const vk::PipelineLayout& pipeline_layout = di.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, di.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[di.current_frame], {});
-        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .light_count = di.light_count, .time = di.time, .normal_view = di.normal_view, .tex_view = di.tex_view};
+        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .time = di.time, .normal_view = di.normal_view, .tex_view = di.tex_view};
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.drawIndexed(index_count, 1, render_index_start, 0, 0);

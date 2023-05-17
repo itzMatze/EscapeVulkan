@@ -4,6 +4,8 @@
 #include "vk/Model.hpp"
 #include "vk/RenderObject.hpp"
 #include "Storage.hpp"
+#include "Timer.hpp"
+#include "TunnelObjects.hpp"
 
 namespace ve
 {
@@ -19,7 +21,7 @@ namespace ve
         void scale(const std::string& model, const glm::vec3& scale);
         void rotate(const std::string& model, float degree, const glm::vec3& axis);
         DescriptorSetHandler& get_dsh(ShaderFlavor flavor);
-        void draw(vk::CommandBuffer& cb, DrawInfo& di);
+        void draw(vk::CommandBuffer& cb, DrawInfo& di, DeviceTimer& timer);
 
         bool loaded = false;
 
@@ -41,6 +43,7 @@ namespace ve
         int32_t texture_image = -1;
         int32_t light_buffer = -1;
         std::vector<uint32_t> model_render_data_buffers;
+        TunnelObjects tunnel_objects;
 
         void construct_pipelines(const RenderPass& render_pass, bool reload);
         void add_model(Model& model, const std::string& name);

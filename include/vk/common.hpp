@@ -23,6 +23,7 @@ namespace ve
     struct ModelRenderData {
         glm::mat4 MVP = glm::mat4(1.0f);
         glm::mat4 M = glm::mat4(1.0f);
+        alignas(16) int32_t segment_id;
     };
 
     struct PushConstants {
@@ -30,7 +31,6 @@ namespace ve
         uint32_t mvp_idx;
         // fragment push constants
         int32_t mat_idx;
-        uint32_t light_count;
         float time;
         alignas(4) bool normal_view;
         alignas(4) bool tex_view;
@@ -71,7 +71,6 @@ namespace ve
         float frametime = 0.0f;
         int32_t current_scene = 0;
         uint32_t current_frame = 0;
-        uint32_t light_count;
         bool load_scene = false;
         bool show_ui = true;
         bool mesh_view = false;
@@ -159,6 +158,48 @@ namespace ve
             attribute_descriptions[3].location = 3;
             attribute_descriptions[3].format = vk::Format::eR32G32B32Sfloat;
             attribute_descriptions[3].offset = offsetof(FireflyVertex, acc);
+
+            return attribute_descriptions;
+        }
+    };
+
+    struct TunnelVertex {
+        glm::vec3 pos;
+        glm::vec3 normal;
+        glm::vec2 tex;
+        uint32_t segment_id;
+
+        static std::vector<vk::VertexInputBindingDescription> get_binding_descriptions()
+        {
+            vk::VertexInputBindingDescription binding_description{};
+            binding_description.binding = 0;
+            binding_description.stride = sizeof(Vertex);
+            binding_description.inputRate = vk::VertexInputRate::eVertex;
+            return {binding_description};
+        }
+
+        static std::vector<vk::VertexInputAttributeDescription> get_attribute_descriptions()
+        {
+            std::vector<vk::VertexInputAttributeDescription> attribute_descriptions(4);
+            attribute_descriptions[0].binding = 0;
+            attribute_descriptions[0].location = 0;
+            attribute_descriptions[0].format = vk::Format::eR32G32B32Sfloat;
+            attribute_descriptions[0].offset = offsetof(TunnelVertex, pos);
+
+            attribute_descriptions[1].binding = 0;
+            attribute_descriptions[1].location = 1;
+            attribute_descriptions[1].format = vk::Format::eR32G32B32Sfloat;
+            attribute_descriptions[1].offset = offsetof(TunnelVertex, normal);
+
+            attribute_descriptions[2].binding = 0;
+            attribute_descriptions[2].location = 2;
+            attribute_descriptions[2].format = vk::Format::eR32G32Sfloat;
+            attribute_descriptions[2].offset = offsetof(TunnelVertex, tex);
+
+            attribute_descriptions[3].binding = 0;
+            attribute_descriptions[3].location = 3;
+            attribute_descriptions[3].format = vk::Format::eR32Sint;
+            attribute_descriptions[3].offset = offsetof(TunnelVertex, segment_id);
 
             return attribute_descriptions;
         }

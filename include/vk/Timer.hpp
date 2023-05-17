@@ -41,8 +41,8 @@ namespace ve
             RENDERING_APP = 1,
             RENDERING_UI = 2,
             RENDERING_TUNNEL = 3,
-            COMPUTE_TUNNEL_ADVANCE = 4,
-            FIREFLY_MOVE_STEP = 5,
+            FIREFLY_MOVE_STEP = 4,
+            COMPUTE_TUNNEL_ADVANCE = 5,
             TIMER_COUNT
         };
 

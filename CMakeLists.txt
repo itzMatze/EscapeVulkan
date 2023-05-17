@@ -12,7 +12,8 @@ src/vk/Scene.cpp src/vk/Model.cpp src/vk/Mesh.cpp src/vk/Timer.cpp
 src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/WorkContext.cpp src/Storage.cpp
 "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_draw.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_widgets.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_tables.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/backends/imgui_impl_vulkan.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/backends/imgui_impl_sdl.cpp" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/implot.cpp" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/implot_items.cpp")
 
-set(SHADER_FILES default.vert default.frag basic.frag emissive.frag tunnel.comp stone_noise.frag fireflies.vert fireflies.frag fireflies_move.comp create_noise_textures.comp)
+set(SHADER_FILES default.vert default.frag basic.frag emissive.frag tunnel.vert tunnel.frag tunnel.comp fireflies.vert fireflies.frag fireflies_move.comp create_noise_textures.comp)
+set(SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shader")
 
 add_executable(EscapeVulkan ${SOURCE_FILES})
 add_custom_target(Shaders)
@@ -26,7 +27,6 @@ find_package(spdlog REQUIRED)
 
 target_link_libraries(EscapeVulkan ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES} spdlog::spdlog)
 
-set(SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/shader")
 
 function(add_shader TARGET SHADER)
     find_program(GLSLC glslc)
@@ -38,7 +38,6 @@ function(add_shader TARGET SHADER)
            OUTPUT "${current-output-path}"
            COMMENT "Compiling \"${current-shader-path}\" to \"${current-output-path}\""
            DEPENDS "${current-shader-path}"
-           IMPLICIT_DEPENDS CXX "${current-shader-path}"
            COMMAND ${GLSLC} -O -o "${current-output-path}" "${current-shader-path}"
            VERBATIM)
 

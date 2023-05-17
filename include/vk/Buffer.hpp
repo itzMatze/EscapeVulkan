@@ -18,16 +18,15 @@ namespace ve
             std::vector<uint32_t> queue_family_indices_vec = {queue_family_indices...};
             if (device_local)
             {
-                std::tie(buffer, vmaa) = create_buffer((usage_flags | vk::BufferUsageFlagBits::eTransferDst), {}, queue_family_indices_vec);
+                std::tie(buffer, vmaa) = create_buffer((usage_flags | vk::BufferUsageFlagBits::eTransferDst), {}, device_local, queue_family_indices_vec);
                 update_data(data, elements);
             }
             else
             {
-                std::tie(buffer, vmaa) = create_buffer(usage_flags, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, queue_family_indices_vec);
+                std::tie(buffer, vmaa) = create_buffer(usage_flags, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, device_local, queue_family_indices_vec);
                 update_data(data, elements);
             }
         }
-
 
         template<class T, class... Args>
         Buffer(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : Buffer(vmc, vcc, data.data(), data.size(), usage_flags, device_local, queue_family_indices...)
@@ -66,7 +65,7 @@ namespace ve
 
             if (device_local)
             {
-                auto [staging_buffer, staging_vmaa] = create_buffer((vk::BufferUsageFlagBits::eTransferSrc), VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, {vmc.queue_family_indices.transfer});
+                auto [staging_buffer, staging_vmaa] = create_buffer((vk::BufferUsageFlagBits::eTransferSrc), VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, true, {vmc.queue_family_indices.transfer});
                 void* mapped_data;
                 vmaMapMemory(vmc.va, staging_vmaa, &mapped_data);
                 memcpy(mapped_data, data, sizeof(T) * elements);
@@ -99,7 +98,7 @@ namespace ve
         }
 
     private:
-        std::pair<vk::Buffer, VmaAllocation> create_buffer(vk::BufferUsageFlags usage_flags, VmaAllocationCreateFlags vma_flags, const std::vector<uint32_t>& queue_family_indices)
+        std::pair<vk::Buffer, VmaAllocation> create_buffer(vk::BufferUsageFlags usage_flags, VmaAllocationCreateFlags vma_flags, bool device_local, const std::vector<uint32_t>& queue_family_indices)
         {
             vk::BufferCreateInfo bci{};
             bci.sType = vk::StructureType::eBufferCreateInfo;
@@ -110,7 +109,7 @@ namespace ve
             bci.queueFamilyIndexCount = queue_family_indices.size();
             bci.pQueueFamilyIndices = queue_family_indices.data();
             VmaAllocationCreateInfo vaci{};
-            vaci.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+            vaci.usage = device_local ? VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE : VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
             vaci.flags = vma_flags;
             VkBuffer local_buffer;
             VmaAllocation local_vmaa;
