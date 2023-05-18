@@ -24,6 +24,7 @@ find_package(glm REQUIRED)
 find_package(SDL2 REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(Boost REQUIRED)
 
 target_link_libraries(EscapeVulkan ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES} spdlog::spdlog)
 

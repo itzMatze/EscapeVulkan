@@ -15,7 +15,7 @@ namespace ve
         void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
-        void move_step(vk::CommandBuffer& cb, const DrawInfo& di, DeviceTimer& timer);
+        void move_step(vk::CommandBuffer& cb, const DrawInfo& di, DeviceTimer& timer, uint32_t segment_id);
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;

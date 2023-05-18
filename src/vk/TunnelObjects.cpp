@@ -2,7 +2,7 @@
 
 namespace ve
 {
-    TunnelObjects::TunnelObjects(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), fireflies(vmc, vcc, storage), tunnel(vmc, vcc, storage), compute_dsh(vmc), compute_pipeline(vmc), segment_planes(segment_count), rnd(0), dis(0.0f, 1.0f)
+    TunnelObjects::TunnelObjects(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), fireflies(vmc, vcc, storage), tunnel(vmc, vcc, storage), compute_dsh(vmc), compute_pipeline(vmc), tunnel_bezier_points(segment_count * 2 + 1), rnd(0), dis(0.0f, 1.0f)
     {
         cpc.indices_start_idx = 0;
     }
@@ -12,6 +12,7 @@ namespace ve
         compute_pipeline.self_destruct();
         if (full)
         {
+            storage.destroy_buffer(tunnel_bezier_points_buffer);
             fireflies.self_destruct();
             tunnel.self_destruct();
             compute_dsh.self_destruct();
@@ -20,12 +21,16 @@ namespace ve
 
     void TunnelObjects::construct(const RenderPass& render_pass)
     {
+        tunnel_bezier_points_buffer = storage.add_named_buffer(std::string("tunnel_bezier_points"), (tunnel_bezier_points.size() + 2) * 16, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.compute);
+
+
         fireflies.construct(render_pass);
         tunnel.construct(render_pass);
 
         compute_dsh.add_binding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
+        compute_dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
 
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -33,28 +38,33 @@ namespace ve
             compute_dsh.add_descriptor(0, storage.get_buffer_by_name("tunnel_indices"));
             compute_dsh.add_descriptor(1, storage.get_buffer_by_name("tunnel_vertices"));
             compute_dsh.add_descriptor(2, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
+            compute_dsh.add_descriptor(3, storage.get_buffer_by_name("tunnel_bezier_points"));
         }
         compute_dsh.construct();
         construct_pipelines(render_pass);
 
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
-        cpc.segment_idx = 0;
+        cpc.segment_id = 0;
         cpc.p0 = glm::vec3(0.0f, 0.0f, -50.0f);
         cpc.p1 = glm::vec3(0.0f, 0.0f, -50.0f - segment_scale / 2.0f);
         cpc.p2 = glm::vec3(0.0f, 0.0f, -50.0f - segment_scale);
-        segment_planes.push_back(SegmentPlane{cpc.p0, glm::normalize(cpc.p1 - cpc.p0)});
+        tunnel_bezier_points[0] = cpc.p0;
+        tunnel_bezier_points[1] = cpc.p1;
+        tunnel_bezier_points[2] = cpc.p2;
+        storage.get_buffer(tunnel_bezier_points_buffer).update_data_bytes(tunnel_bezier_points.data(), 16);
         // set current_frame to 1 that fireflies are initially in buffer 1 as this is used as the in_buffer by the first frame
         compute_new_segment(cb, 1);
 
         for (uint32_t i = 1; i < segment_count; ++i)
         {
-            cpc.segment_idx++;
+            cpc.segment_id++;
             cpc.indices_start_idx = i * index_count / segment_count;
             const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
-            segment_planes.push_back(SegmentPlane{cpc.p2, normal});
             cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
             cpc.p0 = cpc.p2;
             cpc.p2 = cpc.p0 + segment_scale * random_cosine(normal);
+            tunnel_bezier_points[i * 2 + 1] = cpc.p1;
+            tunnel_bezier_points[i * 2 + 2] = cpc.p2;
             compute_new_segment(cb, 1);
         }
         vcc.submit_compute(cb, true);
@@ -93,7 +103,7 @@ namespace ve
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[current_frame], {});
         cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(NewSegmentPushConstants), &cpc);
-        cb.dispatch((vertices_per_sample * samples_per_segment + 31) / 32, 1, 1);
+        cb.dispatch(std::max((fireflies_per_segment + 31) / 32, (vertices_per_sample * samples_per_segment + 31) / 32), 1, 1);
     }
 
     glm::vec3 TunnelObjects::random_cosine(const glm::vec3& normal)
@@ -112,21 +122,22 @@ namespace ve
     void TunnelObjects::advance(const DrawInfo& di, DeviceTimer& timer)
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[di.current_frame]);
-        fireflies.move_step(cb, di, timer);
+        fireflies.move_step(cb, di, timer, cpc.segment_id);
         if (is_pos_past_segment(di.player_pos, 2, false))
         {
+            // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
+            // increment the idx at which the rendering starts by the same amount
+            cpc.segment_id++;
+            cpc.indices_start_idx += indices_per_segment;
+            tunnel_render_index_start += indices_per_segment;
+
             // add new segment points
             const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
-            segment_planes.push_back(SegmentPlane{cpc.p2, normal});
             cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
             cpc.p0 = cpc.p2;
             cpc.p2 = cpc.p2 + segment_scale * random_cosine(normal);
-
-            // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
-            // increment the idx at which the rendering starts by the same amount
-            cpc.segment_idx++;
-            cpc.indices_start_idx += indices_per_segment;
-            tunnel_render_index_start += indices_per_segment;
+            tunnel_bezier_points[(cpc.segment_id * 2 + 1) % tunnel_bezier_points.size()] = cpc.p1;
+            tunnel_bezier_points[(cpc.segment_id * 2 + 2) % tunnel_bezier_points.size()] = cpc.p2;
             // reset indices; compute shader inserts data at the last segment of the region that will be rendered now
             // indices need to be resetted if compute shader would write outside of the buffer or if the render region goes beyond the buffer
             // these 2 conditions are always met at the same time (as compute shader writes last rendered segment)
@@ -157,7 +168,8 @@ namespace ve
     bool TunnelObjects::is_pos_past_segment(glm::vec3 pos, uint32_t idx, bool use_global_id)
     {
         // calculate tunnel local index by subtracting the id of the first segment
-        if (use_global_id) idx = std::max(0, int32_t(idx) - int32_t(cpc.segment_idx - segment_count) - 1);
-        return glm::dot(glm::normalize(pos - segment_planes[idx].pos), segment_planes[idx].normal) > 0.0f;
+        if (!use_global_id) idx = (idx + cpc.segment_id - segment_count + 1);
+        idx = (idx * 2) % tunnel_bezier_points.size();
+        return glm::dot(glm::normalize(pos - tunnel_bezier_points[idx]), normalize(tunnel_bezier_points[(idx + 1) % tunnel_bezier_points.size()] - tunnel_bezier_points[idx])) > 0.0f;
     }
 }

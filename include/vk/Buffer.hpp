@@ -13,24 +13,29 @@ namespace ve
     {
     public:
         template<class T, class... Args>
-        Buffer(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const T* data, std::size_t elements, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : vmc(vmc), vcc(vcc), device_local(device_local), element_count(elements), byte_size(sizeof(T) * elements)
+        Buffer(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const T* data, std::size_t elements, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : Buffer(vmc, vcc, sizeof(T) * elements, usage_flags, device_local, queue_family_indices...)
         {
-            std::vector<uint32_t> queue_family_indices_vec = {queue_family_indices...};
-            if (device_local)
-            {
-                std::tie(buffer, vmaa) = create_buffer((usage_flags | vk::BufferUsageFlagBits::eTransferDst), {}, device_local, queue_family_indices_vec);
-                update_data(data, elements);
-            }
-            else
-            {
-                std::tie(buffer, vmaa) = create_buffer(usage_flags, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, device_local, queue_family_indices_vec);
-                update_data(data, elements);
-            }
+            element_count = elements;
+            update_data(data, elements);
         }
 
         template<class T, class... Args>
         Buffer(const VulkanMainContext& vmc, VulkanCommandContext& vcc, const std::vector<T>& data, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : Buffer(vmc, vcc, data.data(), data.size(), usage_flags, device_local, queue_family_indices...)
         {}
+
+        template<class... Args>
+        Buffer(const VulkanMainContext& vmc, VulkanCommandContext& vcc, std::size_t byte_size, vk::BufferUsageFlags usage_flags, bool device_local, Args... queue_family_indices) : vmc(vmc), vcc(vcc), device_local(device_local), byte_size(byte_size)
+        {
+            std::vector<uint32_t> queue_family_indices_vec = {queue_family_indices...};
+            if (device_local)
+            {
+                std::tie(buffer, vmaa) = create_buffer((usage_flags | vk::BufferUsageFlagBits::eTransferDst), {}, device_local, queue_family_indices_vec);
+            }
+            else
+            {
+                std::tie(buffer, vmaa) = create_buffer(usage_flags, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, device_local, queue_family_indices_vec);
+            }
+        }
 
         void self_destruct()
         {
@@ -52,23 +57,16 @@ namespace ve
             return byte_size;
         }
 
-        template<class T>
-        void update_data(const T& data)
+        void update_data_bytes(const void* data, std::size_t byte_count)
         {
-            update_data(std::vector<T>{data});
-        }
-
-        template<class T>
-        void update_data(const T* data, std::size_t elements)
-        {
-            VE_ASSERT(sizeof(T) * elements <= byte_size, "Data is larger than buffer!");
+            VE_ASSERT(byte_count <= byte_size, "Data is larger than buffer!");
 
             if (device_local)
             {
                 auto [staging_buffer, staging_vmaa] = create_buffer((vk::BufferUsageFlagBits::eTransferSrc), VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, true, {vmc.queue_family_indices.transfer});
                 void* mapped_data;
                 vmaMapMemory(vmc.va, staging_vmaa, &mapped_data);
-                memcpy(mapped_data, data, sizeof(T) * elements);
+                memcpy(mapped_data, data, byte_count);
                 vmaUnmapMemory(vmc.va, staging_vmaa);
 
                 vk::CommandBuffer& cb(vcc.begin(vcc.transfer_cb[0]));
@@ -76,7 +74,7 @@ namespace ve
                 vk::BufferCopy copy_region{};
                 copy_region.srcOffset = 0;
                 copy_region.dstOffset = 0;
-                copy_region.size = sizeof(T) * elements;
+                copy_region.size = byte_count;
                 cb.copyBuffer(staging_buffer, buffer, copy_region);
                 vcc.submit_transfer(cb, true);
 
@@ -86,15 +84,27 @@ namespace ve
             {
                 void* mapped_mem;
                 vmaMapMemory(vmc.va, vmaa, &mapped_mem);
-                memcpy(mapped_mem, data, sizeof(T) * elements);
+                memcpy(mapped_mem, data, byte_count);
                 vmaUnmapMemory(vmc.va, vmaa);
             }
+        }
+
+        template<class T>
+        void update_data(const T* data, std::size_t elements)
+        {
+            update_data_bytes(data, sizeof(T) * elements);
         }
 
         template<class T>
         void update_data(const std::vector<T>& data)
         {
             update_data(data.data(), data.size());
+        }
+
+        template<class T>
+        void update_data(const T& data)
+        {
+            update_data(std::vector<T>{data});
         }
 
     private:

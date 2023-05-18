@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <glm/vec3.hpp>
+#include <boost/align/aligned_allocator.hpp>
 
 #include "vk/Tunnel.hpp"
 #include "vk/Fireflies.hpp"
@@ -30,20 +32,16 @@ namespace ve
         // move tunnel one segment forward if player enters the n-th segment
         void advance(const DrawInfo& di, DeviceTimer& timer);
         bool is_pos_past_segment(glm::vec3 pos, uint32_t idx, bool use_global_id);
-    private:
-        struct SegmentPlane
-        {
-            glm::vec3 pos;
-            glm::vec3 normal;
-        };
 
+    private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
         Storage& storage;
         Fireflies fireflies;
         Tunnel tunnel;
         DescriptorSetHandler compute_dsh;
-        FixVector<SegmentPlane> segment_planes;
+        std::vector<glm::vec3, boost::alignment::aligned_allocator<glm::vec3, 16>> tunnel_bezier_points;
+        uint32_t tunnel_bezier_points_buffer;
         NewSegmentPushConstants cpc;
         uint32_t tunnel_render_index_start = 0;
         Pipeline compute_pipeline;

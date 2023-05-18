@@ -5,16 +5,22 @@
 
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 
-layout(constant_id = 0) const uint SAMPLES_PER_SEGMENT = 1;
-layout(constant_id = 1) const uint VERTICES_PER_SAMPLE = 1;
-layout(constant_id = 2) const uint FIREFLIES_COUNT = 1;
+layout(constant_id = 0) const uint SEGMENT_COUNT = 1;
+layout(constant_id = 1) const uint SAMPLES_PER_SEGMENT = 1;
+layout(constant_id = 2) const uint VERTICES_PER_SAMPLE = 1;
+layout(constant_id = 3) const uint FIREFLIES_PER_SEGMENT = 1;
+layout(constant_id = 4) const uint FIREFLIES_COUNT = 1;
 
-layout(binding = 0) buffer in_vertex_buffer {
+layout(binding = 0) buffer InVertexBuffer {
     AlignedFireflyVertex in_vertices[];
 };
 
-layout(binding = 1) buffer out_vertex_buffer {
+layout(binding = 1) buffer OutVertexBuffer {
     AlignedFireflyVertex out_vertices[];
+};
+
+layout(binding = 3) buffer TunnelBezierPointsBuffer {
+    vec3 tunnel_bezier_points[];
 };
 
 layout(push_constant) uniform PushConstant {
@@ -43,6 +49,11 @@ float pcg_random_state()
     return ((float(PCGHashState()) / float(0xFFFFFFFFU)) - 0.5) * 2.0;
 }
 
+float pcg_random(uint seed)
+{
+    return ((float(PCGHash(seed)) / float(0xFFFFFFFFU)) - 0.5) * 2.0;
+}
+
 float pcg_random_state_clipped()
 {
     return cos(PI * PCGHashState()) * (((float(PCGHashState()) / float(0xFFFFFFFFU)) * 0.5) + 0.5);
@@ -61,14 +72,34 @@ void main()
     // seed is used to have different random number in every frame
     uint seed = uint(gl_GlobalInvocationID.x + FIREFLIES_COUNT * pc.time * pc.time_diff);
 
-    FireflyVertex v = unpack_firefly_vertex(in_vertices[gl_GlobalInvocationID.x]);
+    // calculate idx of segment firefly is located in
+    uint segment_id = (pc.segment_id - SEGMENT_COUNT + 1) + gl_GlobalInvocationID.x / FIREFLIES_PER_SEGMENT;
+    uint firefly_idx = (segment_id * FIREFLIES_PER_SEGMENT) % FIREFLIES_COUNT + gl_GlobalInvocationID.x % FIREFLIES_PER_SEGMENT;
+    // bezier points of segment
+    vec3 p0 = tunnel_bezier_points[(segment_id * 2) % (SEGMENT_COUNT * 2 + 3)];
+    vec3 p1 = tunnel_bezier_points[(segment_id * 2 + 1) % (SEGMENT_COUNT * 2 + 3)];
+    vec3 p2 = tunnel_bezier_points[(segment_id * 2 + 2) % (SEGMENT_COUNT * 2 + 3)];
+
+    FireflyVertex v = unpack_firefly_vertex(in_vertices[firefly_idx]);
 
     // set random acceleration every 2 seconds
-    v.acc = vec3(pcg_random_state_clipped() * pcg_random_state(), pcg_random_state_clipped() * pcg_random_state(), pcg_random_state_clipped() * pcg_random_state());
-    v.vel += v.acc * pc.time_diff;
+    vec3 acc = vec3(pcg_random_state_clipped() * pcg_random_state(), pcg_random_state_clipped() * pcg_random_state(), pcg_random_state_clipped() * pcg_random_state());
+    v.vel += acc * pc.time_diff;
     // reduce applied velocity by random value to simulate insect like behavior
     v.pos += pcg_random_clipped(seed) * v.vel * pc.time_diff;
     v.col = vec3(pcg_random_state() + 1.0, pcg_random_state() + 1.0, pcg_random_state() + 1.0);
-
-    out_vertices[gl_GlobalInvocationID.x] = pack_firefly_vertex(v);
+    // check if firefly moved out of its segment in either direction
+    if (dot(normalize(v.pos - p0), normalize(p1 - p0)) < 0.0)
+    {
+        v.pos -= pcg_random_clipped(seed) * v.vel * pc.time_diff;
+        v.vel = reflect(v.vel, normalize(p1 - p0));
+        v.pos += pcg_random_clipped(seed) * v.vel * pc.time_diff;
+    }
+    else if (dot(normalize(v.pos - p2), normalize(p2 - p1)) > 0.0)
+    {
+        v.pos -= pcg_random_clipped(seed) * v.vel * pc.time_diff;
+        v.vel = reflect(v.vel, normalize(p2 - p1));
+        v.pos += pcg_random_clipped(seed) * v.vel * pc.time_diff;
+    }
+    out_vertices[firefly_idx] = pack_firefly_vertex(v);
 }

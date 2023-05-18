@@ -53,12 +53,13 @@ namespace ve
         alignas(16) glm::vec3 p1;
         alignas(16) glm::vec3 p2;
         uint32_t indices_start_idx;
-        uint32_t segment_idx;
+        uint32_t segment_id;
     };
 
     struct FireflyMovePushConstants {
         float time;
         float time_diff;
+        uint32_t segment_id;
     };
 
     struct DrawInfo {
