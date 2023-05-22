@@ -23,7 +23,7 @@ namespace ve
     struct ModelRenderData {
         glm::mat4 MVP = glm::mat4(1.0f);
         glm::mat4 M = glm::mat4(1.0f);
-        alignas(16) int32_t segment_id;
+        alignas(16) int32_t segment_uid;
     };
 
     struct PushConstants {
@@ -53,13 +53,14 @@ namespace ve
         alignas(16) glm::vec3 p1;
         alignas(16) glm::vec3 p2;
         uint32_t indices_start_idx;
-        uint32_t segment_id;
+        uint32_t segment_uid;
     };
 
     struct FireflyMovePushConstants {
         float time;
         float time_diff;
-        uint32_t segment_id;
+        uint32_t segment_uid;
+        uint32_t first_segment_indices_idx;
     };
 
     struct DrawInfo {
@@ -168,7 +169,7 @@ namespace ve
         glm::vec3 pos;
         glm::vec3 normal;
         glm::vec2 tex;
-        uint32_t segment_id;
+        uint32_t segment_uid;
 
         static std::vector<vk::VertexInputBindingDescription> get_binding_descriptions()
         {
@@ -200,7 +201,7 @@ namespace ve
             attribute_descriptions[3].binding = 0;
             attribute_descriptions[3].location = 3;
             attribute_descriptions[3].format = vk::Format::eR32Sint;
-            attribute_descriptions[3].offset = offsetof(TunnelVertex, segment_id);
+            attribute_descriptions[3].offset = offsetof(TunnelVertex, segment_uid);
 
             return attribute_descriptions;
         }

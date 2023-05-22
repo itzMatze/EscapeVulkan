@@ -10,7 +10,7 @@ layout(constant_id = 2) const uint FIREFLIES_PER_SEGMENT = 1;
 layout(location = 0) in vec3 frag_pos;
 layout(location = 1) in vec3 frag_normal;
 layout(location = 2) in vec2 frag_tex;
-layout(location = 3) flat in int frag_segment_id;
+layout(location = 3) flat in int frag_segment_uid;
 
 layout(location = 0) out vec4 out_color;
 
@@ -49,5 +49,5 @@ void main()
     // add noise from noise texture to color
     vec4 color = vec4(0.63, 0.32, 0.18, 1.0) * texture(tex_sampler, vec3(frag_tex, 1));
 
-    out_color = calculate_phong(normal, color, frag_segment_id);
+    out_color = calculate_phong(normal, color, frag_segment_uid);
 }

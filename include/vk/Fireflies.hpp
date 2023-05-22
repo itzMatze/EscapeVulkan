@@ -12,10 +12,11 @@ namespace ve
     public:
         Fireflies(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
         void self_destruct(bool full = true);
+        void create_buffers();
         void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);
-        void move_step(vk::CommandBuffer& cb, const DrawInfo& di, DeviceTimer& timer, uint32_t segment_id);
+        void move_step(vk::CommandBuffer& cb, const DrawInfo& di, DeviceTimer& timer, FireflyMovePushConstants& fmpc);
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;

@@ -14,7 +14,7 @@ layout(location = 0) out vec3 frag_pos;
 layout(location = 1) out vec3 frag_normal;
 layout(location = 2) out vec4 frag_color;
 layout(location = 3) out vec2 frag_tex;
-layout(location = 4) out int frag_segment_id;
+layout(location = 4) out int frag_segment_uid;
 
 layout(binding = 0) uniform ModelRenderDataBuffer {
     ModelRenderData mrd[NUM_MVPS];
@@ -30,5 +30,5 @@ void main() {
     frag_normal = normal;
     frag_color = color;
     frag_tex = tex;
-    frag_segment_id = mrd[pc.mvp_idx].segment_id;
+    frag_segment_uid = mrd[pc.mvp_idx].segment_uid;
 }

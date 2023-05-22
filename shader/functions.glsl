@@ -1,5 +1,5 @@
 #define FIREFLY_INTENSITY 3.0
-vec4 calculate_phong(in vec3 normal, in vec4 color, in int segment_id)
+vec4 calculate_phong(in vec3 normal, in vec4 color, in int segment_uid)
 {
     vec4 out_color = color * 0.05;
     // spotlights
@@ -10,7 +10,7 @@ vec4 calculate_phong(in vec3 normal, in vec4 color, in int segment_id)
         out_color += max(dot(normal, L), 0.0) * outer_cone_reduction * color * (lights[i].dir_intensity.w / (lights[i].dir_intensity.w + pow(distance(lights[i].pos_inner.xyz, frag_pos), 2)));
     }
     // fireflies
-    uint start_idx = (max(0, (segment_id - 1)) % SEGMENT_COUNT) * FIREFLIES_PER_SEGMENT;
+    uint start_idx = (max(0, (segment_uid - 1)) % SEGMENT_COUNT) * FIREFLIES_PER_SEGMENT;
     uint end_idx = uint(min(start_idx + 3 * FIREFLIES_PER_SEGMENT, FIREFLIES_PER_SEGMENT * SEGMENT_COUNT));
     // fireflies are overwritten if their segment gets removed
     // first segment of the tunnel does not necessarily correspond to the beginning of the buffer

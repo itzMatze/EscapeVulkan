@@ -11,7 +11,7 @@ layout(location = 0) in vec3 frag_pos;
 layout(location = 1) in vec3 frag_normal;
 layout(location = 2) in vec4 frag_color;
 layout(location = 3) in vec2 frag_tex;
-layout(location = 4) flat in int frag_segment_id;
+layout(location = 4) flat in int frag_segment_uid;
 
 layout(location = 0) out vec4 out_color;
 
@@ -49,5 +49,5 @@ void main()
     }
 
     vec4 texture_color = texture(tex_sampler, vec3(frag_tex, materials[pc.mat_idx].base_texture));
-    out_color = calculate_phong(frag_normal, texture_color, frag_segment_id);
+    out_color = calculate_phong(frag_normal, texture_color, frag_segment_uid);
 }

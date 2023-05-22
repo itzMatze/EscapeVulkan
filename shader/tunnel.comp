@@ -48,8 +48,8 @@ void main()
 {
     if (gl_GlobalInvocationID.x == 0)
     {
-        tunnel_bezier_points[(pc.segment_id * 2 + 1) % (SEGMENT_COUNT * 2 + 3)] = pc.p1;
-        tunnel_bezier_points[(pc.segment_id * 2 + 2) % (SEGMENT_COUNT * 2 + 3)] = pc.p2;
+        tunnel_bezier_points[(pc.segment_uid * 2 + 1) % (SEGMENT_COUNT * 2 + 3)] = pc.p1;
+        tunnel_bezier_points[(pc.segment_uid * 2 + 2) % (SEGMENT_COUNT * 2 + 3)] = pc.p2;
     }
     if (gl_GlobalInvocationID.x < SAMPLES_PER_SEGMENT * VERTICES_PER_SAMPLE)
     {
@@ -74,20 +74,20 @@ void main()
         TunnelVertex v;
         v.pos = vertex_pos;
         v.normal = normal;
-        v.tex = vec2(abs((pc.segment_id % 2) - float(sample_circle_id) / float(SAMPLES_PER_SEGMENT - 1)), abs((float(vertex_id) / float(VERTICES_PER_SAMPLE)) * 2.0 - 1.0));
-        v.segment_id = pc.segment_id;
+        v.tex = vec2(abs((pc.segment_uid % 2) - float(sample_circle_id) / float(SAMPLES_PER_SEGMENT - 1)), abs((float(vertex_id) / float(VERTICES_PER_SAMPLE)) * 2.0 - 1.0));
+        v.segment_uid = pc.segment_uid;
         vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x] = pack_tunnel_vertex(v);
     }
     if (gl_GlobalInvocationID.x < FIREFLIES_PER_SEGMENT)
     {
-        float t = random(vec2(gl_GlobalInvocationID.x, pc.segment_id));
-        uint idx = (pc.segment_id % SEGMENT_COUNT) * FIREFLIES_PER_SEGMENT + gl_GlobalInvocationID.x;
+        float t = random(vec2(gl_GlobalInvocationID.x, pc.segment_uid));
+        uint idx = (pc.segment_uid % SEGMENT_COUNT) * FIREFLIES_PER_SEGMENT + gl_GlobalInvocationID.x;
         // spawn lights in the middle of the tunnel by using a random position on the bézier curve
         FireflyVertex v;
         v.pos = pow(1 - t, 2) * pc.p0 + (2 - 2 * t) * t * pc.p1 + pow(t, 2) * pc.p2;
         v.col = vec3(1.0, 0.0, 1.0);
         v.vel = vec3(0.0, 0.0, 0.0);
-        v.acc = vec3(0.0, 0.0, 0.0);
+        v.acc = vec3(1.0, 1.0, 1.0);
         firefly_vertices[idx] = pack_firefly_vertex(v);
     }
 }

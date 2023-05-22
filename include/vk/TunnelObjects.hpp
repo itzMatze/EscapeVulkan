@@ -26,6 +26,7 @@ namespace ve
     public:
         TunnelObjects(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
         void self_destruct(bool full = true);
+        void create_buffers();
         void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, DrawInfo& di);

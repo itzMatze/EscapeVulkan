@@ -51,6 +51,7 @@ namespace ve
             scene.self_destruct();
         }
         scene.load(std::string("../assets/scenes/") + filename);
+        scene.create_buffers();
         scene.construct(swapchain.get_render_pass());
         spdlog::info("Loading scene took: {} ms", (timer.elapsed()));
     }

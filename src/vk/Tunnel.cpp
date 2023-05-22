@@ -4,8 +4,7 @@
 namespace ve
 {
     Tunnel::Tunnel(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : render_dsh(vmc), vmc(vmc), vcc(vcc), storage(storage), pipeline(vmc), mesh_view_pipeline(vmc)
-    {
-    }
+    {}
 
     void Tunnel::self_destruct(bool full)
     {
@@ -22,7 +21,7 @@ namespace ve
         }
     }
 
-    void Tunnel::construct(const RenderPass& render_pass)
+    void Tunnel::create_buffers()
     {
         // double space is needed to enable that new vertices can replace old ones as the tunnel continuously moves forward
         std::vector<Vertex> vertices(vertex_count * 2);
@@ -57,7 +56,10 @@ namespace ve
         }
         vertex_buffer = storage.add_named_buffer(std::string("tunnel_vertices"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         index_buffer = storage.add_named_buffer(std::string("tunnel_indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+    }
 
+    void Tunnel::construct(const RenderPass& render_pass)
+    {
         construct_pipelines(render_pass);
     }
 

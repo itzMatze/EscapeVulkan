@@ -11,6 +11,11 @@ namespace ve
     Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), tunnel_objects(vmc, vcc, storage)
     {}
 
+    void Scene::create_buffers()
+    {
+        tunnel_objects.create_buffers();
+    }
+
     void Scene::construct(const RenderPass& render_pass)
     {
         // initialize tunnel
@@ -109,7 +114,7 @@ namespace ve
                 VE_ASSERT(texture_dimensions == model.texture_dimensions || texture_dimensions == 0, "Textures have different dimensions!");
                 texture_dimensions = model.texture_dimensions;
             }
-            model_render_data.push_back(ModelRenderData{.M = glm::mat4(1.0f), .segment_id = 0});
+            model_render_data.push_back(ModelRenderData{.M = glm::mat4(1.0f), .segment_uid = 0});
             model_handles.emplace(name, model_render_data.size() - 1);
             for (auto& ro : ros)
             {
@@ -259,9 +264,9 @@ namespace ve
         }
         // get id of segment player is currently in
         glm::vec3 player_position(model_render_data[player_idx].M[3][0], model_render_data[player_idx].M[3][1], model_render_data[player_idx].M[3][2]);
-        for (uint32_t j = 0; j < segment_count && tunnel_objects.is_pos_past_segment(player_position, model_render_data[player_idx].segment_id + 1, true); ++j)
+        for (uint32_t j = 0; j < segment_count && tunnel_objects.is_pos_past_segment(player_position, model_render_data[player_idx].segment_uid + 1, true); ++j)
         {
-            model_render_data[player_idx].segment_id++;
+            model_render_data[player_idx].segment_uid++;
         }
         cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
         cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);

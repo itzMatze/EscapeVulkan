@@ -105,7 +105,7 @@ namespace ve
             ImGui::Text("'G': Show/Hide UI");
             ImGui::Text("'F': toggle tracking camera");
             ImGui::Text("'X': toggle controller steering");
-            ImGui::Text("'F12': Screenshot");
+            ImGui::Text("'F1': Screenshot");
         }
         ImGui::Separator();
         ImGui::Combo("Scene", &di.current_scene, di.scene_names.data(), di.scene_names.size());

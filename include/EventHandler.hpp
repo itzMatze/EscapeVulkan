@@ -44,7 +44,7 @@ enum class Key
     MouseLeft = 33,
     MouseMiddle = 34,
     MouseRight = 35,
-    F12 = 36,
+    F1 = 36,
     Size = 37
 };
 

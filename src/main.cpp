@@ -149,10 +149,10 @@ private:
             camera.is_tracking_camera = !camera.is_tracking_camera;
             eh.set_released_key(Key::F, false);
         }
-        if (eh.is_key_released(Key::F12))
+        if (eh.is_key_released(Key::F1))
         {
             di.save_screenshot = true;
-            eh.set_released_key(Key::F12, false);
+            eh.set_released_key(Key::F1, false);
         }
         if (eh.is_key_released(Key::X) && eh.is_controller_available())
         {
