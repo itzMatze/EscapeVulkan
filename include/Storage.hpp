@@ -33,6 +33,10 @@ namespace ve
             {
                 buffer_names.emplace(name, buffers.size() - 1);
             }
+            const vk::Buffer& b = buffers.back().value().get();
+            vk::DebugUtilsObjectNameInfoEXT dmoni(b.objectType, uint64_t(static_cast<vk::Buffer::CType>(b)), name.c_str());
+            auto func = (PFN_vkSetDebugUtilsObjectNameEXT) vmc.instance.get().getProcAddr("vkSetDebugUtilsObjectNameEXT");
+            func(vmc.logical_device.get(), (VkDebugUtilsObjectNameInfoEXT*)(&dmoni));
             return buffers.size() - 1;
         }
 

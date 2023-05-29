@@ -87,7 +87,7 @@ namespace ve
         ImGui_ImplVulkan_DestroyFontUploadObjects();
     }
 
-    void UI::draw(vk::CommandBuffer& cb, DrawInfo& di)
+    void UI::draw(vk::CommandBuffer& cb, GameState& gs)
     {
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplSDL2_NewFrame(vmc.window.value().get());
@@ -101,6 +101,7 @@ namespace ve
             ImGui::Text("'M': toggle mesh view");
             ImGui::Text("'N': toggle normal view");
             ImGui::Text("'T': toggle texel view");
+            ImGui::Text("'B': toggle player bounding box");
             ImGui::Text("'R': reload shaders");
             ImGui::Text("'G': Show/Hide UI");
             ImGui::Text("'F': toggle tracking camera");
@@ -108,23 +109,23 @@ namespace ve
             ImGui::Text("'F1': Screenshot");
         }
         ImGui::Separator();
-        ImGui::Combo("Scene", &di.current_scene, di.scene_names.data(), di.scene_names.size());
-        di.load_scene = ImGui::Button("Load scene");
-        ImGui::Checkbox("Meshview", &(di.mesh_view));
+        ImGui::Combo("Scene", &gs.current_scene, gs.scene_names.data(), gs.scene_names.size());
+        gs.load_scene = ImGui::Button("Load scene");
+        ImGui::Checkbox("Meshview", &(gs.mesh_view));
         ImGui::SameLine();
-        ImGui::Checkbox("NormalView", &(di.normal_view));
+        ImGui::Checkbox("NormalView", &(gs.normal_view));
         ImGui::SameLine();
-        ImGui::Checkbox("TexelView", &(di.tex_view));
+        ImGui::Checkbox("TexelView", &(gs.tex_view));
         ImGui::Separator();
-        time_diff = time_diff * (1 - update_weight) + di.time_diff * update_weight;
-        frametime = frametime * (1 - update_weight) + di.frametime * update_weight;
-        frametime_values.push_back(di.frametime);
+        time_diff = time_diff * (1 - update_weight) + gs.time_diff * update_weight;
+        frametime = frametime * (1 - update_weight) + gs.frametime * update_weight;
+        frametime_values.push_back(gs.frametime);
         for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT; ++i)
         {
-            if (!std::signbit(di.devicetimings[i])) 
+            if (!std::signbit(gs.devicetimings[i])) 
             {
-                devicetimings[i] = devicetimings[i] * (1 - update_weight) + di.devicetimings[i] * update_weight;
-                devicetiming_values[i].push_back(di.devicetimings[i]);
+                devicetimings[i] = devicetimings[i] * (1 - update_weight) + gs.devicetimings[i] * update_weight;
+                devicetiming_values[i].push_back(gs.devicetimings[i]);
             }
         }
         if (ImGui::CollapsingHeader("Timings"))
@@ -136,6 +137,7 @@ namespace ve
             ImGui::Text(("RENDERING_TUNNEL: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_TUNNEL], 4) + " ms").c_str());
             ImGui::Text(("COMPUTE_TUNNEL_ADVANCE: " + ve::to_string(devicetimings[DeviceTimer::COMPUTE_TUNNEL_ADVANCE], 4) + " ms").c_str());
             ImGui::Text(("FIREFLY_MOVE_STEP: " + ve::to_string(devicetimings[DeviceTimer::FIREFLY_MOVE_STEP], 4) + " ms").c_str());
+            ImGui::Text(("PLAYER_TUNNEL_COLLISION: " + ve::to_string(devicetimings[DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION], 4) + " ms").c_str());
         }
         if (ImGui::CollapsingHeader("Plots"))
         {
@@ -149,6 +151,7 @@ namespace ve
                 ImPlot::PlotLine("RENDERING_UI", devicetiming_values[DeviceTimer::RENDERING_UI].data(), devicetiming_values[DeviceTimer::RENDERING_UI].size());
                 ImPlot::PlotLine("RENDERING_TUNNEL", devicetiming_values[DeviceTimer::RENDERING_TUNNEL].data(), devicetiming_values[DeviceTimer::RENDERING_TUNNEL].size());
                 ImPlot::PlotLine("FIREFLY_MOVE_STEP", devicetiming_values[DeviceTimer::FIREFLY_MOVE_STEP].data(), devicetiming_values[DeviceTimer::FIREFLY_MOVE_STEP].size());
+                ImPlot::PlotLine("PLAYER_TUNNEL_COLLISION", devicetiming_values[DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION].data(), devicetiming_values[DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION].size());
                 ImPlot::EndPlot();
             }
             if (ImPlot::BeginPlot("Compute Timings"))

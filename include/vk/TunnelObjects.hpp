@@ -20,6 +20,8 @@ namespace ve
     constexpr uint32_t index_count = indices_per_segment * segment_count;
     constexpr uint32_t fireflies_per_segment = 5;
     constexpr uint32_t firefly_count = fireflies_per_segment * segment_count;
+    // player is always in the same segment as the tunnel moves with the player
+    constexpr uint32_t player_segment_position = 1;
 
     class TunnelObjects
     {
@@ -29,10 +31,12 @@ namespace ve
         void create_buffers();
         void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
-        void draw(vk::CommandBuffer& cb, DrawInfo& di);
+        void draw(vk::CommandBuffer& cb, GameState& gs);
         // move tunnel one segment forward if player enters the n-th segment
-        void advance(const DrawInfo& di, DeviceTimer& timer);
+        void advance(GameState& gs, DeviceTimer& timer);
         bool is_pos_past_segment(glm::vec3 pos, uint32_t idx, bool use_global_id);
+        glm::vec3 get_player_reset_position();
+        uint32_t get_tunnel_render_index_start() const;
 
     private:
         const VulkanMainContext& vmc;
@@ -52,5 +56,6 @@ namespace ve
         glm::vec3 random_cosine(const glm::vec3& normal);
         void construct_pipelines(const RenderPass& render_pass);
         void compute_new_segment(vk::CommandBuffer& cb, uint32_t current_frame);
+        glm::vec3& get_tunnel_bezier_point(uint32_t segment_id, uint32_t bezier_point_idx, bool use_global_id);
     };
 } // namespace ve

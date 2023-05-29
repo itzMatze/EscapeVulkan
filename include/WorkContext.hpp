@@ -35,13 +35,13 @@ namespace ve
         std::vector<Synchronization> syncs;
         std::vector<DeviceTimer> timers;
 
-        void draw_frame(DrawInfo& di);
+        void draw_frame(GameState& gs);
         vk::Extent2D recreate_swapchain();
 
     private:
         float total_time = 0.0f;
 
-        void record_graphics_command_buffer(uint32_t image_idx, DrawInfo& di);
-        void submit(uint32_t image_idx, DrawInfo& di);
+        void record_graphics_command_buffer(uint32_t image_idx, GameState& gs);
+        void submit(uint32_t image_idx, GameState& gs);
     };
 } // namespace ve

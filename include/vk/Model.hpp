@@ -27,6 +27,20 @@ namespace ve
             meshes[static_cast<uint32_t>(flavor)].push_back(mesh);
         }
 
+        void apply_transformation(const glm::mat4& transformation)
+        {
+            for (auto& v : vertices)
+            {
+                v.pos = transformation * glm::vec4(v.pos, 1.0f);
+                v.normal = glm::transpose(glm::inverse(transformation)) * glm::vec4(v.normal, 0.0f);
+            }
+            for (auto& l : lights)
+            {
+                l.pos = transformation * glm::vec4(l.pos, 1.0f);
+                l.dir = transformation * glm::vec4(l.dir, 0.0f);
+            }
+        }
+
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
         std::vector<uint32_t> texture_indices;

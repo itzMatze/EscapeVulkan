@@ -16,7 +16,7 @@ namespace ve
 		UI(const VulkanMainContext& vmc, const RenderPass& render_pass, uint32_t frames);
         void self_destruct();
 		void upload_font_textures(VulkanCommandContext& vcc);
-		void draw(vk::CommandBuffer& cb, DrawInfo& di);
+		void draw(vk::CommandBuffer& cb, GameState& gs);
 	private:
         const VulkanMainContext& vmc;
 		vk::DescriptorPool imgui_pool;

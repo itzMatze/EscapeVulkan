@@ -63,7 +63,16 @@ namespace ve
         uint32_t first_segment_indices_idx;
     };
 
-    struct DrawInfo {
+    struct PlayerTunnelCollisionPushConstants {
+        glm::mat4 inverse_m;
+        uint32_t first_segment_indices_idx;
+    };
+
+    struct DebugPushConstants {
+        glm::mat4 mvp;
+    };
+
+    struct GameState {
         std::vector<const char*> scene_names;
         std::vector<float> devicetimings;
         glm::vec3 player_pos;
@@ -71,6 +80,10 @@ namespace ve
         float time_diff = 0.000001f;
         float time = 0.0f;
         float frametime = 0.0f;
+        float player_reset_blink_timer = 0.0f;
+        uint32_t player_reset_blink_counter = 0;
+        uint32_t player_lifes = 3;
+        float tunnel_distance_travelled = 0.0f;
         int32_t current_scene = 0;
         uint32_t current_frame = 0;
         bool load_scene = false;
@@ -78,7 +91,30 @@ namespace ve
         bool mesh_view = false;
         bool normal_view = false;
         bool tex_view = false;
+        bool show_player_bb = false;
+        bool show_player = true;
         bool save_screenshot = false;
+    };
+
+    struct Material {
+        glm::vec4 base_color = glm::vec4(1.0f);
+        glm::vec4 emission = glm::vec4(0.0f);
+        float metallic = 0.0f;
+        float roughness = 0.0f;
+        alignas(8) int32_t base_texture = -1;
+        //int32_t metallic_roughness_texture = -1;
+        //int32_t normal_texture = -1;
+        //int32_t occlusion_texture = -1;
+        //int32_t emissive_texture = -1;
+    };
+
+    struct Light {
+        glm::vec3 dir;
+        float intensity = 1.0f;
+        glm::vec3 pos;
+        float innerConeAngle;
+        glm::vec3 color;
+        float outerConeAngle;
     };
 
     struct Vertex {
@@ -207,24 +243,33 @@ namespace ve
         }
     };
 
-    struct Material {
-        glm::vec4 base_color = glm::vec4(1.0f);
-        glm::vec4 emission = glm::vec4(0.0f);
-        float metallic = 0.0f;
-        float roughness = 0.0f;
-        alignas(8) int32_t base_texture = -1;
-        //int32_t metallic_roughness_texture = -1;
-        //int32_t normal_texture = -1;
-        //int32_t occlusion_texture = -1;
-        //int32_t emissive_texture = -1;
-    };
-
-    struct Light {
-        glm::vec3 dir;
-        float intensity = 1.0f;
+    struct DebugVertex {
         glm::vec3 pos;
-        float innerConeAngle;
-        glm::vec3 color;
-        float outerConeAngle;
+        glm::vec4 color;
+
+        static std::vector<vk::VertexInputBindingDescription> get_binding_descriptions()
+        {
+            vk::VertexInputBindingDescription binding_description{};
+            binding_description.binding = 0;
+            binding_description.stride = sizeof(DebugVertex);
+            binding_description.inputRate = vk::VertexInputRate::eVertex;
+            return {binding_description};
+        }
+
+        static std::vector<vk::VertexInputAttributeDescription> get_attribute_descriptions()
+        {
+            std::vector<vk::VertexInputAttributeDescription> attribute_descriptions(2);
+            attribute_descriptions[0].binding = 0;
+            attribute_descriptions[0].location = 0;
+            attribute_descriptions[0].format = vk::Format::eR32G32B32Sfloat;
+            attribute_descriptions[0].offset = offsetof(DebugVertex, pos);
+
+            attribute_descriptions[1].binding = 0;
+            attribute_descriptions[1].location = 1;
+            attribute_descriptions[1].format = vk::Format::eR32G32B32A32Sfloat;
+            attribute_descriptions[1].offset = offsetof(DebugVertex, color);
+
+            return attribute_descriptions;
+        }
     };
 } // namespace ve

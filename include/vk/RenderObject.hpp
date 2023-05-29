@@ -15,7 +15,7 @@ namespace ve
         void self_destruct(bool full = true);
         void add_model_meshes(std::vector<Mesh>& mesh_list);
         void construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_names, bool reload = false);
-        void draw(vk::CommandBuffer& cb, DrawInfo& di);
+        void draw(vk::CommandBuffer& cb, GameState& gs);
 
         DescriptorSetHandler dsh;
 

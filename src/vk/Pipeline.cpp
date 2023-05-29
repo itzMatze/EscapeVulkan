@@ -15,7 +15,7 @@ namespace ve
         vmc.logical_device.get().destroyPipelineLayout(pipeline_layout);
     }
 
-    void Pipeline::construct(const RenderPass& render_pass, vk::DescriptorSetLayout set_layout, const std::vector<ShaderInfo>& shader_infos, vk::PolygonMode polygon_mode, const std::vector<vk::VertexInputBindingDescription>& binding_descriptions, const std::vector<vk::VertexInputAttributeDescription>& attribute_description, const vk::PrimitiveTopology& primitive_topology)
+    void Pipeline::construct(const RenderPass& render_pass, std::optional<vk::DescriptorSetLayout> set_layout, const std::vector<ShaderInfo>& shader_infos, vk::PolygonMode polygon_mode, const std::vector<vk::VertexInputBindingDescription>& binding_descriptions, const std::vector<vk::VertexInputAttributeDescription>& attribute_description, const vk::PrimitiveTopology& primitive_topology, const std::vector<vk::PushConstantRange>& pcrs)
     {
         std::vector<Shader> shaders;
         std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
@@ -71,7 +71,7 @@ namespace ve
         prsci.depthClampEnable = VK_FALSE;
         prsci.rasterizerDiscardEnable = VK_FALSE;
         prsci.polygonMode = polygon_mode;
-        prsci.lineWidth = 4.0f;
+        prsci.lineWidth = 0.5f;
         prsci.cullMode = vk::CullModeFlagBits::eNone;
         prsci.frontFace = vk::FrontFace::eCounterClockwise;
         prsci.depthBiasEnable = VK_FALSE;
@@ -109,18 +109,13 @@ namespace ve
         pcbsci.blendConstants[2] = 0.0f;
         pcbsci.blendConstants[3] = 0.0f;
 
-        std::array<vk::PushConstantRange, 2> pcrs;
-        pcrs[0].offset = 0;
-        pcrs[0].size = PushConstants::get_vertex_push_constant_size();
-        pcrs[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
-        pcrs[1].offset = PushConstants::get_fragment_push_constant_offset();
-        pcrs[1].size = PushConstants::get_fragment_push_constant_size();
-        pcrs[1].stageFlags = vk::ShaderStageFlagBits::eFragment;
-
         vk::PipelineLayoutCreateInfo plci{};
         plci.sType = vk::StructureType::ePipelineLayoutCreateInfo;
-        plci.setLayoutCount = 1;
-        plci.pSetLayouts = &set_layout;
+        if (set_layout.has_value())
+        {
+            plci.setLayoutCount = 1;
+            plci.pSetLayouts = &set_layout.value();
+        }
         plci.pushConstantRangeCount = pcrs.size();
         plci.pPushConstantRanges = pcrs.data();
 

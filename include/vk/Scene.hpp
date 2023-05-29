@@ -6,6 +6,7 @@
 #include "Storage.hpp"
 #include "Timer.hpp"
 #include "TunnelObjects.hpp"
+#include "CollisionHandler.hpp"
 
 namespace ve
 {
@@ -13,7 +14,6 @@ namespace ve
     {
     public:
         Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
-        void create_buffers();
         void construct(const RenderPass& render_pass);
         void self_destruct();
         void reload_shaders(const RenderPass& render_pass);
@@ -22,7 +22,8 @@ namespace ve
         void scale(const std::string& model, const glm::vec3& scale);
         void rotate(const std::string& model, float degree, const glm::vec3& axis);
         DescriptorSetHandler& get_dsh(ShaderFlavor flavor);
-        void draw(vk::CommandBuffer& cb, DrawInfo& di, DeviceTimer& timer);
+        void draw(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer);
+        void update_game_state(GameState& gs);
 
         bool loaded = false;
 
@@ -45,8 +46,8 @@ namespace ve
         int32_t light_buffer = -1;
         std::vector<uint32_t> model_render_data_buffers;
         TunnelObjects tunnel_objects;
+        CollisionHandler collision_handler;
 
         void construct_pipelines(const RenderPass& render_pass, bool reload);
-        void add_model(Model& model, const std::string& name);
     };
 } // namespace ve

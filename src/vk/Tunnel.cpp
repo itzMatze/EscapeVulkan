@@ -109,16 +109,16 @@ namespace ve
         construct_pipelines(render_pass);
     }
 
-    void Tunnel::draw(vk::CommandBuffer& cb, DrawInfo& di, uint32_t render_index_start)
+    void Tunnel::draw(vk::CommandBuffer& cb, GameState& gs, uint32_t render_index_start)
     {
         cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
         cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
-        mrd.MVP = di.cam.getVP();
-        storage.get_buffer(model_render_data_buffers[di.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
-        const vk::PipelineLayout& pipeline_layout = di.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
-        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, di.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[di.current_frame], {});
-        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .time = di.time, .normal_view = di.normal_view, .tex_view = di.tex_view};
+        mrd.MVP = gs.cam.getVP();
+        storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
+        const vk::PipelineLayout& pipeline_layout = gs.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
+        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, gs.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[gs.current_frame], {});
+        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .time = gs.time, .normal_view = gs.normal_view, .tex_view = gs.tex_view};
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.drawIndexed(index_count, 1, render_index_start, 0, 0);

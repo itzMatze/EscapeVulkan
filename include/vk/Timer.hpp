@@ -43,6 +43,7 @@ namespace ve
             RENDERING_TUNNEL = 3,
             FIREFLY_MOVE_STEP = 4,
             COMPUTE_TUNNEL_ADVANCE = 5,
+            COMPUTE_PLAYER_TUNNEL_COLLISION = 6,
             TIMER_COUNT
         };
 

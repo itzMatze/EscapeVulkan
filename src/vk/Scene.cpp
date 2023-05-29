@@ -8,18 +8,16 @@
 
 namespace ve
 {
-    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), tunnel_objects(vmc, vcc, storage)
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), tunnel_objects(vmc, vcc, storage), collision_handler(vmc, vcc, storage)
     {}
-
-    void Scene::create_buffers()
-    {
-        tunnel_objects.create_buffers();
-    }
 
     void Scene::construct(const RenderPass& render_pass)
     {
+        if (!loaded) VE_THROW("Cannot construct scene before loading one!");
+        tunnel_objects.create_buffers();
         // initialize tunnel
         tunnel_objects.construct(render_pass);
+        collision_handler.construct(render_pass);
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
@@ -65,6 +63,7 @@ namespace ve
         model_render_data.clear();
         loaded = false;
         tunnel_objects.self_destruct();
+        collision_handler.self_destruct();
     }
 
     void Scene::construct_pipelines(const RenderPass& render_pass, bool reload)
@@ -94,6 +93,7 @@ namespace ve
     {
         construct_pipelines(render_pass, true);
         tunnel_objects.reload_shaders(render_pass);
+        collision_handler.reload_shaders(render_pass);
     }
 
     void Scene::load(const std::string& path)
@@ -102,7 +102,7 @@ namespace ve
         std::vector<uint32_t> indices;
         vk::Extent2D texture_dimensions;
 
-        auto add_model = [&](Model& model, const std::string& name) -> void
+        auto add_model = [&](Model& model, const std::string& name, const glm::mat4& transformation) -> void
         {
             vertices.insert(vertices.end(), model.vertices.begin(), model.vertices.end());
             indices.insert(indices.end(), model.indices.begin(), model.indices.end());
@@ -149,24 +149,28 @@ namespace ve
             {
                 const std::string name = d.value("name", "");
                 Model model = ModelLoader::load(vmc, storage, std::string("../assets/models/") + std::string(d.value("file", "")), indices.size(), vertices.size(), materials.size(), texture_data.size());
-                add_model(model, name);
 
                 // apply transformations to model
+                glm::mat4 transformation(1.0f);
                 if (d.contains("scale"))
                 {
-                    glm::vec3 scaling(d.at("scale")[0], d.at("scale")[1], d.at("scale")[2]);
-                    scale(name, scaling);
-                }
-                if (d.contains("translation"))
-                {
-                    glm::vec3 translation(d.at("translation")[0], d.at("translation")[1], d.at("translation")[2]);
-                    translate(name, translation);
+                    transformation[0][0] = d.at("scale")[0];
+                    transformation[1][1] = d.at("scale")[1];
+                    transformation[2][2] = d.at("scale")[2];
                 }
                 if (d.contains("rotation"))
                 {
-                    glm::vec3 rotation(d.at("rotation")[1], d.at("rotation")[2], d.at("rotation")[3]);
-                    rotate(name, d.at("rotation")[0], rotation);
+                    transformation = glm::rotate(transformation, glm::radians(float(d.at("rotation")[0])), glm::vec3(d.at("rotation")[1], d.at("rotation")[2], d.at("rotation")[3]));
                 }
+                if (d.contains("translation"))
+                {
+                    transformation[3][0] = d.at("translation")[0];
+                    transformation[3][1] = d.at("translation")[1];
+                    transformation[3][2] = d.at("translation")[2];
+                }
+                model.apply_transformation(transformation);
+                if (name == "Player") collision_handler.create_buffers(model.vertices, indices.size(), model.indices.size());
+                add_model(model, name, transformation);
             }
         }
         // load custom models (vertices and indices directly contained in json file)
@@ -176,11 +180,11 @@ namespace ve
             {
                 std::string name = d.value("name", "");
                 Model model = ModelLoader::load(vmc, storage, d, indices.size(), vertices.size(), materials.size());
-                add_model(model, name);
+                add_model(model, name, glm::mat4(1.0f));
             }
         }
-        vertex_buffer = storage.add_named_buffer(std::string("vertices"), vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
-        index_buffer = storage.add_named_buffer(std::string("indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        vertex_buffer = storage.add_named_buffer(std::string("vertices"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        index_buffer = storage.add_named_buffer(std::string("indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         if (!materials.empty())
         {
             material_buffer = storage.add_named_buffer(std::string("materials"), materials, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
@@ -251,16 +255,15 @@ namespace ve
         return ros.at(flavor).dsh;
     }
 
-    void Scene::draw(vk::CommandBuffer& cb, DrawInfo& di, DeviceTimer& timer)
+    void Scene::draw(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer)
     {
-        tunnel_objects.advance(di, timer);
         uint32_t player_idx = model_handles.at("Player");
-        glm::mat4 vp = di.cam.getVP();
+        glm::mat4 vp = gs.cam.getVP();
         // let camera follow the players object
         // world position of players object is camera position, camera is 10 behind the object
-        if (di.cam.is_tracking_camera)
+        if (gs.cam.is_tracking_camera)
         {
-            model_render_data[player_idx].M = glm::rotate(glm::inverse(di.cam.view), glm::radians(180.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            model_render_data[player_idx].M = glm::rotate(glm::inverse(gs.cam.view), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         }
         // get id of segment player is currently in
         glm::vec3 player_position(model_render_data[player_idx].M[3][0], model_render_data[player_idx].M[3][1], model_render_data[player_idx].M[3][2]);
@@ -268,8 +271,6 @@ namespace ve
         {
             model_render_data[player_idx].segment_uid++;
         }
-        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
-        cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
         for (uint32_t i = 0; i < model_render_data.size(); ++i)
         {
             model_render_data[i].MVP = vp * model_render_data[i].M;
@@ -286,14 +287,46 @@ namespace ve
             lights[i].dir = glm::vec3(tmp_dir);
         }
 
+        tunnel_objects.advance(gs, timer);
+        PlayerTunnelCollisionPushConstants ptcpc{.inverse_m = glm::inverse(model_render_data[player_idx].M), .first_segment_indices_idx = tunnel_objects.get_tunnel_render_index_start()};
+        collision_handler.compute(gs, timer, ptcpc);
+
         if (!lights.empty()) storage.get_buffer(light_buffer).update_data(lights);
-        storage.get_buffer(model_render_data_buffers[di.current_frame]).update_data(model_render_data);
+        storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(model_render_data);
+        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
+        cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
         for (auto& ro : ros)
         {
-            ro.second.draw(cb, di);
+            if (gs.show_player) ro.second.draw(cb, gs);
         }
         timer.start(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
-        tunnel_objects.draw(cb, di);
+        tunnel_objects.draw(cb, gs);
         timer.stop(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
+        if (gs.show_player_bb) collision_handler.draw(cb, gs, model_render_data[player_idx].MVP);
+    }
+
+    void Scene::update_game_state(GameState& gs)
+    {
+        // handle collision: reset ship and let it blink for 3s
+        if (gs.player_reset_blink_counter == 0 && collision_handler.get_shader_return_value(gs.current_frame) != 0)
+        {
+            gs.cam.position = tunnel_objects.get_player_reset_position();
+            gs.player_lifes--;
+
+            gs.player_reset_blink_counter = 6;
+            gs.player_reset_blink_timer = 0.5f;
+        }
+        if (gs.player_reset_blink_counter > 0)
+        {
+            collision_handler.reset_shader_return_values(gs.current_frame);
+            gs.player_reset_blink_timer -= gs.time_diff;
+            gs.cam.position = tunnel_objects.get_player_reset_position();
+            if (gs.player_reset_blink_timer < 0.0f)
+            {
+                gs.player_reset_blink_counter--;
+                gs.player_reset_blink_timer = 0.5f;
+                gs.show_player = !gs.show_player;
+            }
+        }
     }
 } // namespace ve

@@ -64,9 +64,9 @@ namespace ve
             if (device_local)
             {
                 auto [staging_buffer, staging_vmaa] = create_buffer((vk::BufferUsageFlagBits::eTransferSrc), VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, true, {vmc.queue_family_indices.transfer});
-                void* mapped_data;
-                vmaMapMemory(vmc.va, staging_vmaa, &mapped_data);
-                memcpy(mapped_data, data, byte_count);
+                void* mapped_mem;
+                vmaMapMemory(vmc.va, staging_vmaa, &mapped_mem);
+                memcpy(mapped_mem, data, byte_count);
                 vmaUnmapMemory(vmc.va, staging_vmaa);
 
                 vk::CommandBuffer& cb(vcc.begin(vcc.transfer_cb[0]));
@@ -104,7 +104,63 @@ namespace ve
         template<class T>
         void update_data(const T& data)
         {
-            update_data(std::vector<T>{data});
+            update_data_bytes(&data, sizeof(T));
+        }
+
+        void obtain_data_bytes(void* data, std::size_t byte_count)
+        {
+            VE_ASSERT(byte_count <= byte_size, "Cannot get more bytes than size of buffer!");
+
+            if (device_local)
+            {
+                auto [staging_buffer, staging_vmaa] = create_buffer((vk::BufferUsageFlagBits::eTransferDst), VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, false, {vmc.queue_family_indices.transfer});
+
+                vk::CommandBuffer& cb(vcc.begin(vcc.transfer_cb[0]));
+                vk::BufferCopy copy_region{};
+                copy_region.srcOffset = 0;
+                copy_region.dstOffset = 0;
+                copy_region.size = byte_count;
+                cb.copyBuffer(buffer, staging_buffer, copy_region);
+                vcc.submit_transfer(cb, true);
+
+                void* mapped_mem;
+                vmaMapMemory(vmc.va, staging_vmaa, &mapped_mem);
+                memcpy(data, mapped_mem, byte_count);
+                vmaUnmapMemory(vmc.va, staging_vmaa);
+
+                vmaDestroyBuffer(vmc.va, staging_buffer, staging_vmaa);
+            }
+            else
+            {
+                void* mapped_mem;
+                vmaMapMemory(vmc.va, vmaa, &mapped_mem);
+                memcpy(data, mapped_mem, byte_count);
+                vmaUnmapMemory(vmc.va, vmaa);
+            }
+        }
+
+        template<class T>
+        std::vector<T> obtain_data(std::size_t element_count)
+        {
+            std::vector<T> data(element_count);
+            obtain_data_bytes(data.data(), sizeof(T) * element_count);
+            return data;
+        }
+
+        template<class T>
+        std::vector<T> obtain_all_data()
+        {
+            std::vector<T> data(element_count);
+            obtain_data_bytes(data.data(), sizeof(T) * element_count);
+            return data;
+        }
+
+        template<class T>
+        T obtain_first_element()
+        {
+            T data;
+            obtain_data_bytes(&data, sizeof(T));
+            return data;
         }
 
     private:
@@ -125,7 +181,7 @@ namespace ve
             VmaAllocation local_vmaa;
             vmaCreateBuffer(vmc.va, (VkBufferCreateInfo*) (&bci), &vaci, (&local_buffer), &local_vmaa, nullptr);
 
-            return std::make_pair(local_buffer, local_vmaa);
+            return std::make_pair(vk::Buffer(local_buffer), local_vmaa);
         }
 
         const VulkanMainContext& vmc;

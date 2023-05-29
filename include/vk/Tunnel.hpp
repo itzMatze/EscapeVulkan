@@ -20,7 +20,7 @@ namespace ve
         void create_buffers();
         void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
-        void draw(vk::CommandBuffer& cb, DrawInfo& di, uint32_t render_index_start);
+        void draw(vk::CommandBuffer& cb, GameState& gs, uint32_t render_index_start);
 
     private:
         const VulkanMainContext& vmc;

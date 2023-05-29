@@ -96,10 +96,10 @@ namespace ve
         construct_pipelines(render_pass);
     }
 
-    void TunnelObjects::draw(vk::CommandBuffer& cb, DrawInfo& di)
+    void TunnelObjects::draw(vk::CommandBuffer& cb, GameState& gs)
     {
-        fireflies.draw(cb, di);
-        tunnel.draw(cb, di, tunnel_render_index_start);
+        fireflies.draw(cb, gs);
+        tunnel.draw(cb, gs, tunnel_render_index_start);
     }
 
     void TunnelObjects::compute_new_segment(vk::CommandBuffer& cb, uint32_t current_frame)
@@ -123,13 +123,25 @@ namespace ve
         return glm::normalize(tangent * sample.x + bitangent * sample.y + normal * sample.z);
     }
 
-    void TunnelObjects::advance(const DrawInfo& di, DeviceTimer& timer)
+    glm::vec3& TunnelObjects::get_tunnel_bezier_point(uint32_t segment_id, uint32_t bezier_point_idx, bool use_global_id)
     {
-        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[di.current_frame]);
-        FireflyMovePushConstants fmpc{.time = di.time, .time_diff = di.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = tunnel_render_index_start};
-        fireflies.move_step(cb, di, timer, fmpc);
-        if (is_pos_past_segment(di.player_pos, 2, false))
+        // convert local id to global such that the modulo operator yields the correct idx
+        if (!use_global_id) segment_id = (segment_id + cpc.segment_uid - segment_count + 1);
+        return tunnel_bezier_points[(segment_id * 2 + bezier_point_idx) % tunnel_bezier_points.size()];
+    }
+
+    void TunnelObjects::advance(GameState& gs, DeviceTimer& timer)
+    {
+        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame]);
+        FireflyMovePushConstants fmpc{.time = gs.time, .time_diff = gs.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = tunnel_render_index_start};
+        fireflies.move_step(cb, gs, timer, fmpc);
+        if (is_pos_past_segment(gs.player_pos, player_segment_position + 1, false))
         {
+            // player passed a segment, add distance of passed segment
+            glm::vec3& bp0 = get_tunnel_bezier_point(player_segment_position, 0, false);
+            glm::vec3& bp1 = get_tunnel_bezier_point(player_segment_position, 1, false);
+            glm::vec3& bp2 = get_tunnel_bezier_point(player_segment_position, 2, false);
+            gs.tunnel_distance_travelled += glm::distance(bp0, bp1) + glm::distance(bp1, bp2);
             // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
             // increment the idx at which the rendering starts by the same amount
             cpc.segment_uid++;
@@ -154,15 +166,15 @@ namespace ve
 
             timer.reset(cb, {DeviceTimer::COMPUTE_TUNNEL_ADVANCE});
             timer.start(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
-            Buffer& buffer = storage.get_buffer_by_name("firefly_vertices_" + std::to_string(di.current_frame));
+            Buffer& buffer = storage.get_buffer_by_name("firefly_vertices_" + std::to_string(gs.current_frame));
             vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryWrite, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
             cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {buffer_memory_barrier}, {});
-            compute_new_segment(cb, di.current_frame);
+            compute_new_segment(cb, gs.current_frame);
             // write copy of data to the first half of the buffer if idx is in the past half of the data
             if (cpc.indices_start_idx > index_count)
             {
                 cpc.indices_start_idx -= (index_count + indices_per_segment);
-                compute_new_segment(cb, di.current_frame);
+                compute_new_segment(cb, gs.current_frame);
                 cpc.indices_start_idx += (index_count + indices_per_segment);
             }
             timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
@@ -172,9 +184,16 @@ namespace ve
 
     bool TunnelObjects::is_pos_past_segment(glm::vec3 pos, uint32_t idx, bool use_global_id)
     {
-        // calculate tunnel local index by subtracting the id of the first segment
-        if (!use_global_id) idx = (idx + cpc.segment_uid - segment_count + 1);
-        idx = (idx * 2) % tunnel_bezier_points.size();
-        return glm::dot(glm::normalize(pos - tunnel_bezier_points[idx]), normalize(tunnel_bezier_points[(idx + 1) % tunnel_bezier_points.size()] - tunnel_bezier_points[idx])) > 0.0f;
+        return glm::dot(glm::normalize(pos - get_tunnel_bezier_point(idx, 0, use_global_id)), normalize(get_tunnel_bezier_point(idx, 1, use_global_id) - get_tunnel_bezier_point(idx, 0, use_global_id))) > 0.0f;
+    }
+
+    glm::vec3 TunnelObjects::get_player_reset_position()
+    {
+        return get_tunnel_bezier_point(player_segment_position, 0, false);
+    }
+
+    uint32_t TunnelObjects::get_tunnel_render_index_start() const
+    {
+        return tunnel_render_index_start;
     }
 }

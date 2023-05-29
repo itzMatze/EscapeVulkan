@@ -28,10 +28,12 @@ namespace ve
         std::unordered_map<QueueIndex, vk::Queue> queues;
 
         void create_vma_allocator();
+        void setup_debug_messenger();
 
     public:
         std::optional<Window> window;
         Instance instance;
+        vk::DebugUtilsMessengerEXT debug_messenger;
         std::optional<vk::SurfaceKHR> surface;
         PhysicalDevice physical_device;
         QueueFamilyIndices queue_family_indices;

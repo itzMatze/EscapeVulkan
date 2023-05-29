@@ -1,0 +1,104 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive: require
+#include "common.glsl"
+
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+
+layout(constant_id = 0) const uint SEGMENT_COUNT = 1;
+layout(constant_id = 1) const uint SAMPLES_PER_SEGMENT = 1;
+layout(constant_id = 2) const uint VERTICES_PER_SAMPLE = 1;
+layout(constant_id = 3) const uint INDICES_PER_SEGMENT = 1;
+layout(constant_id = 4) const uint PLAYER_START_IDX = 1;
+layout(constant_id = 5) const uint PLAYER_IDX_COUNT = 1;
+layout(constant_id = 6) const uint PLAYER_SEGMENT_POS = 1;
+
+layout(binding = 0) readonly buffer BoundingBoxBuffer {
+    BoundingBox bb;
+};
+
+layout(binding = 1) buffer ReturnBuffer {
+    int return_value;
+};
+
+layout(binding = 2) readonly buffer TunnelIndexBuffer {
+    uint tunnel_indices[];
+};
+
+layout(binding = 3) readonly buffer TunnelVertexBuffer {
+    AlignedTunnelVertex tunnel_vertices[];
+};
+
+layout(binding = 4) buffer SceneIndexBuffer {
+    uint scene_indices[];
+};
+
+layout(binding = 5) buffer SceneVertexBuffer {
+    AlignedVertex scene_vertices[];
+};
+
+layout(push_constant) uniform PushConstant {
+    PlayerTunnelCollisionPushConstants pc;
+};
+
+#define AXISTEST(a)                     \
+    p0 = dot(a, v0);                    \
+    p1 = dot(a, v1);                    \
+    p2 = dot(a, v2);                    \
+    rad = dot(box_half_size, abs(a));   \
+    if(min(p0, min(p1, p2)) > rad || max(p0, max(p1, p2)) < -rad) return false;
+
+bool triangle_aabb_intersection(BoundingBox bb, vec3 a, vec3 b, vec3 c)
+{
+    vec3 box_half_size = (bb.max_p - bb.min_p) / 2.0;
+    vec3 box_center = bb.min_p + box_half_size;
+
+    // move everything so that the boxcenter is in (0,0,0)
+    vec3 v0 = a - box_center;
+    vec3 v1 = b - box_center;
+    vec3 v2 = c - box_center;
+
+    // compute triangle edges
+    vec3 e0 = v1 - v0;
+    vec3 e1 = v2 - v1;
+    vec3 e2 = v0 - v2;
+
+    // first, test triangle aabb against aabb
+    vec3 min_v = min(v0, min(v1, v2));
+    vec3 max_v = max(v0, max(v1, v2));
+    if(min_v.x > box_half_size.x || max_v.x < -box_half_size.x) return false;
+    if(min_v.y > box_half_size.y || max_v.y < -box_half_size.y) return false;
+    if(min_v.z > box_half_size.z || max_v.z < -box_half_size.z) return false;
+
+    // second, test triangle plane against aabb
+    vec3 normal = cross(e0, e1);
+    vec3 signs = vec3(sign(normal.x), sign(normal.y), sign(normal.z));
+    vec3 vmin = -signs * box_half_size;
+    vec3 vmax = signs * box_half_size;
+    float d = -dot(normal, v0);
+    if(dot(normal, vmin) + d > 0.0f) return false;
+    if(dot(normal, vmax) + d < 0.0f) return false;
+
+    // third, test triangle against aabb
+    float p0, p1, p2, rad;
+    AXISTEST(cross(vec3(1.0, 0.0, 0.0), e0));
+    AXISTEST(cross(vec3(1.0, 0.0, 0.0), e1));
+    AXISTEST(cross(vec3(1.0, 0.0, 0.0), e2));
+    AXISTEST(cross(vec3(0.0, 1.0, 0.0), e0));
+    AXISTEST(cross(vec3(0.0, 1.0, 0.0), e1));
+    AXISTEST(cross(vec3(0.0, 1.0, 0.0), e2));
+    AXISTEST(cross(vec3(0.0, 0.0, 1.0), e0));
+    AXISTEST(cross(vec3(0.0, 0.0, 1.0), e1));
+    AXISTEST(cross(vec3(0.0, 0.0, 1.0), e2));
+
+    return true;
+}
+
+void main()
+{
+    if (gl_GlobalInvocationID.x >= INDICES_PER_SEGMENT * 2) return;
+    vec3 t_p0 = (pc.inverse_M * vec4(unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 3 * gl_GlobalInvocationID.x]]).pos, 1.0)).xyz;
+    vec3 t_p1 = (pc.inverse_M * vec4(unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 1 + 3 * gl_GlobalInvocationID.x]]).pos, 1.0)).xyz;
+    vec3 t_p2 = (pc.inverse_M * vec4(unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 2 + 3 * gl_GlobalInvocationID.x]]).pos, 1.0)).xyz;
+    if (triangle_aabb_intersection(bb, t_p0, t_p1, t_p2)) return_value = 1;
+}

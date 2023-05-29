@@ -23,6 +23,15 @@ struct FireflyMovePushConstants {
     uint first_segment_indices_idx;
 };
 
+struct PlayerTunnelCollisionPushConstants {
+    mat4 inverse_M;
+    uint first_segment_indices_idx;
+};
+
+struct DebugPushConstants {
+    mat4 mvp;
+};
+
 struct ModelRenderData {
     mat4 mvp;
     mat4 m;
@@ -45,6 +54,12 @@ struct Material {
     //int normal_texture;
     //int occlusion_texture;
     //int emissive_texture;
+};
+
+struct BoundingBox
+{
+    vec3 min_p;
+    vec3 max_p;
 };
 
 struct AlignedVertex {

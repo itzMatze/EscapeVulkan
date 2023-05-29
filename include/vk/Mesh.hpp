@@ -11,7 +11,7 @@ namespace ve
     {
     public:
         Mesh(int32_t material_idx, uint32_t idx_offset, uint32_t idx_count);
-        void draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, const std::vector<vk::DescriptorSet>& sets, DrawInfo& di);
+        void draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, const std::vector<vk::DescriptorSet>& sets, GameState& gs);
 
     private:
         uint32_t index_offset, index_count;

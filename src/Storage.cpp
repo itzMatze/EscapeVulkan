@@ -1,5 +1,8 @@
 #include "Storage.hpp"
 
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
+
 namespace ve
 {
     Storage::Storage(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc)

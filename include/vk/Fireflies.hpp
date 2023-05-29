@@ -15,8 +15,8 @@ namespace ve
         void create_buffers();
         void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
-        void draw(vk::CommandBuffer& cb, DrawInfo& di);
-        void move_step(vk::CommandBuffer& cb, const DrawInfo& di, DeviceTimer& timer, FireflyMovePushConstants& fmpc);
+        void draw(vk::CommandBuffer& cb, GameState& gs);
+        void move_step(vk::CommandBuffer& cb, const GameState& gs, DeviceTimer& timer, FireflyMovePushConstants& fmpc);
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;

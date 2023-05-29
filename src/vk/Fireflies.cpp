@@ -89,26 +89,26 @@ namespace ve
         construct_pipelines(render_pass);
     }
 
-    void Fireflies::draw(vk::CommandBuffer& cb, DrawInfo& di)
+    void Fireflies::draw(vk::CommandBuffer& cb, GameState& gs)
     {
-        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffers[di.current_frame]).get(), {0});
-        mrd.MVP = di.cam.getVP();
-        mrd.M = di.cam.getV();
-        storage.get_buffer(model_render_data_buffers[di.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
+        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffers[gs.current_frame]).get(), {0});
+        mrd.MVP = gs.cam.getVP();
+        mrd.M = gs.cam.getV();
+        storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, render_dsh.get_sets()[di.current_frame], {});
-        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .time = di.time, .normal_view = di.normal_view, .tex_view = di.tex_view};
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, render_dsh.get_sets()[gs.current_frame], {});
+        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .time = gs.time, .normal_view = gs.normal_view, .tex_view = gs.tex_view};
         cb.pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
         cb.pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.draw(firefly_count, 1, 0, 0);
     }
 
-    void Fireflies::move_step(vk::CommandBuffer& cb, const DrawInfo& di, DeviceTimer& timer, FireflyMovePushConstants& fmpc)
+    void Fireflies::move_step(vk::CommandBuffer& cb, const GameState& gs, DeviceTimer& timer, FireflyMovePushConstants& fmpc)
     {
         timer.reset(cb, {DeviceTimer::FIREFLY_MOVE_STEP});
         timer.start(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllGraphics);
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[di.current_frame], {});
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
         cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(FireflyMovePushConstants), &fmpc);
         cb.dispatch((firefly_count + 31) / 32, 1, 1);
         timer.stop(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eComputeShader);

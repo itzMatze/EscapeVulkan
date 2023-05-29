@@ -10,7 +10,7 @@ layout(constant_id = 1) const uint SAMPLES_PER_SEGMENT = 1;
 layout(constant_id = 2) const uint VERTICES_PER_SAMPLE = 1;
 layout(constant_id = 3) const uint FIREFLIES_PER_SEGMENT = 1;
 
-layout(binding = 0) buffer index_buffer {
+layout(binding = 0) buffer TunnelIndexBuffer {
     uint indices[];
 };
 
