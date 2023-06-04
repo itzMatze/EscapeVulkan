@@ -3,13 +3,14 @@
 
 namespace ve
 {
-    Fireflies::Fireflies(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : render_dsh(vmc), compute_dsh(vmc), vmc(vmc), vcc(vcc), storage(storage), pipeline(vmc), compute_pipeline(vmc)
+    Fireflies::Fireflies(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : render_dsh(vmc), compute_dsh(vmc), vmc(vmc), vcc(vcc), storage(storage), render_pipeline(vmc), move_compute_pipeline(vmc), tunnel_collision_compute_pipeline(vmc)
     {}
 
     void Fireflies::self_destruct(bool full)
     {
-        pipeline.self_destruct();
-        compute_pipeline.self_destruct();
+        render_pipeline.self_destruct();
+        move_compute_pipeline.self_destruct();
+        tunnel_collision_compute_pipeline.self_destruct();
         if (full)
         {
             render_dsh.self_destruct();
@@ -68,7 +69,7 @@ namespace ve
         std::vector<ShaderInfo> shader_infos(2);
         shader_infos[0] = ShaderInfo{"fireflies.vert", vk::ShaderStageFlagBits::eVertex, render_spec_info};
         shader_infos[1] = ShaderInfo{"fireflies.frag", vk::ShaderStageFlagBits::eFragment};
-        pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::ePoint, FireflyVertex::get_binding_descriptions(), FireflyVertex::get_attribute_descriptions(), vk::PrimitiveTopology::ePointList);
+        render_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::ePoint, FireflyVertex::get_binding_descriptions(), FireflyVertex::get_attribute_descriptions(), vk::PrimitiveTopology::ePointList);
 
         std::array<vk::SpecializationMapEntry, 6> compute_entries;
         compute_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
@@ -80,7 +81,8 @@ namespace ve
         std::array<uint32_t, 6> compute_entries_data{segment_count, samples_per_segment, vertices_per_sample, fireflies_per_segment, firefly_count, indices_per_segment};
         vk::SpecializationInfo compute_spec_info(compute_entries.size(), compute_entries.data(), compute_entries_data.size() * sizeof(uint32_t), compute_entries_data.data());
 
-        compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"fireflies_move.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(FireflyMovePushConstants));
+        move_compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"fireflies_move.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(FireflyMovePushConstants));
+        tunnel_collision_compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"fireflies_tunnel_collision.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(FireflyMovePushConstants));
     }
 
     void Fireflies::reload_shaders(const RenderPass& render_pass)
@@ -95,11 +97,11 @@ namespace ve
         mrd.MVP = gs.cam.getVP();
         mrd.M = gs.cam.getV();
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
-        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, render_dsh.get_sets()[gs.current_frame], {});
+        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, render_pipeline.get());
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, render_pipeline.get_layout(), 0, render_dsh.get_sets()[gs.current_frame], {});
         PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .time = gs.time, .normal_view = gs.normal_view, .tex_view = gs.tex_view};
-        cb.pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
-        cb.pushConstants(pipeline.get_layout(), vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
+        cb.pushConstants(render_pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
+        cb.pushConstants(render_pipeline.get_layout(), vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.draw(firefly_count, 1, 0, 0);
     }
 
@@ -107,10 +109,17 @@ namespace ve
     {
         timer.reset(cb, {DeviceTimer::FIREFLY_MOVE_STEP});
         timer.start(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllGraphics);
-        cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
-        cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(FireflyMovePushConstants), &fmpc);
+        cb.bindPipeline(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get());
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
+        cb.pushConstants(move_compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(FireflyMovePushConstants), &fmpc);
         cb.dispatch((firefly_count + 31) / 32, 1, 1);
+        Buffer& buffer = storage.get_buffer(vertex_buffers[gs.current_frame]);
+        vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
+        cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {buffer_memory_barrier}, {});
+        cb.bindPipeline(vk::PipelineBindPoint::eCompute, tunnel_collision_compute_pipeline.get());
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, tunnel_collision_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
+        cb.pushConstants(tunnel_collision_compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(FireflyMovePushConstants), &fmpc);
+        cb.dispatch((firefly_count + 31) / 32, ((indices_per_segment / 3) + 31) / 32, 1);
         timer.stop(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eComputeShader);
     }
 } // namespace ve

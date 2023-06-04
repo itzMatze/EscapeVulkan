@@ -73,49 +73,6 @@ float pcg_random_clipped(uint seed)
     return cos(PI * PCGHashState()) * (((float(PCGHash(seed)) / float(0xFFFFFFFFU)) * 0.5) + 0.5);
 }
 
-bool intersect_triangle(in vec3 p, in vec3 dir, in float max_t, in vec3 a, in vec3 b, in vec3 c, out float t, out vec2 bary)
-{
-    vec3 i = b - a;
-    vec3 j = c - a;
-    vec3 k = p - a;
-    vec3 r = dir;
-  
-    // (t, u, v) = (1 / (r x j) * i) ((k x i) * j, (r x j) * k, (k x i) * r)
-    vec3 rxj = cross(r, j);
-    float rxji = dot(rxj, i);
-    if (abs(rxji) < 1e-16) return false;
-    float f = 1.0f / rxji;
-    
-    bary.x = dot(rxj, k) * f;
-    if (bary.x < 0.0f || bary.x > 1.0f) return false;
-    vec3 kxi = cross(k, i);
-    bary.y =  dot(kxi, r) * f;
-    if (bary.y < 0.0 || bary.y > 1.0) return false;
-    if (bary.x + bary.y > 1.0) return false;
-    
-    t = dot(kxi, j) * f;
-    return (t > 0.0 && t < max_t);
-}
-
-bool intersect_tunnel(in vec3 old_pos, in vec3 new_pos, in uint segment_idx, out vec3 normal)
-{
-    float t = 0.0;
-    vec2 bary = vec2(0.0, 0.0);
-    for (uint i = INDICES_PER_SEGMENT * segment_idx; i < INDICES_PER_SEGMENT * (segment_idx + 1); i += 3)
-    {
-        TunnelVertex p0 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + i]]);
-        TunnelVertex p1 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + 1 + i]]);
-        TunnelVertex p2 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + 2 + i]]);
-        if (distance(new_pos, old_pos) < 0.0000001) continue;
-        if (intersect_triangle(old_pos, normalize(new_pos - old_pos), distance(new_pos, old_pos), p0.pos, p1.pos, p2.pos, t, bary))
-        {
-            normal = p0.normal;
-            return true;
-        }
-    }
-    return false;
-}
-
 void main()
 {
     if (gl_GlobalInvocationID.x >= FIREFLIES_COUNT) return;
@@ -148,22 +105,13 @@ void main()
     // check if firefly moved out of its segment in either direction
     if (dot(normalize(v.pos - p0), normalize(p1 - p0)) < 0.0)
     {
-        v.pos -= pcg_random_clipped(seed) * v.vel * pc.time_diff;
+        v.pos = old_pos;
         v.vel = reflect(v.vel, normalize(p1 - p0));
-        v.pos += pcg_random_clipped(seed) * v.vel * pc.time_diff;
     }
     else if (dot(normalize(v.pos - p2), normalize(p2 - p1)) > 0.0)
     {
-        v.pos -= pcg_random_clipped(seed) * v.vel * pc.time_diff;
+        v.pos = old_pos;
         v.vel = reflect(v.vel, normalize(p2 - p1));
-        v.pos += pcg_random_clipped(seed) * v.vel * pc.time_diff;
-    }
-    vec3 normal;
-    if (intersect_tunnel(old_pos, v.pos, segment_idx, normal))
-    {
-        v.pos -= pcg_random_clipped(seed) * v.vel * pc.time_diff;
-        v.vel = reflect(v.vel, normal);
-        v.pos += pcg_random_clipped(seed) * v.vel * pc.time_diff;
     }
     out_vertices[firefly_idx] = pack_firefly_vertex(v);
 }

@@ -26,8 +26,9 @@ namespace ve
         std::vector<uint32_t> vertex_buffers;
         ModelRenderData mrd;
         std::vector<uint32_t> model_render_data_buffers;
-        Pipeline pipeline;
-        Pipeline compute_pipeline;
+        Pipeline render_pipeline;
+        Pipeline move_compute_pipeline;
+        Pipeline tunnel_collision_compute_pipeline;
         
         void construct_pipelines(const RenderPass& render_pass);
     };
