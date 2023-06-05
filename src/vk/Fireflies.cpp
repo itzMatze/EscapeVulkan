@@ -37,6 +37,8 @@ namespace ve
         compute_dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
+        compute_dsh.add_binding(6, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
+        compute_dsh.add_binding(7, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eCompute);
 
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
@@ -53,6 +55,8 @@ namespace ve
             compute_dsh.add_descriptor(3, storage.get_buffer_by_name("tunnel_bezier_points"));
             compute_dsh.add_descriptor(4, storage.get_buffer_by_name("tunnel_indices"));
             compute_dsh.add_descriptor(5, storage.get_buffer_by_name("tunnel_vertices"));
+            compute_dsh.add_descriptor(6, storage.get_buffer_by_name("player_bb"));
+            compute_dsh.add_descriptor(7, storage.get_buffer_by_name("bb_mm_" + std::to_string(i)));
         }
         render_dsh.construct();
         compute_dsh.construct();

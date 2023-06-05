@@ -32,6 +32,14 @@ layout(binding = 5) buffer TunnelVertexBuffer {
     AlignedTunnelVertex tunnel_vertices[];
 };
 
+layout(binding = 6) readonly buffer BoundingBoxBuffer {
+    BoundingBox bb;
+};
+
+layout(binding = 7) uniform BoundingBoxModelMatricesBuffer {
+    ModelMatrices bb_mm;
+};
+
 layout(push_constant) uniform PushConstant {
     FireflyMovePushConstants pc;
 };
@@ -73,6 +81,46 @@ float pcg_random_clipped(uint seed)
     return cos(PI * PCGHashState()) * (((float(PCGHash(seed)) / float(0xFFFFFFFFU)) * 0.5) + 0.5);
 }
 
+bool dodge_aabb(in BoundingBox bb, in vec3 pos, out vec3 new_pos)
+{
+    // check if firefly is in close surrounding of bounding box as the firefly has a size itself
+    float distances[6] = {pos.x - bb.min_p.x, pos.y - bb.min_p.y, pos.z - bb.min_p.z, bb.max_p.x - pos.x, bb.max_p.y - pos.y, bb.max_p.z - pos.z};
+    if (distances[0] > -1.0 && distances[1] > -1.0 && distances[2] > -1.0 && distances[3] > -1.0 && distances[4] > -1.0 && distances[5] > -1.0)
+    {
+        uint idx = 0;
+        float smallest_element = distances[0];
+        // move firefly to closest exit of bounding box
+        // ignore z-direction as fireflies can get dragged along in this direction
+        for (uint i = 1; i < 6; ++i)
+        {
+            if (i == 2 || i == 5) continue;
+            if (distances[i] < smallest_element)
+            {
+                idx = i;
+                smallest_element = distances[idx];
+            }
+        }
+        smallest_element = abs(smallest_element);
+        switch (idx)
+        {
+            case 0:
+                new_pos = pos - vec3(smallest_element, 0.0, 0.0);
+                break;
+            case 1:
+                new_pos = pos - vec3(0.0, smallest_element, 0.0);
+                break;
+            case 3:
+                new_pos = pos + vec3(smallest_element, 0.0, 0.0);
+                break;
+            case 4:
+                new_pos = pos + vec3(0.0, smallest_element, 0.0);
+                break;
+        }
+        return true;
+    }
+    return false;
+}
+
 void main()
 {
     if (gl_GlobalInvocationID.x >= FIREFLIES_COUNT) return;
@@ -102,6 +150,16 @@ void main()
     // reduce applied velocity by random value to simulate insect like behavior
     v.pos += pcg_random_clipped(seed) * v.vel * pc.time_diff;
     v.col = vec3(pcg_random_state() + 1.0, pcg_random_state() + 1.0, pcg_random_state() + 1.0);
+
+    // check if firefly is inside the aabb of the ship and move it out of it if necessary
+    vec3 aabb_dodge_pos;
+    if (dodge_aabb(bb, (bb_mm.inv_m * vec4(v.pos, 1.0)).xyz, aabb_dodge_pos))
+    {
+        aabb_dodge_pos = (bb_mm.m * vec4(aabb_dodge_pos, 1.0)).xyz;
+        v.vel += (aabb_dodge_pos - v.pos) / pc.time_diff;
+        v.pos = aabb_dodge_pos;
+    }
+
     // check if firefly moved out of its segment in either direction
     if (dot(normalize(v.pos - p0), normalize(p1 - p0)) < 0.0)
     {

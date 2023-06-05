@@ -80,6 +80,7 @@ namespace ve
         compute_dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
+        compute_dsh.add_binding(6, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eCompute);
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             compute_dsh.new_set();
@@ -89,6 +90,7 @@ namespace ve
             compute_dsh.add_descriptor(3, storage.get_buffer_by_name("tunnel_vertices"));
             compute_dsh.add_descriptor(4, storage.get_buffer_by_name("indices"));
             compute_dsh.add_descriptor(5, storage.get_buffer_by_name("vertices"));
+            compute_dsh.add_descriptor(6, storage.get_buffer_by_name("bb_mm_" + std::to_string(i)));
         }
         compute_dsh.construct();
         construct_pipelines(render_pass);
@@ -119,7 +121,7 @@ namespace ve
         compute_entries[6] = vk::SpecializationMapEntry(6, sizeof(uint32_t) * 6, sizeof(uint32_t));
         std::array<uint32_t, 7> compute_entries_data{segment_count, samples_per_segment, vertices_per_sample, indices_per_segment, player_start_idx, player_idx_count, player_segment_position};
         vk::SpecializationInfo compute_spec_info(compute_entries.size(), compute_entries.data(), compute_entries_data.size() * sizeof(uint32_t), compute_entries_data.data());
-        compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"player_tunnel_collision.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(PlayerTunnelCollisionPushConstants));
+        compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"player_tunnel_collision.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(uint32_t));
     }
 
     void CollisionHandler::self_destruct(bool full)
@@ -146,14 +148,14 @@ namespace ve
         cb.draw(36, 1, 0, 0);
     }
 
-    void CollisionHandler::compute(GameState& gs, DeviceTimer& timer, PlayerTunnelCollisionPushConstants& ptcpc)
+    void CollisionHandler::compute(GameState& gs, DeviceTimer& timer, uint32_t first_segment_indices_idx)
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame + frames_in_flight]);
         timer.reset(cb, {DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION});
         timer.start(cb, DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION, vk::PipelineStageFlagBits::eAllGraphics);
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
-        cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(PlayerTunnelCollisionPushConstants), &ptcpc);
+        cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(uint32_t), &first_segment_indices_idx);
         cb.dispatch(((indices_per_segment * 2) / 3 + 31) / 32, 1, 1);
         timer.stop(cb, DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION, vk::PipelineStageFlagBits::eComputeShader);
         cb.end();

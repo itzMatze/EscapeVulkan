@@ -63,11 +63,6 @@ namespace ve
         uint32_t first_segment_indices_idx;
     };
 
-    struct PlayerTunnelCollisionPushConstants {
-        glm::mat4 inverse_m;
-        uint32_t first_segment_indices_idx;
-    };
-
     struct DebugPushConstants {
         glm::mat4 mvp;
     };
@@ -115,6 +110,11 @@ namespace ve
         float innerConeAngle;
         glm::vec3 color;
         float outerConeAngle;
+    };
+
+    struct ModelMatrices {
+        glm::mat4 m;
+        glm::mat4 inv_m;
     };
 
     struct Vertex {

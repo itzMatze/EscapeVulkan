@@ -52,6 +52,8 @@ namespace ve
         light_buffer = -1;
         lights.clear();
         initial_light_values.clear();
+        for (auto& b : bb_mm_buffers) storage.get_buffer(b).self_destruct();
+        bb_mm_buffers.clear();
         for (auto& buffer : model_render_data_buffers) storage.destroy_buffer(buffer);
         model_render_data_buffers.clear();
         model_render_data.clear();
@@ -207,6 +209,10 @@ namespace ve
         // delete vertices and indices on host
         indices.clear();
         vertices.clear();
+
+        bb_mm_buffers.push_back(storage.add_named_buffer(std::string("bb_mm_0"), sizeof(ModelMatrices), vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.compute));
+        bb_mm_buffers.push_back(storage.add_named_buffer(std::string("bb_mm_1"), sizeof(ModelMatrices), vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.compute));
+
         loaded = true;
     }
 
@@ -287,9 +293,10 @@ namespace ve
             lights[i].dir = glm::vec3(tmp_dir);
         }
 
+        ModelMatrices bb_mm{.m = model_render_data[player_idx].M, .inv_m = glm::inverse(model_render_data[player_idx].M)};
+        storage.get_buffer(bb_mm_buffers[gs.current_frame]).update_data(bb_mm);
         tunnel_objects.advance(gs, timer);
-        PlayerTunnelCollisionPushConstants ptcpc{.inverse_m = glm::inverse(model_render_data[player_idx].M), .first_segment_indices_idx = tunnel_objects.get_tunnel_render_index_start()};
-        collision_handler.compute(gs, timer, ptcpc);
+        collision_handler.compute(gs, timer, tunnel_objects.get_tunnel_render_index_start());
 
         if (!lights.empty()) storage.get_buffer(light_buffer).update_data(lights);
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(model_render_data);

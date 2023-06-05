@@ -37,8 +37,12 @@ layout(binding = 5) buffer SceneVertexBuffer {
     AlignedVertex scene_vertices[];
 };
 
+layout(binding = 6) uniform BoundingBoxModelMatricesBuffer {
+    ModelMatrices bb_mm;
+};
+
 layout(push_constant) uniform PushConstant {
-    PlayerTunnelCollisionPushConstants pc;
+    uint first_segment_indices_idx;
 };
 
 #define AXISTEST(a)                     \
@@ -97,8 +101,8 @@ bool triangle_aabb_intersection(BoundingBox bb, vec3 a, vec3 b, vec3 c)
 void main()
 {
     if (gl_GlobalInvocationID.x >= INDICES_PER_SEGMENT * 2) return;
-    vec3 t_p0 = (pc.inverse_M * vec4(unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 3 * gl_GlobalInvocationID.x]]).pos, 1.0)).xyz;
-    vec3 t_p1 = (pc.inverse_M * vec4(unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 1 + 3 * gl_GlobalInvocationID.x]]).pos, 1.0)).xyz;
-    vec3 t_p2 = (pc.inverse_M * vec4(unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 2 + 3 * gl_GlobalInvocationID.x]]).pos, 1.0)).xyz;
+    vec3 t_p0 = (bb_mm.inv_m * vec4(unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 3 * gl_GlobalInvocationID.x]]).pos, 1.0)).xyz;
+    vec3 t_p1 = (bb_mm.inv_m * vec4(unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 1 + 3 * gl_GlobalInvocationID.x]]).pos, 1.0)).xyz;
+    vec3 t_p2 = (bb_mm.inv_m * vec4(unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 2 + 3 * gl_GlobalInvocationID.x]]).pos, 1.0)).xyz;
     if (triangle_aabb_intersection(bb, t_p0, t_p1, t_p2)) return_value = 1;
 }
