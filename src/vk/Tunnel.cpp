@@ -3,11 +3,12 @@
 
 namespace ve
 {
-    Tunnel::Tunnel(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : render_dsh(vmc), vmc(vmc), vcc(vcc), storage(storage), pipeline(vmc), mesh_view_pipeline(vmc)
+    Tunnel::Tunnel(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : skybox_dsh(vmc), render_dsh(vmc), vmc(vmc), vcc(vcc), storage(storage), skybox_render_pipeline(vmc), pipeline(vmc), mesh_view_pipeline(vmc)
     {}
 
     void Tunnel::self_destruct(bool full)
     {
+        skybox_render_pipeline.self_destruct();
         pipeline.self_destruct();
         mesh_view_pipeline.self_destruct();
         render_dsh.self_destruct();
@@ -16,6 +17,9 @@ namespace ve
         model_render_data_buffers.clear();
         if (full)
         {
+            skybox_dsh.self_destruct();
+            storage.destroy_buffer(skybox_vertex_buffer);
+            storage.destroy_image(skybox_texture);
             storage.destroy_buffer(vertex_buffer);
             storage.destroy_buffer(index_buffer);
         }
@@ -23,6 +27,7 @@ namespace ve
 
     void Tunnel::create_buffers()
     {
+        skybox_texture = storage.add_named_image("skybox_texture", "../assets/textures/tunnel_skybox_texture.png", true, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer}, vk::ImageUsageFlagBits::eSampled);
         // double space is needed to enable that new vertices can replace old ones as the tunnel continuously moves forward
         std::vector<Vertex> vertices(vertex_count * 2);
         std::vector<uint32_t> indices(index_count * 2);
@@ -56,6 +61,15 @@ namespace ve
         }
         vertex_buffer = storage.add_named_buffer(std::string("tunnel_vertices"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         index_buffer = storage.add_named_buffer(std::string("tunnel_indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        std::vector<TunnelSkyboxVertex> skybox_vertices = {
+            TunnelSkyboxVertex{glm::vec3(segment_scale, segment_scale, 0.0), glm::vec2(1.0, 1.0)},
+            TunnelSkyboxVertex{glm::vec3(-segment_scale, segment_scale, 0.0), glm::vec2(0.0, 1.0)},
+            TunnelSkyboxVertex{glm::vec3(-segment_scale, -segment_scale, 0.0), glm::vec2(0.0, 0.0)},
+            TunnelSkyboxVertex{glm::vec3(segment_scale, segment_scale, 0.0), glm::vec2(1.0, 1.0)},
+            TunnelSkyboxVertex{glm::vec3(-segment_scale, -segment_scale, 0.0), glm::vec2(0.0, 0.0)},
+            TunnelSkyboxVertex{glm::vec3(segment_scale, -segment_scale, 0.0), glm::vec2(1.0, 0.0)},
+        };
+        skybox_vertex_buffer = storage.add_named_buffer("tunnel_skybox_vertices", skybox_vertices, vk::BufferUsageFlagBits::eVertexBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
     }
 
     void Tunnel::construct(const RenderPass& render_pass)
@@ -67,6 +81,7 @@ namespace ve
     {
         create_noise_textures();
 
+        skybox_dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
         render_dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         render_dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
         render_dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
@@ -77,12 +92,15 @@ namespace ve
         {
             model_render_data_buffers.push_back(storage.add_buffer(std::vector<ModelRenderData>{mrd}, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics));
 
+            skybox_dsh.new_set();
+            skybox_dsh.add_descriptor(1, storage.get_image(skybox_texture));
             render_dsh.new_set();
             render_dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
             render_dsh.add_descriptor(1, storage.get_image(noise_textures));
             render_dsh.add_descriptor(4, storage.get_buffer_by_name("spaceship_lights"));
             render_dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
         }
+        skybox_dsh.construct();
         render_dsh.construct();
 
         vk::SpecializationMapEntry uniform_buffer_size_entry(0, 0, sizeof(uint32_t));
@@ -101,6 +119,10 @@ namespace ve
 
         pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions());
         mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions());
+
+        shader_infos[0] = ShaderInfo{"tunnel_skybox.vert", vk::ShaderStageFlagBits::eVertex};
+        shader_infos[1] = ShaderInfo{"tunnel_skybox.frag", vk::ShaderStageFlagBits::eFragment};
+        skybox_render_pipeline.construct(render_pass, skybox_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, TunnelSkyboxVertex::get_binding_descriptions(), TunnelSkyboxVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(DebugPushConstants))});
     }
 
     void Tunnel::reload_shaders(const RenderPass& render_pass)
@@ -109,7 +131,19 @@ namespace ve
         construct_pipelines(render_pass);
     }
 
-    void Tunnel::draw(vk::CommandBuffer& cb, GameState& gs, uint32_t render_index_start)
+    // https://gist.github.com/kevinmoran/b45980723e53edeb8a5a43c49f134724
+    glm::mat4 rotate_align(glm::vec3 v1, glm::vec3 v2)
+    {
+        const glm::vec3 axis = glm::cross(v1, v2);
+        const float cos_a = glm::dot(v1, v2);
+        const float k = 1.0 / (1.0 + cos_a);
+        return glm::mat4(glm::vec4((axis.x * axis.x * k) + cos_a, (axis.y * axis.x * k) - axis.z, (axis.z * axis.x * k) + axis.y, 0.0f),
+                    glm::vec4((axis.x * axis.y * k) + axis.z, (axis.y * axis.y * k) + cos_a, (axis.z * axis.y * k) - axis.x, 0.0f),
+                    glm::vec4((axis.x * axis.z * k) - axis.y, (axis.y * axis.z * k) + axis.x, (axis.z * axis.z * k) + cos_a, 0.0f),
+                    glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+    }
+
+    void Tunnel::draw(vk::CommandBuffer& cb, GameState& gs, uint32_t render_index_start, const glm::vec3& p1, const glm::vec3& p2)
     {
         cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
         cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
@@ -122,6 +156,15 @@ namespace ve
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
         cb.drawIndexed(index_count, 1, render_index_start, 0, 0);
+
+        cb.bindVertexBuffers(0, storage.get_buffer(skybox_vertex_buffer).get(), {0});
+        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, skybox_render_pipeline.get());
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox_render_pipeline.get_layout(), 0, skybox_dsh.get_sets()[gs.current_frame], {});
+        glm::mat4 m = rotate_align(glm::normalize(p2 - p1), glm::vec3(0.0, 0.0, 1.0));
+        m = glm::translate(glm::mat4(1.0), p2) * m;
+        DebugPushConstants dpc{.mvp = gs.cam.getVP() * m};
+        cb.pushConstants(skybox_render_pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(DebugPushConstants), &dpc);
+        cb.draw(6, 1, 0, 0);
     }
 
     void Tunnel::create_noise_textures()

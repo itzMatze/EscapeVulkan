@@ -99,7 +99,7 @@ namespace ve
     void TunnelObjects::draw(vk::CommandBuffer& cb, GameState& gs)
     {
         fireflies.draw(cb, gs);
-        tunnel.draw(cb, gs, tunnel_render_index_start);
+        tunnel.draw(cb, gs, tunnel_render_index_start, cpc.p1, cpc.p2);
     }
 
     void TunnelObjects::compute_new_segment(vk::CommandBuffer& cb, uint32_t current_frame)
