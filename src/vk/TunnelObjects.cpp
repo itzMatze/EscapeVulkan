@@ -66,7 +66,7 @@ namespace ve
             const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
             cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
             cpc.p0 = cpc.p2;
-            cpc.p2 = cpc.p0 + segment_scale * random_cosine(normal);
+            cpc.p2 = pop_tunnel_bezier_point_queue();
             tunnel_bezier_points[i * 2 + 1] = cpc.p1;
             tunnel_bezier_points[i * 2 + 2] = cpc.p2;
             compute_new_segment(cb, 1);
@@ -110,9 +110,8 @@ namespace ve
         cb.dispatch(std::max((fireflies_per_segment + 31) / 32, (vertices_per_sample * samples_per_segment + 31) / 32), 1, 1);
     }
 
-    glm::vec3 TunnelObjects::random_cosine(const glm::vec3& normal)
+    glm::vec3 TunnelObjects::random_cosine(const glm::vec3& normal, const float cosine_weight)
     {
-        constexpr float cosine_weight = 40.0f;
         float theta = std::acos(std::pow(1.0f - std::abs(dis(rnd)), 1.0f / (1.0f + cosine_weight)));
         float phi = 2.0f * M_PIf * dis(rnd);
         glm::vec3 up = abs(normal.z) < 0.999f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
@@ -121,6 +120,26 @@ namespace ve
 
         glm::vec3 sample = glm::vec3(std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta));
         return glm::normalize(tangent * sample.x + bitangent * sample.y + normal * sample.z);
+    }
+
+    glm::vec3 TunnelObjects::pop_tunnel_bezier_point_queue()
+    {
+        // no more Bézier points left, create either a long curve or a small segment
+        if (tunnel_bezier_points_queue.empty())
+        {
+            // high probability for small segment leads to areas with small curvy segments and single long curves
+            const uint32_t random_weight = dis(rnd) < 0.98f ? 1 : 16;
+            glm::vec3 p2 = cpc.p0 + segment_scale * random_weight * random_cosine(glm::normalize(cpc.p1 - cpc.p0), -2.0f * random_weight + 42.0);
+            glm::vec3 p1 = cpc.p0 + (cpc.p1 - cpc.p0) * float(random_weight);
+            for (uint32_t i = 0; i < random_weight; ++i)
+            {
+                const float t = float(i + 1) / float(random_weight);
+                tunnel_bezier_points_queue.push(std::pow(1 - t, 2.0f) * cpc.p0 + (2 - 2 * t) * t * p1 + std::pow(t, 2.0f) * p2);
+            }
+        }
+        glm::vec3 p = tunnel_bezier_points_queue.front();
+        tunnel_bezier_points_queue.pop();
+        return p;
     }
 
     glm::vec3& TunnelObjects::get_tunnel_bezier_point(uint32_t segment_id, uint32_t bezier_point_idx, bool use_global_id)
@@ -152,7 +171,7 @@ namespace ve
             const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
             cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
             cpc.p0 = cpc.p2;
-            cpc.p2 = cpc.p2 + segment_scale * random_cosine(normal);
+            cpc.p2 = pop_tunnel_bezier_point_queue();
             tunnel_bezier_points[(cpc.segment_uid * 2 + 1) % tunnel_bezier_points.size()] = cpc.p1;
             tunnel_bezier_points[(cpc.segment_uid * 2 + 2) % tunnel_bezier_points.size()] = cpc.p2;
             // reset indices; compute shader inserts data at the last segment of the region that will be rendered now
