@@ -2,7 +2,7 @@
 
 namespace ve
 {
-    TunnelObjects::TunnelObjects(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), fireflies(vmc, vcc, storage), tunnel(vmc, vcc, storage), compute_dsh(vmc), compute_pipeline(vmc), tunnel_bezier_points(segment_count * 2 + 1), rnd(0), dis(0.0f, 1.0f)
+    TunnelObjects::TunnelObjects(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), fireflies(vmc, vcc, storage), tunnel(vmc, vcc, storage), compute_dsh(vmc), compute_pipeline(vmc), compute_normals_pipeline(vmc), tunnel_bezier_points(segment_count * 2 + 1), rnd(0), dis(0.0f, 1.0f)
     {
         cpc.indices_start_idx = 0;
     }
@@ -10,6 +10,7 @@ namespace ve
     void TunnelObjects::self_destruct(bool full)
     {
         compute_pipeline.self_destruct();
+        compute_normals_pipeline.self_destruct();
         if (full)
         {
             storage.destroy_buffer(tunnel_bezier_points_buffer);
@@ -85,6 +86,7 @@ namespace ve
         vk::SpecializationInfo compute_spec_info(compute_entries.size(), compute_entries.data(), compute_entries_data.size() * sizeof(uint32_t), compute_entries_data.data());
 
         compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"tunnel.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(NewSegmentPushConstants));
+        compute_normals_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"tunnel_normals.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(NewSegmentPushConstants));
     }
 
     void TunnelObjects::reload_shaders(const RenderPass& render_pass)
@@ -104,10 +106,17 @@ namespace ve
 
     void TunnelObjects::compute_new_segment(vk::CommandBuffer& cb, uint32_t current_frame)
     {
-        cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[current_frame], {});
         cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(NewSegmentPushConstants), &cpc);
+        cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
         cb.dispatch(std::max((fireflies_per_segment + 31) / 32, (vertices_per_sample * samples_per_segment + 31) / 32), 1, 1);
+
+        Buffer& buffer = storage.get_buffer_by_name("tunnel_vertices");
+        vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eMemoryWrite, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
+        cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {buffer_memory_barrier}, {});
+
+        cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_normals_pipeline.get());
+        cb.dispatch(((vertices_per_sample * samples_per_segment + 31) / 32), 1, 1);
     }
 
     glm::vec3 TunnelObjects::random_cosine(const glm::vec3& normal, const float cosine_weight)

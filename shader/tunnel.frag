@@ -8,7 +8,7 @@ layout(constant_id = 1) const uint SEGMENT_COUNT = 1;
 layout(constant_id = 2) const uint FIREFLIES_PER_SEGMENT = 1;
 
 layout(location = 0) in vec3 frag_pos;
-layout(location = 1) in vec3 frag_normal;
+layout(location = 1) flat in vec3 frag_normal;
 layout(location = 2) in vec2 frag_tex;
 layout(location = 3) flat in int frag_segment_uid;
 

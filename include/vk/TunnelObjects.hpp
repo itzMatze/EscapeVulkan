@@ -52,6 +52,7 @@ namespace ve
         NewSegmentPushConstants cpc;
         uint32_t tunnel_render_index_start = 0;
         Pipeline compute_pipeline;
+        Pipeline compute_normals_pipeline;
         std::mt19937 rnd;
         std::uniform_real_distribution<float> dis;
 

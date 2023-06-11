@@ -1,0 +1,69 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive: require
+#include "common.glsl"
+
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+
+layout(constant_id = 0) const uint SEGMENT_COUNT = 1;
+layout(constant_id = 1) const uint SAMPLES_PER_SEGMENT = 1;
+layout(constant_id = 2) const uint VERTICES_PER_SAMPLE = 1;
+layout(constant_id = 3) const uint FIREFLIES_PER_SEGMENT = 1;
+
+layout(binding = 0) buffer TunnelIndexBuffer {
+    uint indices[];
+};
+
+layout(binding = 1) buffer TunnelVertexBuffer {
+    AlignedTunnelVertex vertices[];
+};
+
+layout(binding = 2) buffer FireflyVertexBuffer {
+    AlignedFireflyVertex firefly_vertices[];
+};
+
+layout(binding = 3) buffer TunnelBezierPointsBuffer {
+    vec3 tunnel_bezier_points[];
+};
+
+layout(push_constant) uniform PushConstant {
+    NewSegmentPushConstants pc;
+};
+
+void main()
+{
+    if (gl_GlobalInvocationID.x >= SAMPLES_PER_SEGMENT * VERTICES_PER_SAMPLE) return;
+
+    // what circle of vertices this thread belongs to
+    uint sample_circle_id = gl_GlobalInvocationID.x / VERTICES_PER_SAMPLE;
+    // what vertex in the circle this thread belongs to
+    uint vertex_id = gl_GlobalInvocationID.x % VERTICES_PER_SAMPLE;
+    vec3 p0 = vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].pos_normal_x.xyz;
+    vec3 p1, p2;
+    // access the correct neighboring vertices even at the edges and make sure the ordering is correct for the cross product
+    if (sample_circle_id == SAMPLES_PER_SEGMENT - 1 && vertex_id == VERTICES_PER_SAMPLE - 1)
+    {
+        p1 = vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x - VERTICES_PER_SAMPLE].pos_normal_x.xyz;
+        p2 = vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x - 1].pos_normal_x.xyz;
+    }
+    else if (sample_circle_id == SAMPLES_PER_SEGMENT - 1)
+    {
+        p2 = vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x - VERTICES_PER_SAMPLE].pos_normal_x.xyz;
+        p1 = vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x + 1].pos_normal_x.xyz;
+    }
+    else if (vertex_id == VERTICES_PER_SAMPLE - 1)
+    {
+        p2 = vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x + VERTICES_PER_SAMPLE].pos_normal_x.xyz;
+        p1 = vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x - 1].pos_normal_x.xyz;
+    }
+    else
+    {
+        p1 = vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x + VERTICES_PER_SAMPLE].pos_normal_x.xyz;
+        p2 = vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x + 1].pos_normal_x.xyz;
+    }
+    vec3 v0 = normalize(p1 - p0);
+    vec3 v1 = normalize(p2 - p0);
+    vec3 normal = cross(v0, v1);
+    vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].pos_normal_x.w = normal.x;
+    vertices[indices[pc.indices_start_idx] + gl_GlobalInvocationID.x].normal_yz_tex_xy.xy = normal.yz;
+}

@@ -11,7 +11,7 @@ layout(location = 2) in vec2 tex;
 layout(location = 3) in int segment_uid;
 
 layout(location = 0) out vec3 frag_pos;
-layout(location = 1) out vec3 frag_normal;
+layout(location = 1) flat out vec3 frag_normal;
 layout(location = 2) out vec2 frag_tex;
 layout(location = 3) flat out int frag_segment_uid;
 
