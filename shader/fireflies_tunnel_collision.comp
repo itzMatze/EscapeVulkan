@@ -66,12 +66,12 @@ bool intersect_tunnel(in vec3 old_pos, in vec3 new_pos, in uint segment_idx, out
     float t = 0.0;
     vec2 bary = vec2(0.0, 0.0);
     // one thread for every triangle that needs to be tested
-    TunnelVertex p0 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3]]);
-    TunnelVertex p1 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3 + 1]]);
-    TunnelVertex p2 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3 + 2]]);
-    if (intersect_triangle(old_pos, normalize(new_pos - old_pos), distance(new_pos, old_pos), p0.pos, p1.pos, p2.pos, t, bary))
+    const uint p0_idx = tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3];
+    const uint p1_idx = tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3 + 1];
+    const uint p2_idx = tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3 + 2];
+    if (intersect_triangle(old_pos, normalize(new_pos - old_pos), distance(new_pos, old_pos), get_tunnel_vertex_pos(tunnel_vertices[p0_idx]), get_tunnel_vertex_pos(tunnel_vertices[p1_idx]), get_tunnel_vertex_pos(tunnel_vertices[p2_idx]), t, bary))
     {
-        normal = p0.normal;
+        normal = get_tunnel_vertex_normal(tunnel_vertices[p0_idx]);
         return true;
     }
     return false;
@@ -87,14 +87,13 @@ void main()
     uint segment_idx = gl_GlobalInvocationID.x / FIREFLIES_PER_SEGMENT;
     uint firefly_idx = (segment_uid * FIREFLIES_PER_SEGMENT) % FIREFLIES_COUNT + gl_GlobalInvocationID.x % FIREFLIES_PER_SEGMENT;
 
-    FireflyVertex v = unpack_firefly_vertex(out_vertices[firefly_idx]);
-    FireflyVertex old_v = unpack_firefly_vertex(in_vertices[firefly_idx]);
+    vec3 old_v_pos = get_firefly_vertex_pos(in_vertices[firefly_idx]);
 
     vec3 normal;
-    if (intersect_tunnel(old_v.pos, v.pos, segment_idx, normal))
+    if (intersect_tunnel(old_v_pos, get_firefly_vertex_pos(out_vertices[firefly_idx]), segment_idx, normal))
     {
-        v.pos = old_v.pos;
-        v.vel = reflect(v.vel, normal);
-        out_vertices[firefly_idx] = pack_firefly_vertex(v);
+        set_firefly_vertex_pos(out_vertices[firefly_idx], old_v_pos);
+        vec3 v_vel = get_firefly_vertex_vel(out_vertices[firefly_idx]);
+        set_firefly_vertex_vel(out_vertices[firefly_idx], reflect(v_vel, normal));
     }
 }

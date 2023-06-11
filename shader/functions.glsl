@@ -18,16 +18,16 @@ vec4 calculate_phong(in vec3 normal, in vec4 color, in int segment_uid)
     // this area will sometimes wrap at the end of the buffer
     for (uint i = start_idx; i < end_idx; ++i)
     {
-        FireflyVertex v = unpack_firefly_vertex(firefly_vertices[i]);
-        vec3 L = normalize(v.pos - frag_pos);
-        out_color += max(dot(normal, L), 0.0) * vec4(v.col, 1.0) * (FIREFLY_INTENSITY / (FIREFLY_INTENSITY + pow(distance(v.pos, frag_pos), 2)));
+        vec3 firefly_pos = get_firefly_vertex_pos(firefly_vertices[i]);
+        vec3 L = normalize(firefly_pos - frag_pos);
+        out_color += max(dot(normal, L), 0.0) * vec4(get_firefly_vertex_color(firefly_vertices[i]), 1.0) * (FIREFLY_INTENSITY / (FIREFLY_INTENSITY + pow(distance(firefly_pos, frag_pos), 2)));
     }
     uint remaining_fireflies = 3 * FIREFLIES_PER_SEGMENT - (end_idx - start_idx);
     for (uint i = 0; i < remaining_fireflies; ++i)
     {
-        FireflyVertex v = unpack_firefly_vertex(firefly_vertices[i]);
-        vec3 L = normalize(v.pos - frag_pos);
-        out_color += max(dot(normal, L), 0.0) * vec4(v.col, 1.0) * (FIREFLY_INTENSITY / (FIREFLY_INTENSITY + pow(distance(v.pos, frag_pos), 2)));
+        vec3 firefly_pos = get_firefly_vertex_pos(firefly_vertices[i]);
+        vec3 L = normalize(firefly_pos - frag_pos);
+        out_color += max(dot(normal, L), 0.0) * vec4(get_firefly_vertex_color(firefly_vertices[i]), 1.0) * (FIREFLY_INTENSITY / (FIREFLY_INTENSITY + pow(distance(firefly_pos, frag_pos), 2)));
     }
     return out_color;
 }

@@ -69,6 +69,24 @@ struct AlignedVertex {
     vec4 color_ba_tex;
 };
 
+vec3 get_vertex_pos(in AlignedVertex v) { return v.pos_normal_x.xyz; }
+void set_vertex_pos(inout AlignedVertex v, in vec3 pos) { v.pos_normal_x.xyz = pos; }
+
+vec3 get_vertex_normal(in AlignedVertex v) { return vec3(v.pos_normal_x.w, v.normal_yz_color_rg.xy); }
+void set_vertex_normal(inout AlignedVertex v, in vec3 normal) {
+    v.pos_normal_x.w = normal.x;
+    v.normal_yz_color_rg.xy = normal.yz;
+}
+
+vec4 get_vertex_color(in AlignedVertex v) { return vec4(v.normal_yz_color_rg.zw, v.color_ba_tex.xy); }
+void set_vertex_color(inout AlignedVertex v, in vec4 color) {
+    v.normal_yz_color_rg.zw = color.xy;
+    v.color_ba_tex.xy = color.zw;
+}
+
+vec2 get_vertex_tex(in AlignedVertex v) { return v.color_ba_tex.zw; }
+void set_vertex_tex(inout AlignedVertex v, in vec2 tex) { v.color_ba_tex.zw = tex; }
+
 struct Vertex {
     vec3 pos;
     vec3 normal;
@@ -106,6 +124,24 @@ struct AlignedFireflyVertex {
     vec4 vel_z_acc;
 };
 
+vec3 get_firefly_vertex_pos(in AlignedFireflyVertex v) { return v.pos_col_r.xyz; }
+void set_firefly_vertex_pos(inout AlignedFireflyVertex v, in vec3 pos) { v.pos_col_r.xyz = pos; }
+
+vec3 get_firefly_vertex_color(in AlignedFireflyVertex v) { return vec3(v.pos_col_r.w, v.col_gb_vel_xy.xy); }
+void set_firefly_vertex_color(inout AlignedFireflyVertex v, in vec3 color) {
+    v.pos_col_r.w = color.x;
+    v.col_gb_vel_xy.xy = color.yz;
+}
+
+vec3 get_firefly_vertex_vel(in AlignedFireflyVertex v) { return vec3(v.col_gb_vel_xy.zw, v.vel_z_acc.x); }
+void set_firefly_vertex_vel(inout AlignedFireflyVertex v, in vec3 vel) {
+    v.col_gb_vel_xy.zw = vel.xy;
+    v.vel_z_acc.x = vel.z;
+}
+
+vec3 get_firefly_vertex_acc(in AlignedFireflyVertex v) { return v.vel_z_acc.yzw; }
+void set_firefly_vertex_acc(inout AlignedFireflyVertex v, in vec3 acc) { v.vel_z_acc.yzw = acc; }
+
 struct FireflyVertex {
     vec3 pos;
     vec3 col;
@@ -142,6 +178,21 @@ struct AlignedTunnelVertex {
     vec4 normal_yz_tex_xy;
     uint segment_uid;
 };
+
+vec3 get_tunnel_vertex_pos(in AlignedTunnelVertex v) { return v.pos_normal_x.xyz; }
+void set_tunnel_vertex_pos(inout AlignedTunnelVertex v, in vec3 pos) { v.pos_normal_x.xyz = pos; }
+
+vec3 get_tunnel_vertex_normal(in AlignedTunnelVertex v) { return vec3(v.pos_normal_x.w, v.normal_yz_tex_xy.xy); }
+void set_tunnel_vertex_normal(inout AlignedTunnelVertex v, in vec3 normal) {
+    v.pos_normal_x.w = normal.x;
+    v.normal_yz_tex_xy.xy = normal.yz;
+}
+
+vec2 get_tunnel_vertex_tex(in AlignedTunnelVertex v) { return v.normal_yz_tex_xy.zw; }
+void set_tunnel_vertex_tex(inout AlignedTunnelVertex v, in vec2 tex) { v.normal_yz_tex_xy.zw = tex; }
+
+uint get_tunnel_vertex_segment_uid(in AlignedTunnelVertex v) { return v.segment_uid; }
+void set_tunnel_vertex_segment_uid(inout AlignedTunnelVertex v, in uint segment_uid) { v.segment_uid = segment_uid; }
 
 struct TunnelVertex {
     vec3 pos;
