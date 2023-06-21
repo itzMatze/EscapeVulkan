@@ -112,7 +112,7 @@ namespace ve
     void Fireflies::move_step(vk::CommandBuffer& cb, const GameState& gs, DeviceTimer& timer, FireflyMovePushConstants& fmpc)
     {
         timer.reset(cb, {DeviceTimer::FIREFLY_MOVE_STEP});
-        timer.start(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllGraphics);
+        timer.start(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllCommands);
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
         cb.pushConstants(move_compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(FireflyMovePushConstants), &fmpc);

@@ -7,8 +7,8 @@ layout(constant_id = 0) const uint NUM_MVPS = 1;
 
 layout(location = 0) in vec3 pos;
 layout(location = 1) in vec3 col;
-layout(location = 2) in vec3 vel;
-layout(location = 3) in vec3 acc;
+//layout(location = 2) in vec3 vel;
+//layout(location = 3) in vec3 acc;
 
 layout(binding = 0) uniform ModelRenderDataBuffer {
     ModelRenderData mrd[NUM_MVPS];

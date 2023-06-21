@@ -1,8 +1,8 @@
 #pragma once
 
 #include <utility>
-#include <vulkan/vulkan.hpp>
 
+#include "vk/common.hpp"
 #include "ve_log.hpp"
 #include "vk/VulkanCommandContext.hpp"
 #include "vk/VulkanMainContext.hpp"

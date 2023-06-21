@@ -1,8 +1,8 @@
 #pragma once
 
 #include <optional>
-#include <vulkan/vulkan.hpp>
 
+#include "vk/common.hpp"
 #include "Window.hpp"
 #include "vk/LogicalDevice.hpp"
 #include "vk/PhysicalDevice.hpp"

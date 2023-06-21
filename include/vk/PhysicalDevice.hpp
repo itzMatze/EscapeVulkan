@@ -1,8 +1,8 @@
 #pragma once
 
 #include <optional>
-#include <vulkan/vulkan.hpp>
 
+#include "vk/common.hpp"
 #include "vk/ExtensionsHandler.hpp"
 #include "vk/Instance.hpp"
 

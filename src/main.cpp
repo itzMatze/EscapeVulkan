@@ -2,13 +2,12 @@
 #include <filesystem>
 #include <stdexcept>
 #include <thread>
-#include <vulkan/vulkan.hpp>
-
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
+#include "vk/common.hpp"
 #include "Camera.hpp"
 #include "EventHandler.hpp"
 #include "ve_log.hpp"

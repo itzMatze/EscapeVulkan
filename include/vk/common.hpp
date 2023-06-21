@@ -4,6 +4,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
 #include <vulkan/vulkan.hpp>
 
 #include "Camera.hpp"
@@ -169,14 +170,14 @@ namespace ve
         {
             vk::VertexInputBindingDescription binding_description{};
             binding_description.binding = 0;
-            binding_description.stride = sizeof(Vertex);
+            binding_description.stride = sizeof(FireflyVertex);
             binding_description.inputRate = vk::VertexInputRate::eVertex;
             return {binding_description};
         }
 
         static std::vector<vk::VertexInputAttributeDescription> get_attribute_descriptions()
         {
-            std::vector<vk::VertexInputAttributeDescription> attribute_descriptions(4);
+            std::vector<vk::VertexInputAttributeDescription> attribute_descriptions(2);
             attribute_descriptions[0].binding = 0;
             attribute_descriptions[0].location = 0;
             attribute_descriptions[0].format = vk::Format::eR32G32B32Sfloat;
@@ -187,15 +188,15 @@ namespace ve
             attribute_descriptions[1].format = vk::Format::eR32G32B32Sfloat;
             attribute_descriptions[1].offset = offsetof(FireflyVertex, col);
 
-            attribute_descriptions[2].binding = 0;
-            attribute_descriptions[2].location = 2;
-            attribute_descriptions[2].format = vk::Format::eR32G32B32Sfloat;
-            attribute_descriptions[2].offset = offsetof(FireflyVertex, vel);
+            //attribute_descriptions[2].binding = 0;
+            //attribute_descriptions[2].location = 2;
+            //attribute_descriptions[2].format = vk::Format::eR32G32B32Sfloat;
+            //attribute_descriptions[2].offset = offsetof(FireflyVertex, vel);
 
-            attribute_descriptions[3].binding = 0;
-            attribute_descriptions[3].location = 3;
-            attribute_descriptions[3].format = vk::Format::eR32G32B32Sfloat;
-            attribute_descriptions[3].offset = offsetof(FireflyVertex, acc);
+            //attribute_descriptions[3].binding = 0;
+            //attribute_descriptions[3].location = 3;
+            //attribute_descriptions[3].format = vk::Format::eR32G32B32Sfloat;
+            //attribute_descriptions[3].offset = offsetof(FireflyVertex, acc);
 
             return attribute_descriptions;
         }

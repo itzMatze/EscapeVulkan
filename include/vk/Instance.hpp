@@ -1,8 +1,8 @@
 #pragma once
 
 #include <vector>
-#include <vulkan/vulkan.hpp>
 
+#include "vk/common.hpp"
 #include "vk/ExtensionsHandler.hpp"
 
 namespace ve

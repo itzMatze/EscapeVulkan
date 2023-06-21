@@ -3,7 +3,6 @@
 #include <glm/mat4x4.hpp>
 #include <unordered_map>
 #include <vector>
-#include <vulkan/vulkan.hpp>
 
 #include "UI.hpp"
 #include "vk/common.hpp"

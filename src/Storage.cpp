@@ -1,7 +1,6 @@
 #include "Storage.hpp"
 
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan.hpp>
+#include "vk/common.hpp"
 
 namespace ve
 {

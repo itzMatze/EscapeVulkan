@@ -1,7 +1,6 @@
 #include "vk/CommandPool.hpp"
 
-#include <vulkan/vulkan.hpp>
-
+#include "vk/common.hpp"
 #include "ve_log.hpp"
 
 namespace ve

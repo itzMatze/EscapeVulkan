@@ -152,7 +152,7 @@ namespace ve
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame + frames_in_flight]);
         timer.reset(cb, {DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION});
-        timer.start(cb, DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION, vk::PipelineStageFlagBits::eAllGraphics);
+        timer.start(cb, DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION, vk::PipelineStageFlagBits::eAllCommands);
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
         cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(uint32_t), &first_segment_indices_idx);

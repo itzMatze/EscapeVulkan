@@ -2,8 +2,8 @@
 
 #include <optional>
 #include <set>
-#include <vulkan/vulkan.hpp>
 
+#include "vk/common.hpp"
 #include "ve_log.hpp"
 #include "vk/PhysicalDevice.hpp"
 #include "vk/Synchronization.hpp"
@@ -50,6 +50,7 @@ namespace ve
         queues.emplace(QueueIndex::Compute, device.getQueue(queue_family_indices.compute, 0));
         queues.emplace(QueueIndex::Transfer, device.getQueue(queue_family_indices.transfer, 0));
         queues.emplace(QueueIndex::Present, device.getQueue(queue_family_indices.present, 0));
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(device);
     }
 
     void LogicalDevice::self_destruct()

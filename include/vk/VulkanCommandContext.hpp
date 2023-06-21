@@ -1,7 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
-
+#include "vk/common.hpp"
 #include "vk/Synchronization.hpp"
 #include "vk/CommandPool.hpp"
 #include "vk/VulkanMainContext.hpp"

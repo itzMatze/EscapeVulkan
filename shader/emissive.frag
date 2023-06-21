@@ -9,8 +9,7 @@ layout(location = 3) in vec2 frag_tex;
 
 layout(location = 0) out vec4 out_color;
 
-layout(push_constant) uniform PushConstant
-{
+layout(push_constant) uniform PushConstant {
     PushConstants pc;
 };
 

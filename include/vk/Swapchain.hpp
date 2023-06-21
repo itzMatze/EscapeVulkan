@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
 
+#include "vk/common.hpp"
 #include "vk/Image.hpp"
 #include "vk/RenderPass.hpp"
 #include "vk/VulkanMainContext.hpp"

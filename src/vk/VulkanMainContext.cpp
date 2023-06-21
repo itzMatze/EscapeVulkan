@@ -4,11 +4,12 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity, VkDebugUtilsMessageTypeFlagsEXT message_type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data)
 {
 
     std::cerr << "validation layer: " << callback_data->pMessage << std::endl;
-
     return VK_FALSE;
 }
 
@@ -26,6 +27,7 @@ namespace ve
     VulkanMainContext::VulkanMainContext(const uint32_t width, const uint32_t height) : window(std::make_optional<Window>(width, height)), instance(window->get_required_extensions()), surface(window->create_surface(instance.get())), physical_device(instance, surface), queue_family_indices(physical_device.get_queue_families(surface)), logical_device(physical_device, queue_family_indices, queues)
     {
         create_vma_allocator();
+        setup_debug_messenger();
         spdlog::info("Created VulkanMainContext");
     }
 
@@ -91,12 +93,11 @@ namespace ve
 
     void VulkanMainContext::setup_debug_messenger()
     {
-        VkDebugUtilsMessengerCreateInfoEXT dumci;
-        dumci.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        dumci.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        dumci.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        vk::DebugUtilsMessengerCreateInfoEXT dumci;
+        dumci.sType = vk::StructureType::eDebugUtilsMessengerCreateInfoEXT;
+        dumci.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
+        dumci.messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
         dumci.pfnUserCallback = debug_callback;
-        auto func = (PFN_vkCreateDebugUtilsMessengerEXT) instance.get().getProcAddr("vkCreateDebugUtilsMessengerEXT");
-        func(instance.get(), &dumci, nullptr, (VkDebugUtilsMessengerEXT*)(&debug_messenger));
+        debug_messenger = instance.get().createDebugUtilsMessengerEXT(dumci, nullptr, VULKAN_HPP_DEFAULT_DISPATCHER);
     }
 } // namespace ve
