@@ -33,7 +33,7 @@ namespace ve
         dbi.buffer = buffer.get();
         dbi.offset = 0;
         dbi.range = buffer.get_byte_size();
-        descriptor_sets.back().push_back(Descriptor(binding, dbi, {}));
+        descriptor_sets.back().push_back(Descriptor(binding, dbi, {}, buffer.pNext));
     }
 
     void DescriptorSetHandler::add_descriptor(uint32_t binding, Image& image)
@@ -44,7 +44,7 @@ namespace ve
         dii.imageLayout = image.get_layout();
         dii.imageView = image.get_view();
         dii.sampler = image.get_sampler();
-        descriptor_sets.back().push_back(Descriptor(binding, {}, dii));
+        descriptor_sets.back().push_back(Descriptor(binding, {}, dii, nullptr));
     }
 
     void DescriptorSetHandler::apply_descriptor_to_new_sets(uint32_t binding, const Buffer& buffer)
@@ -54,7 +54,7 @@ namespace ve
         dbi.buffer = buffer.get();
         dbi.offset = 0;
         dbi.range = buffer.get_byte_size();
-        new_set_descriptors.push_back(Descriptor(binding, dbi, {}));
+        new_set_descriptors.push_back(Descriptor(binding, dbi, {}, buffer.pNext));
     }
 
     void DescriptorSetHandler::apply_descriptor_to_new_sets(uint32_t binding, Image& image)
@@ -64,7 +64,7 @@ namespace ve
         dii.imageLayout = image.get_layout();
         dii.imageView = image.get_view();
         dii.sampler = image.get_sampler();
-        new_set_descriptors.push_back(Descriptor(binding, {}, dii));
+        new_set_descriptors.push_back(Descriptor(binding, {}, dii, nullptr));
     }
 
     void DescriptorSetHandler::reset_auto_apply_bindings()
@@ -121,6 +121,7 @@ namespace ve
             for (uint32_t j = 0; j < descriptor_sets[i].size(); ++j)
             {
                 vk::WriteDescriptorSet wds{};
+                wds.pNext = descriptor_sets[i][j].pNext;
                 wds.sType = vk::StructureType::eWriteDescriptorSet;
                 wds.dstSet = sets[i];
                 wds.dstBinding = layout_bindings[j].binding;

@@ -25,11 +25,12 @@ namespace ve
 
     private:
         struct Descriptor {
-            Descriptor(uint32_t binding, vk::DescriptorBufferInfo dbi, vk::DescriptorImageInfo dii) : binding(binding), dbi(dbi), dii(dii)
+            Descriptor(uint32_t binding, vk::DescriptorBufferInfo dbi, vk::DescriptorImageInfo dii, void* pNext) : binding(binding), dbi(dbi), dii(dii), pNext(pNext)
             {}
             uint32_t binding;
             vk::DescriptorBufferInfo dbi;
             vk::DescriptorImageInfo dii;
+            void* pNext;
             bool operator<(const Descriptor& b) const
             {
                 return (binding < b.binding);

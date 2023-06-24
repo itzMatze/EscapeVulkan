@@ -17,13 +17,15 @@ namespace ve
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, GameState& gs);
         void move_step(vk::CommandBuffer& cb, const GameState& gs, DeviceTimer& timer, FireflyMovePushConstants& fmpc);
+
+        std::vector<uint32_t> vertex_buffers;
+
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
         Storage& storage;
         DescriptorSetHandler render_dsh;
         DescriptorSetHandler compute_dsh;
-        std::vector<uint32_t> vertex_buffers;
         ModelRenderData mrd;
         std::vector<uint32_t> model_render_data_buffers;
         Pipeline render_pipeline;

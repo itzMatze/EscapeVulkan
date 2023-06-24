@@ -27,7 +27,6 @@ namespace ve
         const vk::Fence& get_fence(FenceNames name) const;
         void wait_for_fence(FenceNames name) const;
         void reset_fence(FenceNames name) const;
-        void wait_idle() const;
 
     private:
         const vk::Device& device;

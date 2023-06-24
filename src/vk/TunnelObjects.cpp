@@ -20,17 +20,11 @@ namespace ve
         }
     }
 
-    void TunnelObjects::create_buffers()
+    void TunnelObjects::create_buffers(PathTracer& path_tracer)
     {
         tunnel_bezier_points_buffer = storage.add_named_buffer(std::string("tunnel_bezier_points"), (tunnel_bezier_points.size() + 2) * 16, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.compute);
         tunnel.create_buffers();
         fireflies.create_buffers();
-    }
-
-    void TunnelObjects::construct(const RenderPass& render_pass)
-    {
-        fireflies.construct(render_pass);
-        tunnel.construct(render_pass);
 
         compute_dsh.add_binding(0, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
@@ -40,13 +34,13 @@ namespace ve
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             compute_dsh.new_set();
-            compute_dsh.add_descriptor(0, storage.get_buffer_by_name("tunnel_indices"));
-            compute_dsh.add_descriptor(1, storage.get_buffer_by_name("tunnel_vertices"));
-            compute_dsh.add_descriptor(2, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
-            compute_dsh.add_descriptor(3, storage.get_buffer_by_name("tunnel_bezier_points"));
+            compute_dsh.add_descriptor(0, storage.get_buffer(tunnel.index_buffer));
+            compute_dsh.add_descriptor(1, storage.get_buffer(tunnel.vertex_buffer));
+            compute_dsh.add_descriptor(2, storage.get_buffer(fireflies.vertex_buffers[i]));
+            compute_dsh.add_descriptor(3, storage.get_buffer(tunnel_bezier_points_buffer));
         }
         compute_dsh.construct();
-        construct_pipelines(render_pass);
+        construct_pipelines();
 
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
         cpc.segment_uid = 0;
@@ -63,7 +57,7 @@ namespace ve
         for (uint32_t i = 1; i < segment_count; ++i)
         {
             cpc.segment_uid++;
-            cpc.indices_start_idx = i * index_count / segment_count;
+            cpc.indices_start_idx = i * indices_per_segment;
             const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
             cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
             cpc.p0 = cpc.p2;
@@ -73,9 +67,22 @@ namespace ve
             compute_new_segment(cb, 1);
         }
         vcc.submit_compute(cb, true);
+        vk::CommandBuffer& path_tracer_cb = vcc.begin(vcc.compute_cb[0]);
+        //for (uint32_t i = 0; i < segment_count; ++i)
+        {
+            blas_indices.push_back(path_tracer.add_blas(path_tracer_cb, tunnel.vertex_buffer, tunnel.index_buffer, 0, index_count));
+            instance_indices.push_back(path_tracer.add_instance(blas_indices.back(), glm::mat4(1.0f), 0));
+        }
+        vcc.submit_compute(path_tracer_cb, true);
     }
 
-    void TunnelObjects::construct_pipelines(const RenderPass& render_pass)
+    void TunnelObjects::construct(const RenderPass& render_pass)
+    {
+        fireflies.construct(render_pass);
+        tunnel.construct(render_pass);
+    }
+
+    void TunnelObjects::construct_pipelines()
     {
         std::array<vk::SpecializationMapEntry, 4> compute_entries;
         compute_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
@@ -95,7 +102,7 @@ namespace ve
         tunnel.reload_shaders(render_pass);
 
         self_destruct(false);
-        construct_pipelines(render_pass);
+        construct_pipelines();
     }
 
     void TunnelObjects::draw(vk::CommandBuffer& cb, GameState& gs)
@@ -111,7 +118,7 @@ namespace ve
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
         cb.dispatch(std::max((fireflies_per_segment + 31) / 32, (vertices_per_sample * samples_per_segment + 31) / 32), 1, 1);
 
-        Buffer& buffer = storage.get_buffer_by_name("tunnel_vertices");
+        Buffer& buffer = storage.get_buffer(tunnel.vertex_buffer);
         vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eMemoryWrite, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
         cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {buffer_memory_barrier}, {});
 
