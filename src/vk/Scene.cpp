@@ -8,13 +8,16 @@
 
 namespace ve
 {
-    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), tunnel_objects(vmc, vcc, storage), collision_handler(vmc, vcc, storage)
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), tunnel_objects(vmc, vcc, storage), collision_handler(vmc, vcc, storage), path_tracer(vmc, vcc, storage)
     {}
 
     void Scene::construct(const RenderPass& render_pass)
     {
         if (!loaded) VE_THROW("Cannot construct scene before loading one!");
-        tunnel_objects.create_buffers();
+        tunnel_objects.create_buffers(path_tracer);
+        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
+        path_tracer.create_tlas(cb);
+        vcc.submit_compute(cb, true);
         // initialize tunnel
         tunnel_objects.construct(render_pass);
         collision_handler.construct(render_pass);
@@ -29,6 +32,7 @@ namespace ve
             if (material_buffer > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(3, storage.get_buffer(material_buffer));
             if (light_buffer > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(4, storage.get_buffer(light_buffer));
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(6, storage.get_buffer_by_name("tlas"));
 
             ros.at(ShaderFlavor::Emissive).dsh.new_set();
             ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
@@ -38,12 +42,14 @@ namespace ve
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
             if (light_buffer > -1) ros.at(ShaderFlavor::Basic).dsh.add_descriptor(4, storage.get_buffer(light_buffer));
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(6, storage.get_buffer_by_name("tlas"));
         }
         construct_pipelines(render_pass, false);
     }
 
     void Scene::self_destruct()
     {
+        path_tracer.self_destruct();
         storage.destroy_buffer(vertex_buffer);
         storage.destroy_buffer(index_buffer);
         if (material_buffer > -1) storage.destroy_buffer(material_buffer);
@@ -102,12 +108,17 @@ namespace ve
     {
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
+        std::vector<std::vector<unsigned char>> texture_data;
         vk::Extent2D texture_dimensions;
+        std::vector<Material> materials;
 
         auto add_model = [&](Model& model, const std::string& name, const glm::mat4& transformation) -> void
         {
+            model_infos.push_back({});
+            model_infos.back().index_buffer_idx = indices.size();
             vertices.insert(vertices.end(), model.vertices.begin(), model.vertices.end());
             indices.insert(indices.end(), model.indices.begin(), model.indices.end());
+            model_infos.back().num_indices = indices.size() - model_infos.back().index_buffer_idx;
             materials.insert(materials.end(), model.materials.begin(), model.materials.end());
             lights.insert(lights.end(), model.lights.begin(), model.lights.end());
             texture_data.insert(texture_data.begin(), model.texture_data.begin(), model.texture_data.end());
@@ -133,10 +144,12 @@ namespace ve
         ros.at(ShaderFlavor::Default).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(6, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(6, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
@@ -185,8 +198,16 @@ namespace ve
                 add_model(model, name, glm::mat4(1.0f));
             }
         }
-        vertex_buffer = storage.add_named_buffer(std::string("vertices"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
-        index_buffer = storage.add_named_buffer(std::string("indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+        vertex_buffer = storage.add_named_buffer(std::string("vertices"), vertices, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute);
+        index_buffer = storage.add_named_buffer(std::string("indices"), indices, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute);
+        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
+        for (uint32_t i = 0; i < model_infos.size(); ++i)
+        {
+            ModelInfo& mi = model_infos[i];
+            mi.blas_idx = path_tracer.add_blas(cb, vertex_buffer, index_buffer, mi.index_buffer_idx, mi.num_indices);
+            mi.instance_idx = path_tracer.add_instance(mi.blas_idx, model_render_data[i].M, i);
+        }
+        vcc.submit_compute(cb, true);
         if (!materials.empty())
         {
             material_buffer = storage.add_named_buffer(std::string("materials"), materials, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
@@ -312,8 +333,10 @@ namespace ve
         if (gs.show_player_bb) collision_handler.draw(cb, gs, model_render_data[player_idx].MVP);
     }
 
-    void Scene::update_game_state(GameState& gs)
+    void Scene::update_game_state(vk::CommandBuffer& cb, GameState& gs)
     {
+        path_tracer.update_instance(0, model_render_data[model_handles.at("Player")].M);
+        //path_tracer.create_tlas(cb);
         // handle collision: reset ship and let it blink for 3s
         if (gs.player_reset_blink_counter == 0 && collision_handler.get_shader_return_value(gs.current_frame) != 0)
         {

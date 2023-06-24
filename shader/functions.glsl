@@ -6,6 +6,10 @@ vec4 calculate_phong(in vec3 normal, in vec4 color, in int segment_uid)
     for (uint i = 0; i < NUM_LIGHTS; ++i)
     {
         vec3 L = normalize(lights[i].pos_inner.xyz - frag_pos);
+        rayQueryEXT rayQuery;
+        rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, frag_pos, 0.01, L, distance(lights[i].pos_inner.xyz, frag_pos));
+        rayQueryProceedEXT(rayQuery);
+        if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionTriangleEXT) continue;
         float outer_cone_reduction = pow(clamp((dot(-L, lights[i].dir_intensity.xyz) - lights[i].color_outer.w) / (lights[i].pos_inner.w - lights[i].color_outer.w), 0.0, 1.0), 2);
         out_color += max(dot(normal, L), 0.0) * outer_cone_reduction * color * (lights[i].dir_intensity.w / (lights[i].dir_intensity.w + pow(distance(lights[i].pos_inner.xyz, frag_pos), 2)));
     }
@@ -20,6 +24,10 @@ vec4 calculate_phong(in vec3 normal, in vec4 color, in int segment_uid)
     {
         vec3 firefly_pos = get_firefly_vertex_pos(firefly_vertices[i]);
         vec3 L = normalize(firefly_pos - frag_pos);
+        rayQueryEXT rayQuery;
+        rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, frag_pos, 0.01, L, distance(firefly_pos, frag_pos));
+        rayQueryProceedEXT(rayQuery);
+        if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionTriangleEXT) continue;
         out_color += max(dot(normal, L), 0.0) * vec4(get_firefly_vertex_color(firefly_vertices[i]), 1.0) * (FIREFLY_INTENSITY / (FIREFLY_INTENSITY + pow(distance(firefly_pos, frag_pos), 2)));
     }
     uint remaining_fireflies = 3 * FIREFLIES_PER_SEGMENT - (end_idx - start_idx);
@@ -27,6 +35,10 @@ vec4 calculate_phong(in vec3 normal, in vec4 color, in int segment_uid)
     {
         vec3 firefly_pos = get_firefly_vertex_pos(firefly_vertices[i]);
         vec3 L = normalize(firefly_pos - frag_pos);
+        rayQueryEXT rayQuery;
+        rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, frag_pos, 0.01, L, distance(firefly_pos, frag_pos));
+        rayQueryProceedEXT(rayQuery);
+        if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionTriangleEXT) continue;
         out_color += max(dot(normal, L), 0.0) * vec4(get_firefly_vertex_color(firefly_vertices[i]), 1.0) * (FIREFLY_INTENSITY / (FIREFLY_INTENSITY + pow(distance(firefly_pos, frag_pos), 2)));
     }
     return out_color;

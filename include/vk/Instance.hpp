@@ -20,5 +20,6 @@ namespace ve
         vk::Instance instance;
         ExtensionsHandler extensions_handler;
         ExtensionsHandler validation_handler;
+        vk::DynamicLoader dl;
     };
 } // namespace ve

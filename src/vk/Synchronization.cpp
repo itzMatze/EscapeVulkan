@@ -24,7 +24,7 @@ namespace ve
 
     void Synchronization::self_destruct()
     {
-        wait_idle();
+        device.waitIdle();
         for (auto& s : semaphores) device.destroy(s);
         semaphores.clear();
         for (auto& f : fences) device.destroyFence(f);
@@ -49,10 +49,5 @@ namespace ve
     void Synchronization::reset_fence(FenceNames name) const
     {
         device.resetFences(fences[name]);
-    }
-
-    void Synchronization::wait_idle() const
-    {
-        device.waitIdle();
     }
 } // namespace ve

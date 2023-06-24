@@ -7,7 +7,6 @@ namespace ve
 {
     Instance::Instance(std::vector<const char*> required_extensions) : extensions_handler()
     {
-        vk::DynamicLoader dl;
         PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = dl.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
         VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
         required_extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);

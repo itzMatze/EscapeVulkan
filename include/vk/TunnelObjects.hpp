@@ -7,6 +7,7 @@
 
 #include "vk/Tunnel.hpp"
 #include "vk/Fireflies.hpp"
+#include "vk/PathTracer.hpp"
 
 namespace ve
 {
@@ -29,7 +30,7 @@ namespace ve
     public:
         TunnelObjects(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
         void self_destruct(bool full = true);
-        void create_buffers();
+        void create_buffers(PathTracer& path_tracer);
         void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, GameState& gs);
@@ -47,6 +48,8 @@ namespace ve
         Tunnel tunnel;
         DescriptorSetHandler compute_dsh;
         std::vector<glm::vec3, boost::alignment::aligned_allocator<glm::vec3, 16>> tunnel_bezier_points;
+        std::vector<uint32_t> blas_indices;
+        std::vector<uint32_t> instance_indices;
         std::queue<glm::vec3> tunnel_bezier_points_queue;
         uint32_t tunnel_bezier_points_buffer;
         NewSegmentPushConstants cpc;
@@ -57,7 +60,7 @@ namespace ve
         std::uniform_real_distribution<float> dis;
 
         glm::vec3 random_cosine(const glm::vec3& normal, const float cosine_weight = 40.0f);
-        void construct_pipelines(const RenderPass& render_pass);
+        void construct_pipelines();
         void compute_new_segment(vk::CommandBuffer& cb, uint32_t current_frame);
         glm::vec3 pop_tunnel_bezier_point_queue();
         glm::vec3& get_tunnel_bezier_point(uint32_t segment_id, uint32_t bezier_point_idx, bool use_global_id);

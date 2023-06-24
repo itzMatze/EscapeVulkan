@@ -8,8 +8,22 @@ VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity, VkDebugUtilsMessageTypeFlagsEXT message_type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data)
 {
-
-    std::cerr << "validation layer: " << callback_data->pMessage << std::endl;
+    switch (message_severity)
+    {
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+            spdlog::debug("validation verbose");
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+            spdlog::info("validation info");
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+            spdlog::warn("validation warning");
+            break;
+        case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+            spdlog::error("validation error");
+            break;
+    }
+    std::cout << VE_C_LBLUE << callback_data->pMessage << VE_C_WHITE << std::endl;
     return VK_FALSE;
 }
 
@@ -88,6 +102,7 @@ namespace ve
         vaci.physicalDevice = physical_device.get();
         vaci.device = logical_device.get();
         vaci.vulkanApiVersion = VK_API_VERSION_1_3;
+        vaci.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
         vmaCreateAllocator(&vaci, &va);
     }
 

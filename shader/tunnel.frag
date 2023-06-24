@@ -1,6 +1,8 @@
 #version 460
 
 #extension GL_GOOGLE_include_directive: require
+#extension GL_EXT_ray_tracing : enable
+#extension GL_EXT_ray_query : enable
 #include "common.glsl"
 
 layout(constant_id = 0) const uint NUM_LIGHTS = 1;
@@ -19,6 +21,8 @@ layout(push_constant) uniform PushConstant {
 };
 
 layout(binding = 1) uniform sampler2DArray tex_sampler;
+
+layout(binding = 2, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(binding = 4) uniform LightsBuffer {
     Light lights[NUM_LIGHTS];
@@ -46,8 +50,19 @@ void main()
         return;
     }
 
-    // add noise from noise texture to color
-    vec4 color = vec4(0.63, 0.32, 0.18, 1.0) * texture(tex_sampler, vec3(frag_tex, 1));
+    {
+        // add noise from noise texture to color
+        vec4 color = vec4(0.63, 0.32, 0.18, 1.0) * texture(tex_sampler, vec3(frag_tex, 1));
 
-    out_color = calculate_phong(normal, color, frag_segment_uid);
+        out_color = calculate_phong(normal, color, frag_segment_uid);
+        /*
+        out_color = vec4(0.0, 0.0, 0.0, 1.0);
+        rayQueryEXT rayQuery;
+        rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsNoneEXT, 0xFF, frag_pos, 0.01, vec3(1.0, 0.0, 0.0), 1000.0);
+        while (rayQueryProceedEXT(rayQuery));
+        if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
+        {
+            out_color += color * calculate_phong(normal, color, frag_segment_uid);
+        }*/
+    }
 }

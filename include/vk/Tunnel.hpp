@@ -22,6 +22,9 @@ namespace ve
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, GameState& gs, uint32_t render_index_start, const glm::vec3& p1, const glm::vec3& p2);
 
+        uint32_t vertex_buffer;
+        uint32_t index_buffer;
+
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
@@ -29,8 +32,6 @@ namespace ve
         DescriptorSetHandler skybox_dsh;
         DescriptorSetHandler render_dsh;
         uint32_t skybox_vertex_buffer;
-        uint32_t vertex_buffer;
-        uint32_t index_buffer;
         ModelRenderData mrd;
         std::vector<uint32_t> model_render_data_buffers;
         uint32_t noise_textures;

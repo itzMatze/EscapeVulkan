@@ -163,6 +163,16 @@ namespace ve
             return data;
         }
 
+        vk::DeviceAddress get_device_address()
+        {
+            vk::BufferDeviceAddressInfoKHR buffer_device_adress_i{};
+            buffer_device_adress_i.sType = vk::StructureType::eBufferDeviceAddressInfo;
+            buffer_device_adress_i.buffer = buffer;
+            return vmc.logical_device.get().getBufferAddress(buffer_device_adress_i);
+        }
+
+        void* pNext = nullptr;
+
     private:
         std::pair<vk::Buffer, VmaAllocation> create_buffer(vk::BufferUsageFlags usage_flags, VmaAllocationCreateFlags vma_flags, bool device_local, const std::vector<uint32_t>& queue_family_indices)
         {

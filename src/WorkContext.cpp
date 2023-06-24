@@ -10,7 +10,7 @@ namespace ve
     WorkContext::WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), storage(vmc, vcc), swapchain(vmc), scene(vmc, vcc, storage), ui(vmc, swapchain.get_render_pass(), frames_in_flight)
     {
         vcc.add_graphics_buffers(frames_in_flight);
-        vcc.add_compute_buffers(frames_in_flight * 2);
+        vcc.add_compute_buffers(frames_in_flight * 3);
         vcc.add_transfer_buffers(1);
 
         ui.upload_font_textures(vcc);
@@ -38,14 +38,14 @@ namespace ve
 
     void WorkContext::reload_shaders()
     {
-        syncs[0].wait_idle();
+        vmc.logical_device.get().waitIdle();
         scene.reload_shaders(swapchain.get_render_pass());
     }
 
     void WorkContext::load_scene(const std::string& filename)
     {
         HostTimer timer;
-        syncs[0].wait_idle();
+        vmc.logical_device.get().waitIdle();
         if (scene.loaded)
         {
             scene.self_destruct();
@@ -70,7 +70,6 @@ namespace ve
             double timing = timers[gs.current_frame].get_result_by_idx(i);
             gs.devicetimings[i] = timing;
         }
-        scene.update_game_state(gs);
         if (gs.save_screenshot)
         {
             swapchain.save_screenshot(vcc, image_idx.value, gs.current_frame);
@@ -83,7 +82,7 @@ namespace ve
 
     vk::Extent2D WorkContext::recreate_swapchain()
     {
-        syncs[0].wait_idle();
+        vmc.logical_device.get().waitIdle();
         swapchain.self_destruct(false);
         swapchain.create();
         return swapchain.get_extent();
@@ -91,6 +90,9 @@ namespace ve
 
     void WorkContext::record_graphics_command_buffer(uint32_t image_idx, GameState& gs)
     {
+        vk::CommandBuffer& compute_cb = vcc.begin(vcc.compute_cb[gs.current_frame + frames_in_flight * 2]);
+        scene.update_game_state(compute_cb, gs);
+        compute_cb.end();
         vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[gs.current_frame]);
         timers[gs.current_frame].reset(cb, {DeviceTimer::RENDERING_ALL, DeviceTimer::RENDERING_APP, DeviceTimer::RENDERING_UI, DeviceTimer::RENDERING_TUNNEL});
         timers[gs.current_frame].start(cb, DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllGraphics);
@@ -138,7 +140,7 @@ namespace ve
 
     void WorkContext::submit(uint32_t image_idx, GameState& gs)
     {
-        std::array<vk::CommandBuffer, 2> compute_cbs{vcc.compute_cb[gs.current_frame], vcc.compute_cb[gs.current_frame + frames_in_flight]};
+        std::array<vk::CommandBuffer, 3> compute_cbs{vcc.compute_cb[gs.current_frame], vcc.compute_cb[gs.current_frame + frames_in_flight], vcc.compute_cb[gs.current_frame + frames_in_flight * 2]};
         vk::SubmitInfo compute_si{};
         compute_si.sType = vk::StructureType::eSubmitInfo;
         compute_si.waitSemaphoreCount = 0;

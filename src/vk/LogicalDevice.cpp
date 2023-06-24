@@ -25,18 +25,31 @@ namespace ve
             qci_s.push_back(qci);
         }
 
+        vk::PhysicalDeviceRayQueryFeaturesKHR rq_features;
+        rq_features.rayQuery = VK_TRUE;
+
+        vk::PhysicalDeviceAccelerationStructureFeaturesKHR as_features;
+        as_features.pNext = &rq_features;
+        as_features.accelerationStructure = VK_TRUE;
+
+        vk::PhysicalDeviceVulkan12Features device_features_12;
+        device_features_12.pNext = &as_features;
+        device_features_12.bufferDeviceAddress = VK_TRUE;
+
+        vk::PhysicalDeviceVulkan13Features device_features_13;
+        device_features_13.pNext = &device_features_12;
+        device_features_13.synchronization2 = VK_TRUE;
+
         vk::PhysicalDeviceFeatures core_device_features{};
         core_device_features.samplerAnisotropy = VK_TRUE;
         core_device_features.sampleRateShading = VK_TRUE;
         core_device_features.fillModeNonSolid = VK_TRUE;
         core_device_features.wideLines = VK_TRUE;
 
-        vk::PhysicalDeviceVulkan13Features device_features_13;
-        device_features_13.synchronization2 = VK_TRUE;
-
         vk::PhysicalDeviceFeatures2 device_features;
-        device_features.features = core_device_features;
         device_features.pNext = &device_features_13;
+        device_features.features = core_device_features;
+
         vk::DeviceCreateInfo dci{};
         dci.sType = vk::StructureType::eDeviceCreateInfo;
         dci.pNext = &device_features;

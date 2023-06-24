@@ -1,6 +1,8 @@
 #version 460
 
 #extension GL_GOOGLE_include_directive: require
+#extension GL_EXT_ray_tracing : enable
+#extension GL_EXT_ray_query : enable
 #include "common.glsl"
 
 layout(constant_id = 0) const uint NUM_LIGHTS = 1;
@@ -26,6 +28,8 @@ layout(binding = 4) uniform LightsBuffer {
 layout(binding = 5) buffer FireflyBuffer {
     AlignedFireflyVertex firefly_vertices[SEGMENT_COUNT * FIREFLIES_PER_SEGMENT];
 };
+
+layout(binding = 6, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 #include "functions.glsl"
 
