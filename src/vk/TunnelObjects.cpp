@@ -226,6 +226,11 @@ namespace ve
     {
         return get_tunnel_bezier_point(player_segment_position, 0, false);
     }
+    
+    glm::vec3 TunnelObjects::get_player_reset_normal()
+    {
+        return glm::normalize(get_tunnel_bezier_point(player_segment_position, 1, false) - get_tunnel_bezier_point(player_segment_position, 0, false));
+    }
 
     uint32_t TunnelObjects::get_tunnel_render_index_start() const
     {

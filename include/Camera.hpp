@@ -9,6 +9,7 @@ class Camera
 {
 public:
     glm::vec3 position;
+    glm::quat orientation;
     glm::mat4 projection;
     glm::mat4 view;
     bool is_tracking_camera = false;
@@ -30,7 +31,6 @@ public:
 
 private:
     glm::mat4 vp;
-    glm::quat orientation;
     glm::vec3 u, v, w;
     float near, far;
     float yaw, pitch, roll;
