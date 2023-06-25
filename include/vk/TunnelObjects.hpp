@@ -38,6 +38,7 @@ namespace ve
         void advance(GameState& gs, DeviceTimer& timer);
         bool is_pos_past_segment(glm::vec3 pos, uint32_t idx, bool use_global_id);
         glm::vec3 get_player_reset_position();
+        glm::vec3 get_player_reset_normal();
         uint32_t get_tunnel_render_index_start() const;
 
     private:

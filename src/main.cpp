@@ -97,22 +97,47 @@ private:
     EventHandler eh;
     float move_amount;
     float move_speed = 0.02f;
+    float velocity = 1.0f;
+    glm::vec3 rotation_speed;
     ve::GameState gs;
-    bool use_controller = false;
+    bool game_mode = false;
 
     void dispatch_pressed_keys()
     {
-        if (eh.is_key_pressed(Key::W)) camera.moveFront(move_amount);
-        if (eh.is_key_pressed(Key::A)) camera.moveRight(-move_amount);
-        if (eh.is_key_pressed(Key::S)) camera.moveFront(-move_amount);
-        if (eh.is_key_pressed(Key::D)) camera.moveRight(move_amount);
-        if (eh.is_key_pressed(Key::Q)) camera.moveDown(move_amount);
-        if (eh.is_key_pressed(Key::E)) camera.moveDown(-move_amount);
-        float panning_speed = eh.is_key_pressed(Key::Shift) ? 0.2f : 0.6f;
-        if (eh.is_key_pressed(Key::Left)) camera.onMouseMove(-panning_speed * gs.time_diff, 0.0f);
-        if (eh.is_key_pressed(Key::Right)) camera.onMouseMove(panning_speed * gs.time_diff, 0.0f);
-        if (eh.is_key_pressed(Key::Up)) camera.onMouseMove(0.0f, -panning_speed * gs.time_diff);
-        if (eh.is_key_pressed(Key::Down)) camera.onMouseMove(0.0f, panning_speed * gs.time_diff);
+        if(game_mode)
+        {
+            if (eh.is_key_pressed(Key::Left)) rotation_speed.x -= 0.002f;
+            if (eh.is_key_pressed(Key::Right)) rotation_speed.x += 0.002f;
+            if (eh.is_key_pressed(Key::Up)) rotation_speed.y -= 0.002f;
+            if (eh.is_key_pressed(Key::Down)) rotation_speed.y += 0.002f;
+            if (eh.is_key_pressed(Key::A)) camera.rotate(0.1f * gs.time_diff);//rotation_speed.z -= 0.002f;
+            if (eh.is_key_pressed(Key::D)) camera.rotate(-0.1f * gs.time_diff);//rotation_speed.z += 0.002f;
+            if (eh.is_key_pressed(Key::W)) velocity += 0.01f;
+            if (eh.is_key_pressed(Key::S)) velocity -= 0.01f;
+            velocity = std::max(1.0f, velocity);
+            if (gs.player_reset_blink_counter > 0)
+            {
+                velocity = 0.0f;
+                rotation_speed = glm::vec3(0.0f);
+            }
+            camera.moveFront(move_amount * velocity);
+            camera.onMouseMove(rotation_speed.x * gs.time_diff, 0.0f);
+            camera.onMouseMove(0.0f, rotation_speed.y * gs.time_diff);
+        }
+        else
+        {
+            if (eh.is_key_pressed(Key::W)) camera.moveFront(move_amount);
+            if (eh.is_key_pressed(Key::A)) camera.moveRight(-move_amount);
+            if (eh.is_key_pressed(Key::S)) camera.moveFront(-move_amount);
+            if (eh.is_key_pressed(Key::D)) camera.moveRight(move_amount);
+            if (eh.is_key_pressed(Key::Q)) camera.moveDown(move_amount);
+            if (eh.is_key_pressed(Key::E)) camera.moveDown(-move_amount);
+            float panning_speed = eh.is_key_pressed(Key::Shift) ? 0.2f : 0.6f;
+            if (eh.is_key_pressed(Key::Left)) camera.onMouseMove(-panning_speed * gs.time_diff, 0.0f);
+            if (eh.is_key_pressed(Key::Right)) camera.onMouseMove(panning_speed * gs.time_diff, 0.0f);
+            if (eh.is_key_pressed(Key::Up)) camera.onMouseMove(0.0f, -panning_speed * gs.time_diff);
+            if (eh.is_key_pressed(Key::Down)) camera.onMouseMove(0.0f, panning_speed * gs.time_diff);
+        }
 
         // reset state of keys that are used to execute a one time action
         if (eh.is_key_released(Key::Plus))
@@ -162,7 +187,7 @@ private:
         }
         if (eh.is_key_released(Key::X) && eh.is_controller_available())
         {
-            use_controller = !use_controller;
+            game_mode = !game_mode;
             eh.set_released_key(Key::X, false);
         }
         if (eh.is_key_released(Key::R))
@@ -171,7 +196,7 @@ private:
             eh.set_released_key(Key::R, false);
             wc.reload_shaders();
         }
-        if (use_controller)
+        if (game_mode)
         {
             std::pair<glm::vec2, glm::vec2> joystick_pos = eh.get_controller_joystick_pos();
             camera.onMouseMove(joystick_pos.second.x * 1.5f, joystick_pos.second.y * 1.5f);

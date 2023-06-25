@@ -351,6 +351,15 @@ namespace ve
             collision_handler.reset_shader_return_values(gs.current_frame);
             gs.player_reset_blink_timer -= gs.time_diff;
             gs.cam.position = tunnel_objects.get_player_reset_position();
+            glm::vec3 normal = tunnel_objects.get_player_reset_normal();
+            if (std::abs(glm::dot(normal, glm::vec3(1.0f, 0.0f, 0.0f))) > 0.999f)
+            {
+                gs.cam.orientation = glm::quatLookAt(normal, glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f)));
+            }
+            else
+            {
+                gs.cam.orientation = glm::quatLookAt(normal, glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));
+            }
             if (gs.player_reset_blink_timer < 0.0f)
             {
                 gs.player_reset_blink_counter--;
