@@ -24,7 +24,7 @@ namespace ve
         void rotate(const std::string& model, float degree, const glm::vec3& axis);
         DescriptorSetHandler& get_dsh(ShaderFlavor flavor);
         void draw(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer);
-        void update_game_state(vk::CommandBuffer& cb, GameState& gs);
+        void update_game_state(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer);
 
         bool loaded = false;
 
@@ -51,7 +51,7 @@ namespace ve
         // use -1 to encode missing material buffer and/or textures as they are not required
         int32_t material_buffer = -1;
         int32_t texture_image = -1;
-        int32_t light_buffer = -1;
+        std::array<int32_t, 2> light_buffers = {-1, -1};
         std::vector<uint32_t> model_render_data_buffers;
         TunnelObjects tunnel_objects;
         CollisionHandler collision_handler;

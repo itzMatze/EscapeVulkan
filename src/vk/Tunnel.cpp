@@ -98,8 +98,8 @@ namespace ve
             render_dsh.new_set();
             render_dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
             render_dsh.add_descriptor(1, storage.get_image(noise_textures));
-            render_dsh.add_descriptor(2, storage.get_buffer_by_name("tlas"));
-            render_dsh.add_descriptor(4, storage.get_buffer_by_name("spaceship_lights"));
+            render_dsh.add_descriptor(2, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
+            render_dsh.add_descriptor(4, storage.get_buffer_by_name("spaceship_lights_" + std::to_string(i)));
             render_dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
         }
         skybox_dsh.construct();
@@ -115,7 +115,7 @@ namespace ve
         fragment_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
         fragment_entries[1] = vk::SpecializationMapEntry(1, sizeof(uint32_t), sizeof(uint32_t));
         fragment_entries[2] = vk::SpecializationMapEntry(2, sizeof(uint32_t) * 2, sizeof(uint32_t));
-        std::array<uint32_t, 3> fragment_entries_data{uint32_t(storage.get_buffer_by_name("spaceship_lights").get_element_count()), segment_count, fireflies_per_segment};
+        std::array<uint32_t, 3> fragment_entries_data{uint32_t(storage.get_buffer_by_name("spaceship_lights_0").get_element_count()), segment_count, fireflies_per_segment};
         vk::SpecializationInfo fragment_spec_info(fragment_entries.size(), fragment_entries.data(), sizeof(uint32_t) * fragment_entries_data.size(), fragment_entries_data.data());
         shader_infos[1] = ShaderInfo{"tunnel.frag", vk::ShaderStageFlagBits::eFragment, fragment_spec_info};
 

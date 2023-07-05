@@ -23,7 +23,7 @@ layout(location = 0) out vec3 frag_color;
 
 void main() {
     vec4 clip_pos = mrd[pc.mvp_idx].mvp * vec4(pos, 1.0);
-    gl_PointSize = 1000.0 / clip_pos.w;
+    gl_PointSize = 500.0 / clip_pos.w;
     gl_Position = clip_pos;
 
     frag_color = col;

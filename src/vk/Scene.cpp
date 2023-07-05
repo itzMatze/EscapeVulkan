@@ -16,7 +16,8 @@ namespace ve
         if (!loaded) VE_THROW("Cannot construct scene before loading one!");
         tunnel_objects.create_buffers(path_tracer);
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
-        path_tracer.create_tlas(cb);
+        path_tracer.create_tlas(cb, 0);
+        path_tracer.create_tlas(cb, 1);
         vcc.submit_compute(cb, true);
         // initialize tunnel
         tunnel_objects.construct(render_pass);
@@ -30,9 +31,9 @@ namespace ve
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
             if (texture_image > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(2, storage.get_image(texture_image));
             if (material_buffer > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(3, storage.get_buffer(material_buffer));
-            if (light_buffer > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(4, storage.get_buffer(light_buffer));
+            if (light_buffers[i] > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(4, storage.get_buffer(light_buffers[i]));
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
-            ros.at(ShaderFlavor::Default).dsh.add_descriptor(6, storage.get_buffer_by_name("tlas"));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(6, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
 
             ros.at(ShaderFlavor::Emissive).dsh.new_set();
             ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
@@ -40,9 +41,9 @@ namespace ve
 
             ros.at(ShaderFlavor::Basic).dsh.new_set();
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
-            if (light_buffer > -1) ros.at(ShaderFlavor::Basic).dsh.add_descriptor(4, storage.get_buffer(light_buffer));
+            if (light_buffers[i] > -1) ros.at(ShaderFlavor::Basic).dsh.add_descriptor(4, storage.get_buffer(light_buffers[i]));
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
-            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(6, storage.get_buffer_by_name("tlas"));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(6, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
         }
         construct_pipelines(render_pass, false);
     }
@@ -54,8 +55,11 @@ namespace ve
         storage.destroy_buffer(index_buffer);
         if (material_buffer > -1) storage.destroy_buffer(material_buffer);
         material_buffer = -1;
-        if (light_buffer > -1) storage.destroy_buffer(light_buffer);
-        light_buffer = -1;
+        for (int32_t& light_buffer : light_buffers)
+        {
+            if (light_buffer > -1) storage.destroy_buffer(light_buffer);
+            light_buffer = -1;
+        }
         lights.clear();
         initial_light_values.clear();
         for (auto& b : bb_mm_buffers) storage.get_buffer(b).self_destruct();
@@ -86,7 +90,7 @@ namespace ve
         fragment_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
         fragment_entries[1] = vk::SpecializationMapEntry(1, sizeof(uint32_t), sizeof(uint32_t));
         fragment_entries[2] = vk::SpecializationMapEntry(2, sizeof(uint32_t) * 2, sizeof(uint32_t));
-        std::array<uint32_t, 3> fragment_entries_data{uint32_t(storage.get_buffer_by_name("spaceship_lights").get_element_count()), segment_count, fireflies_per_segment};
+        std::array<uint32_t, 3> fragment_entries_data{uint32_t(lights.size()), segment_count, fireflies_per_segment};
         vk::SpecializationInfo fragment_spec_info(fragment_entries.size(), fragment_entries.data(), sizeof(uint32_t) * fragment_entries_data.size(), fragment_entries_data.data());
 
         shader_infos[1] = ShaderInfo{"default.frag", vk::ShaderStageFlagBits::eFragment, fragment_spec_info};
@@ -219,7 +223,8 @@ namespace ve
             {
                 initial_light_values.push_back(std::make_pair(light.pos, light.dir));
             }
-            light_buffer = storage.add_named_buffer(std::string("spaceship_lights"), lights, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+            light_buffers[0] = storage.add_named_buffer(std::string("spaceship_lights_0"), lights, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
+            light_buffers[1] = storage.add_named_buffer(std::string("spaceship_lights_1"), lights, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         }
 
         if (!texture_data.empty())
@@ -285,6 +290,21 @@ namespace ve
     void Scene::draw(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer)
     {
         uint32_t player_idx = model_handles.at("Player");
+        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
+        cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
+        for (auto& ro : ros)
+        {
+            if (gs.show_player) ro.second.draw(cb, gs);
+        }
+        timer.start(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
+        tunnel_objects.draw(cb, gs);
+        timer.stop(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
+        if (gs.show_player_bb) collision_handler.draw(cb, gs, model_render_data[player_idx].MVP);
+    }
+
+    void Scene::update_game_state(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer)
+    {
+        uint32_t player_idx = model_handles.at("Player");
         glm::mat4 vp = gs.cam.getVP();
         // let camera follow the players object
         // world position of players object is camera position, camera is 10 behind the object
@@ -319,24 +339,10 @@ namespace ve
         tunnel_objects.advance(gs, timer);
         collision_handler.compute(gs, timer, tunnel_objects.get_tunnel_render_index_start());
 
-        if (!lights.empty()) storage.get_buffer(light_buffer).update_data(lights);
+        if (!lights.empty()) storage.get_buffer(light_buffers[gs.current_frame]).update_data(lights);
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(model_render_data);
-        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
-        cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
-        for (auto& ro : ros)
-        {
-            if (gs.show_player) ro.second.draw(cb, gs);
-        }
-        timer.start(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
-        tunnel_objects.draw(cb, gs);
-        timer.stop(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
-        if (gs.show_player_bb) collision_handler.draw(cb, gs, model_render_data[player_idx].MVP);
-    }
-
-    void Scene::update_game_state(vk::CommandBuffer& cb, GameState& gs)
-    {
-        path_tracer.update_instance(0, model_render_data[model_handles.at("Player")].M);
-        //path_tracer.create_tlas(cb);
+        path_tracer.update_instance(0, model_render_data[player_idx].M);
+        path_tracer.create_tlas(cb, gs.current_frame);
         // handle collision: reset ship and let it blink for 3s
         if (gs.player_reset_blink_counter == 0 && collision_handler.get_shader_return_value(gs.current_frame) != 0)
         {

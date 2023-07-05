@@ -6,10 +6,13 @@ namespace ve
 
     void PathTracer::self_destruct()
     {
-        vmc.logical_device.get().destroyAccelerationStructureKHR(topLevelAS.handle);
-        storage.destroy_buffer(topLevelAS.buffer);
-        storage.destroy_buffer(topLevelAS.scratch_buffer);
-        storage.destroy_buffer(instances_buffer);
+        for (uint32_t i = 0; i < 2; ++i)
+        {
+            vmc.logical_device.get().destroyAccelerationStructureKHR(topLevelAS[i].handle);
+            storage.destroy_buffer(topLevelAS[i].buffer);
+            storage.destroy_buffer(topLevelAS[i].scratch_buffer);
+            storage.destroy_buffer(instances_buffer[i]);
+        }
         for (auto& blas : bottomLevelAS)
         {
             vmc.logical_device.get().destroyAccelerationStructureKHR(blas.handle);
@@ -117,30 +120,24 @@ namespace ve
         instance.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable);
         instance.mask = 0xFF;
         instances.push_back(instance);
-        instances_dirty = true;
         return instances.size() - 1;
     }
 
     void PathTracer::update_instance(uint32_t instance_idx, const glm::mat4& M)
     {
         instances[instance_idx].transform = std::array<std::array<float, 4>, 3>({std::array<float, 4>({M[0][0], M[1][0], M[2][0], M[3][0]}), std::array<float, 4>({M[0][1], M[1][1], M[2][1], M[3][1]}), std::array<float, 4>({M[0][2], M[1][2], M[2][2], M[3][2]})});
-        instances_dirty = true;
     }
 
-    void PathTracer::create_tlas(vk::CommandBuffer& cb)
+    void PathTracer::create_tlas(vk::CommandBuffer& cb, uint32_t idx)
     {
-        if (!topLevelAS.is_built)
+        if (!topLevelAS[idx].is_built)
         {
-            instances_buffer = storage.add_buffer(instances.data(), instances.size(), vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR, false, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute);
+            instances_buffer[idx] = storage.add_buffer(instances.data(), instances.size(), vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR, false, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute);
         }
-        else if (instances_dirty)
-        {
-            storage.get_buffer(instances_buffer).update_data(instances);
-            instances_dirty = false;
-        }
+        storage.get_buffer(instances_buffer[idx]).update_data(instances);
 
         vk::DeviceOrHostAddressConstKHR instance_data_device_address;
-        instance_data_device_address.deviceAddress = storage.get_buffer(instances_buffer).get_device_address();
+        instance_data_device_address.deviceAddress = storage.get_buffer(instances_buffer[idx]).get_device_address();
 
         vk::AccelerationStructureGeometryKHR asg;
         asg.geometryType = vk::GeometryTypeKHR::eInstances;
@@ -158,34 +155,34 @@ namespace ve
 
         uint32_t primitive_count = instances.size();
 
-        vk::AccelerationStructureBuildSizesInfoKHR asbsi{};
-        vmc.logical_device.get().getAccelerationStructureBuildSizesKHR(vk::AccelerationStructureBuildTypeKHR::eDevice, &asbgi, &primitive_count, &asbsi);
-
-        if (!topLevelAS.is_built)
+        if (!topLevelAS[idx].is_built)
         {
-            topLevelAS.buffer = storage.add_named_buffer("tlas", asbsi.accelerationStructureSize, vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR, true, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute);
+            vk::AccelerationStructureBuildSizesInfoKHR asbsi{};
+            vmc.logical_device.get().getAccelerationStructureBuildSizesKHR(vk::AccelerationStructureBuildTypeKHR::eDevice, &asbgi, &primitive_count, &asbsi);
+
+            topLevelAS[idx].buffer = storage.add_named_buffer("tlas_" + std::to_string(idx), asbsi.accelerationStructureSize, vk::BufferUsageFlagBits::eAccelerationStructureStorageKHR, true, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute);
 
             vk::AccelerationStructureCreateInfoKHR asci{};
             asci.sType = vk::StructureType::eAccelerationStructureCreateInfoKHR;
-            asci.buffer = storage.get_buffer(topLevelAS.buffer).get();
+            asci.buffer = storage.get_buffer(topLevelAS[idx].buffer).get();
             asci.size = asbsi.accelerationStructureSize;
             asci.type = vk::AccelerationStructureTypeKHR::eTopLevel;
-            topLevelAS.handle = vmc.logical_device.get().createAccelerationStructureKHR(asci);
+            topLevelAS[idx].handle = vmc.logical_device.get().createAccelerationStructureKHR(asci);
 
             vk::AccelerationStructureDeviceAddressInfoKHR asdai{};
             asdai.sType = vk::StructureType::eAccelerationStructureDeviceAddressInfoKHR;
-            asdai.accelerationStructure = topLevelAS.handle;
-            topLevelAS.deviceAddress = vmc.logical_device.get().getAccelerationStructureAddressKHR(&asdai);
+            asdai.accelerationStructure = topLevelAS[idx].handle;
+            topLevelAS[idx].deviceAddress = vmc.logical_device.get().getAccelerationStructureAddressKHR(&asdai);
 
-            wdsas.accelerationStructureCount = 1;
-            wdsas.pAccelerationStructures = &topLevelAS.handle;
-            storage.get_buffer(topLevelAS.buffer).pNext = &wdsas;
+            wdsas[idx].accelerationStructureCount = 1;
+            wdsas[idx].pAccelerationStructures = &(topLevelAS[idx].handle);
+            storage.get_buffer(topLevelAS[idx].buffer).pNext = &(wdsas[idx]);
 
-            topLevelAS.scratch_buffer = storage.add_buffer(asbsi.buildScratchSize, vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, true, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute); 
+            topLevelAS[idx].scratch_buffer = storage.add_buffer(asbsi.buildScratchSize, vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress, true, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute); 
         }
 
-        asbgi.dstAccelerationStructure = topLevelAS.handle;
-        asbgi.scratchData.deviceAddress = storage.get_buffer(topLevelAS.scratch_buffer).get_device_address();
+        asbgi.dstAccelerationStructure = topLevelAS[idx].handle;
+        asbgi.scratchData.deviceAddress = storage.get_buffer(topLevelAS[idx].scratch_buffer).get_device_address();
 
         vk::AccelerationStructureBuildRangeInfoKHR asbri{};
         asbri.primitiveCount = instances.size();
@@ -195,8 +192,6 @@ namespace ve
         std::vector<vk::AccelerationStructureBuildRangeInfoKHR*> asbris = {&asbri};
 
         cb.buildAccelerationStructuresKHR(asbgi, asbris);
-        vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eAccelerationStructureWriteKHR, vk::AccessFlagBits::eAccelerationStructureReadKHR, vmc.queue_family_indices.graphics, vmc.queue_family_indices.graphics, storage.get_buffer(topLevelAS.buffer).get(), 0, storage.get_buffer(topLevelAS.buffer).get_byte_size());
-        cb.pipelineBarrier(vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR, vk::PipelineStageFlagBits::eAllCommands, vk::DependencyFlagBits::eDeviceGroup, {}, {buffer_memory_barrier}, {});
-        topLevelAS.is_built = true;
+        topLevelAS[idx].is_built = true;
     }
 } // namespace ve

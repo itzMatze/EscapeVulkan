@@ -31,19 +31,18 @@ namespace ve
         uint32_t add_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, uint32_t index_offset, uint32_t num_indices);
         uint32_t add_instance(uint32_t blas_idx, const glm::mat4& M, uint32_t custom_index);
         void update_instance(uint32_t instance_idx, const glm::mat4& M);
-        void create_tlas(vk::CommandBuffer& cb);
+        void create_tlas(vk::CommandBuffer& cb, uint32_t idx);
         void update_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, uint32_t index_offset, uint32_t num_indices, uint32_t blas_idx);
-    
+
     private:
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
         Storage& storage;
-        vk::WriteDescriptorSetAccelerationStructureKHR wdsas;
+        std::array<vk::WriteDescriptorSetAccelerationStructureKHR, 2> wdsas;
         std::vector<BottomLevelAccelerationStructure> bottomLevelAS;
         std::vector<vk::AccelerationStructureInstanceKHR> instances;
-        TopLevelAccelerationStructure topLevelAS;
-        uint32_t instances_buffer;
-        bool instances_dirty = false;
+        std::array<TopLevelAccelerationStructure, 2> topLevelAS;
+        std::array<uint32_t, 2> instances_buffer;
 
         BottomLevelAccelerationStructure create_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, uint32_t index_offset, uint32_t num_indices);
     };

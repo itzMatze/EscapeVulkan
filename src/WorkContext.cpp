@@ -91,7 +91,7 @@ namespace ve
     void WorkContext::record_graphics_command_buffer(uint32_t image_idx, GameState& gs)
     {
         vk::CommandBuffer& compute_cb = vcc.begin(vcc.compute_cb[gs.current_frame + frames_in_flight * 2]);
-        scene.update_game_state(compute_cb, gs);
+        scene.update_game_state(compute_cb, gs, timers[gs.current_frame]);
         compute_cb.end();
         vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[gs.current_frame]);
         timers[gs.current_frame].reset(cb, {DeviceTimer::RENDERING_ALL, DeviceTimer::RENDERING_APP, DeviceTimer::RENDERING_UI, DeviceTimer::RENDERING_TUNNEL});
