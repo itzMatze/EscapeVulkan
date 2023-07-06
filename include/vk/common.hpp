@@ -204,7 +204,7 @@ namespace ve
 
     struct TunnelVertex {
         glm::vec3 pos;
-        glm::vec3 normal;
+        glm::vec2 normal;
         glm::vec2 tex;
         uint32_t segment_uid;
 
@@ -212,7 +212,7 @@ namespace ve
         {
             vk::VertexInputBindingDescription binding_description{};
             binding_description.binding = 0;
-            binding_description.stride = sizeof(Vertex);
+            binding_description.stride = sizeof(TunnelVertex);
             binding_description.inputRate = vk::VertexInputRate::eVertex;
             return {binding_description};
         }
@@ -227,7 +227,7 @@ namespace ve
 
             attribute_descriptions[1].binding = 0;
             attribute_descriptions[1].location = 1;
-            attribute_descriptions[1].format = vk::Format::eR32G32B32Sfloat;
+            attribute_descriptions[1].format = vk::Format::eR32G32Sfloat;
             attribute_descriptions[1].offset = offsetof(TunnelVertex, normal);
 
             attribute_descriptions[2].binding = 0;
@@ -237,7 +237,7 @@ namespace ve
 
             attribute_descriptions[3].binding = 0;
             attribute_descriptions[3].location = 3;
-            attribute_descriptions[3].format = vk::Format::eR32Sint;
+            attribute_descriptions[3].format = vk::Format::eR32Sfloat;
             attribute_descriptions[3].offset = offsetof(TunnelVertex, segment_uid);
 
             return attribute_descriptions;

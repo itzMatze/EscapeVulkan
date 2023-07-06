@@ -121,8 +121,8 @@ void main()
         TunnelVertex v;
         v.tex = vec2(abs((pc.segment_uid % 2) - float(sample_circle_id) / float(SAMPLES_PER_SEGMENT - 1)), abs((float(vertex_id) / float(VERTICES_PER_SAMPLE)) * 2.0 - 1.0));
         vec2 scaled_tex = vec2(v.tex.s * 2.0 + pc.segment_uid, v.tex.t * 3.0);
-        float height = cellular(scaled_tex);
-        vertex_pos *= ((sample_circle_id == 0 || sample_circle_id == SAMPLES_PER_SEGMENT - 1) ? 1.0 : height) * 15.0 + 10.0;
+        float height = cellular(scaled_tex) * (-pow(((float(sample_circle_id) * 2.0) / float(SAMPLES_PER_SEGMENT - 1) - 1), 2) + 1.0);
+        vertex_pos *= 20.0 - height * 12.0;
         // actual position of vertex
         vertex_pos += sample_pos;
 

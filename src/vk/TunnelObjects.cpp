@@ -70,8 +70,8 @@ namespace ve
         vk::CommandBuffer& path_tracer_cb = vcc.begin(vcc.compute_cb[0]);
         //for (uint32_t i = 0; i < segment_count; ++i)
         {
-            blas_indices.push_back(path_tracer.add_blas(path_tracer_cb, tunnel.vertex_buffer, tunnel.index_buffer, 0, index_count));
-            instance_indices.push_back(path_tracer.add_instance(blas_indices.back(), glm::mat4(1.0f), 0));
+            blas_indices.push_back(path_tracer.add_blas(path_tracer_cb, tunnel.vertex_buffer, tunnel.index_buffer, 0, index_count, sizeof(TunnelVertex)));
+            instance_indices.push_back(path_tracer.add_instance(blas_indices.back(), glm::mat4(1.0f), 666));
         }
         vcc.submit_compute(path_tracer_cb, true);
     }
@@ -119,7 +119,7 @@ namespace ve
         cb.dispatch(std::max((fireflies_per_segment + 31) / 32, (vertices_per_sample * samples_per_segment + 31) / 32), 1, 1);
 
         Buffer& buffer = storage.get_buffer(tunnel.vertex_buffer);
-        vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eMemoryWrite, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
+        vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
         cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {buffer_memory_barrier}, {});
 
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_normals_pipeline.get());
@@ -165,7 +165,7 @@ namespace ve
         return tunnel_bezier_points[(segment_id * 2 + bezier_point_idx) % tunnel_bezier_points.size()];
     }
 
-    void TunnelObjects::advance(GameState& gs, DeviceTimer& timer)
+    void TunnelObjects::advance(GameState& gs, DeviceTimer& timer, PathTracer& path_tracer)
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame]);
         FireflyMovePushConstants fmpc{.time = gs.time, .time_diff = gs.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = tunnel_render_index_start};
@@ -202,8 +202,8 @@ namespace ve
             timer.reset(cb, {DeviceTimer::COMPUTE_TUNNEL_ADVANCE});
             timer.start(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
             Buffer& buffer = storage.get_buffer_by_name("firefly_vertices_" + std::to_string(gs.current_frame));
-            vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryWrite, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
-            cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {buffer_memory_barrier}, {});
+            vk::BufferMemoryBarrier firefly_buffer_memory_barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryWrite, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
+            cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {firefly_buffer_memory_barrier}, {});
             compute_new_segment(cb, gs.current_frame);
             // write copy of data to the first half of the buffer if idx is in the past half of the data
             if (cpc.indices_start_idx > index_count)
@@ -213,7 +213,11 @@ namespace ve
                 cpc.indices_start_idx += (index_count + indices_per_segment);
             }
             timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
+            vk::BufferMemoryBarrier tunnel_buffer_memory_barrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, storage.get_buffer(tunnel.vertex_buffer).get(), 0, storage.get_buffer(tunnel.vertex_buffer).get_byte_size());
+            cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR, vk::DependencyFlagBits::eDeviceGroup, {}, {tunnel_buffer_memory_barrier}, {});
+            path_tracer.update_blas(cb, tunnel.vertex_buffer, tunnel.index_buffer, tunnel_render_index_start, index_count, blas_indices[0], gs.current_frame, sizeof(TunnelVertex));
         }
+        path_tracer.create_tlas(cb, gs.current_frame);
         cb.end();
     }
 

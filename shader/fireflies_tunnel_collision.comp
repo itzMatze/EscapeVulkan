@@ -71,7 +71,7 @@ bool intersect_tunnel(in vec3 old_pos, in vec3 new_pos, in uint segment_idx, out
     const uint p2_idx = tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3 + 2];
     if (intersect_triangle(old_pos, normalize(new_pos - old_pos), distance(new_pos, old_pos), get_tunnel_vertex_pos(tunnel_vertices[p0_idx]), get_tunnel_vertex_pos(tunnel_vertices[p1_idx]), get_tunnel_vertex_pos(tunnel_vertices[p2_idx]), t, bary))
     {
-        normal = get_tunnel_vertex_normal(tunnel_vertices[p0_idx]);
+        normal = normalize(get_tunnel_vertex_normal(tunnel_vertices[p0_idx]) + get_tunnel_vertex_normal(tunnel_vertices[p1_idx]) + get_tunnel_vertex_normal(tunnel_vertices[p2_idx]));
         return true;
     }
     return false;

@@ -29,7 +29,7 @@ namespace ve
     {
         skybox_texture = storage.add_named_image("skybox_texture", "../assets/textures/tunnel_skybox_texture.png", true, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer}, vk::ImageUsageFlagBits::eSampled);
         // double space is needed to enable that new vertices can replace old ones as the tunnel continuously moves forward
-        std::vector<Vertex> vertices(vertex_count * 2);
+        std::vector<TunnelVertex> vertices(vertex_count * 2);
         std::vector<uint32_t> indices(index_count * 2);
         // write indices in advance even for the currently unused space that is reserved for the FixVector behavior
         for (uint32_t i = 0; i < segment_count * 2; ++i)

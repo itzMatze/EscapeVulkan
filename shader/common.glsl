@@ -175,24 +175,26 @@ AlignedFireflyVertex pack_firefly_vertex(FireflyVertex v)
 
 struct AlignedTunnelVertex {
     vec4 pos_normal_x;
-    vec4 normal_yz_tex_xy;
-    uint segment_uid;
+    vec4 normal_y_tex_xy_segment_uid;
 };
 
 vec3 get_tunnel_vertex_pos(in AlignedTunnelVertex v) { return v.pos_normal_x.xyz; }
 void set_tunnel_vertex_pos(inout AlignedTunnelVertex v, in vec3 pos) { v.pos_normal_x.xyz = pos; }
 
-vec3 get_tunnel_vertex_normal(in AlignedTunnelVertex v) { return vec3(v.pos_normal_x.w, v.normal_yz_tex_xy.xy); }
+vec3 get_tunnel_vertex_normal(in AlignedTunnelVertex v) { return vec3(v.pos_normal_x.w, v.normal_y_tex_xy_segment_uid.x, sign(v.normal_y_tex_xy_segment_uid.w) * sqrt(1.0 - v.pos_normal_x.w * v.pos_normal_x.w - v.normal_y_tex_xy_segment_uid.x * v.normal_y_tex_xy_segment_uid.x)); }
 void set_tunnel_vertex_normal(inout AlignedTunnelVertex v, in vec3 normal) {
     v.pos_normal_x.w = normal.x;
-    v.normal_yz_tex_xy.xy = normal.yz;
+    v.normal_y_tex_xy_segment_uid.x = normal.y;
+    if (sign(normal.z) != sign(v.normal_y_tex_xy_segment_uid.w)) v.normal_y_tex_xy_segment_uid.w *= -1;
 }
 
-vec2 get_tunnel_vertex_tex(in AlignedTunnelVertex v) { return v.normal_yz_tex_xy.zw; }
-void set_tunnel_vertex_tex(inout AlignedTunnelVertex v, in vec2 tex) { v.normal_yz_tex_xy.zw = tex; }
+vec2 get_tunnel_vertex_tex(in AlignedTunnelVertex v) { return v.normal_y_tex_xy_segment_uid.yz; }
+void set_tunnel_vertex_tex(inout AlignedTunnelVertex v, in vec2 tex) { v.normal_y_tex_xy_segment_uid.yz = tex; }
 
-uint get_tunnel_vertex_segment_uid(in AlignedTunnelVertex v) { return v.segment_uid; }
-void set_tunnel_vertex_segment_uid(inout AlignedTunnelVertex v, in uint segment_uid) { v.segment_uid = segment_uid; }
+uint get_tunnel_vertex_segment_uid(in AlignedTunnelVertex v) { return uint(abs(v.normal_y_tex_xy_segment_uid.w) + 0.1); }
+void set_tunnel_vertex_segment_uid(inout AlignedTunnelVertex v, in uint segment_uid, in vec3 normal) {
+    v.normal_y_tex_xy_segment_uid.w = (sign(normal.z) < 0.0) ? -float(segment_uid) : float(segment_uid);
+}
 
 struct TunnelVertex {
     vec3 pos;
@@ -206,9 +208,10 @@ TunnelVertex unpack_tunnel_vertex(AlignedTunnelVertex v)
     TunnelVertex vert;
     vert.pos = v.pos_normal_x.xyz;
     vert.normal.x = v.pos_normal_x.w;
-    vert.normal.yz = v.normal_yz_tex_xy.xy;
-    vert.tex = v.normal_yz_tex_xy.zw;
-    vert.segment_uid = v.segment_uid;
+    vert.normal.y = v.normal_y_tex_xy_segment_uid.x;
+    vert.normal.z = sign(v.normal_y_tex_xy_segment_uid.w) * sqrt(1.0 - vert.normal.x * vert.normal.x - vert.normal.y * vert.normal.y);
+    vert.tex = v.normal_y_tex_xy_segment_uid.yz;
+    vert.segment_uid = uint(abs(v.normal_y_tex_xy_segment_uid.w) + 0.1);
     return vert;
 }
 
@@ -217,8 +220,8 @@ AlignedTunnelVertex pack_tunnel_vertex(TunnelVertex v)
     AlignedTunnelVertex vert;
     vert.pos_normal_x.xyz= v.pos;
     vert.pos_normal_x.w = v.normal.x;
-    vert.normal_yz_tex_xy.xy = v.normal.yz;
-    vert.normal_yz_tex_xy.zw = v.tex;
-    vert.segment_uid = v.segment_uid;
+    vert.normal_y_tex_xy_segment_uid.x = v.normal.y;
+    vert.normal_y_tex_xy_segment_uid.yz = v.tex;
+    vert.normal_y_tex_xy_segment_uid.w = (sign(v.normal.z) < 0.0) ? -float(v.segment_uid) : float(v.segment_uid);
     return vert;
 }

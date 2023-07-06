@@ -208,7 +208,7 @@ namespace ve
         for (uint32_t i = 0; i < model_infos.size(); ++i)
         {
             ModelInfo& mi = model_infos[i];
-            mi.blas_idx = path_tracer.add_blas(cb, vertex_buffer, index_buffer, mi.index_buffer_idx, mi.num_indices);
+            mi.blas_idx = path_tracer.add_blas(cb, vertex_buffer, index_buffer, mi.index_buffer_idx, mi.num_indices, sizeof(Vertex));
             mi.instance_idx = path_tracer.add_instance(mi.blas_idx, model_render_data[i].M, i);
         }
         vcc.submit_compute(cb, true);
@@ -333,16 +333,15 @@ namespace ve
             glm::vec4 tmp_dir = model_render_data[player_idx].M * glm::vec4(initial_light_values[i].second, 0.0f);
             lights[i].dir = glm::vec3(tmp_dir);
         }
+        path_tracer.update_instance(0, model_render_data[player_idx].M);
 
         ModelMatrices bb_mm{.m = model_render_data[player_idx].M, .inv_m = glm::inverse(model_render_data[player_idx].M)};
         storage.get_buffer(bb_mm_buffers[gs.current_frame]).update_data(bb_mm);
-        tunnel_objects.advance(gs, timer);
+        tunnel_objects.advance(gs, timer, path_tracer);
         collision_handler.compute(gs, timer, tunnel_objects.get_tunnel_render_index_start());
 
         if (!lights.empty()) storage.get_buffer(light_buffers[gs.current_frame]).update_data(lights);
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(model_render_data);
-        path_tracer.update_instance(0, model_render_data[player_idx].M);
-        path_tracer.create_tlas(cb, gs.current_frame);
         // handle collision: reset ship and let it blink for 3s
         if (gs.player_reset_blink_counter == 0 && collision_handler.get_shader_return_value(gs.current_frame) != 0)
         {

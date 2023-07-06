@@ -35,7 +35,7 @@ namespace ve
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, GameState& gs);
         // move tunnel one segment forward if player enters the n-th segment
-        void advance(GameState& gs, DeviceTimer& timer);
+        void advance(GameState& gs, DeviceTimer& timer, PathTracer& path_tracer);
         bool is_pos_past_segment(glm::vec3 pos, uint32_t idx, bool use_global_id);
         glm::vec3 get_player_reset_position();
         glm::vec3 get_player_reset_normal();
