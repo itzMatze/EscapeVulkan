@@ -83,10 +83,17 @@ namespace ve
 
         skybox_dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
         render_dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
-        render_dsh.add_binding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
-        render_dsh.add_binding(2, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(2, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         render_dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
         render_dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(6, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(10, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(11, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(12, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(13, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(99, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
 
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
@@ -97,10 +104,17 @@ namespace ve
             skybox_dsh.add_descriptor(1, storage.get_image(skybox_texture));
             render_dsh.new_set();
             render_dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
-            render_dsh.add_descriptor(1, storage.get_image(noise_textures));
-            render_dsh.add_descriptor(2, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
+            render_dsh.add_descriptor(1, storage.get_buffer_by_name("mesh_render_data"));
+            render_dsh.add_descriptor(2, storage.get_image_by_name("textures"));
+            render_dsh.add_descriptor(3, storage.get_buffer_by_name("materials"));
             render_dsh.add_descriptor(4, storage.get_buffer_by_name("spaceship_lights_" + std::to_string(i)));
             render_dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
+            render_dsh.add_descriptor(6, storage.get_image(noise_textures));
+            render_dsh.add_descriptor(10, storage.get_buffer_by_name("tunnel_indices"));
+            render_dsh.add_descriptor(11, storage.get_buffer_by_name("tunnel_vertices"));
+            render_dsh.add_descriptor(12, storage.get_buffer_by_name("indices"));
+            render_dsh.add_descriptor(13, storage.get_buffer_by_name("vertices"));
+            render_dsh.add_descriptor(99, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
         }
         skybox_dsh.construct();
         render_dsh.construct();
@@ -145,7 +159,7 @@ namespace ve
                     glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
     }
 
-    void Tunnel::draw(vk::CommandBuffer& cb, GameState& gs, uint32_t render_index_start, const glm::vec3& p1, const glm::vec3& p2)
+    void Tunnel::draw(vk::CommandBuffer& cb, GameState& gs, const glm::vec3& p1, const glm::vec3& p2)
     {
         cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
         cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
@@ -154,10 +168,9 @@ namespace ve
         const vk::PipelineLayout& pipeline_layout = gs.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, gs.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[gs.current_frame], {});
-        PushConstants pc{.mvp_idx = 0, .mat_idx = -1, .time = gs.time, .normal_view = gs.normal_view, .tex_view = gs.tex_view};
-        cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
-        cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, PushConstants::get_fragment_push_constant_offset(), PushConstants::get_fragment_push_constant_size(), pc.get_fragment_push_constant_pointer());
-        cb.drawIndexed(index_count, 1, render_index_start, 0, 0);
+        PushConstants pc{.mesh_render_data_idx = 0, .first_segment_indices_idx = gs.first_segment_indices_idx, .time = gs.time, .normal_view = gs.normal_view, .tex_view = gs.tex_view};
+        cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants), &pc);
+        cb.drawIndexed(index_count, 1, gs.first_segment_indices_idx, 0, 0);
 
         cb.bindVertexBuffers(0, storage.get_buffer(skybox_vertex_buffer).get(), {0});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, skybox_render_pipeline.get());

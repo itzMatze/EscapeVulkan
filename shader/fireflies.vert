@@ -11,7 +11,7 @@ layout(location = 1) in vec3 col;
 //layout(location = 3) in vec3 acc;
 
 layout(binding = 0) uniform ModelRenderDataBuffer {
-    ModelRenderData mrd[NUM_MVPS];
+    ModelRenderData mrd;
 };
 
 layout(push_constant) uniform PushConstant {
@@ -20,9 +20,8 @@ layout(push_constant) uniform PushConstant {
 
 layout(location = 0) out vec3 frag_color;
 
-
 void main() {
-    vec4 clip_pos = mrd[pc.mvp_idx].mvp * vec4(pos, 1.0);
+    vec4 clip_pos = mrd.mvp * vec4(pos, 1.0);
     gl_PointSize = 500.0 / clip_pos.w;
     gl_Position = clip_pos;
 

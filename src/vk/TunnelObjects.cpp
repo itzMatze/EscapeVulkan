@@ -70,7 +70,7 @@ namespace ve
         vk::CommandBuffer& path_tracer_cb = vcc.begin(vcc.compute_cb[0]);
         //for (uint32_t i = 0; i < segment_count; ++i)
         {
-            blas_indices.push_back(path_tracer.add_blas(path_tracer_cb, tunnel.vertex_buffer, tunnel.index_buffer, 0, index_count, sizeof(TunnelVertex)));
+            blas_indices.push_back(path_tracer.add_blas(path_tracer_cb, tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{0}, std::vector<uint32_t>{index_count}, sizeof(TunnelVertex)));
             instance_indices.push_back(path_tracer.add_instance(blas_indices.back(), glm::mat4(1.0f), 666));
         }
         vcc.submit_compute(path_tracer_cb, true);
@@ -108,7 +108,7 @@ namespace ve
     void TunnelObjects::draw(vk::CommandBuffer& cb, GameState& gs)
     {
         fireflies.draw(cb, gs);
-        tunnel.draw(cb, gs, tunnel_render_index_start, cpc.p1, cpc.p2);
+        tunnel.draw(cb, gs, cpc.p1, cpc.p2);
     }
 
     void TunnelObjects::compute_new_segment(vk::CommandBuffer& cb, uint32_t current_frame)
@@ -168,7 +168,7 @@ namespace ve
     void TunnelObjects::advance(GameState& gs, DeviceTimer& timer, PathTracer& path_tracer)
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame]);
-        FireflyMovePushConstants fmpc{.time = gs.time, .time_diff = gs.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = tunnel_render_index_start};
+        FireflyMovePushConstants fmpc{.time = gs.time, .time_diff = gs.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = gs.first_segment_indices_idx};
         fireflies.move_step(cb, gs, timer, fmpc);
         if (is_pos_past_segment(gs.player_pos, player_segment_position + 1, false))
         {
@@ -181,7 +181,7 @@ namespace ve
             // increment the idx at which the rendering starts by the same amount
             cpc.segment_uid++;
             cpc.indices_start_idx += indices_per_segment;
-            tunnel_render_index_start += indices_per_segment;
+            gs.first_segment_indices_idx += indices_per_segment;
 
             // add new segment points
             const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
@@ -196,7 +196,7 @@ namespace ve
             if (cpc.indices_start_idx >= index_count * 2)
             {
                 cpc.indices_start_idx = index_count - indices_per_segment;
-                tunnel_render_index_start = 0;
+                gs.first_segment_indices_idx = 0;
             }
 
             timer.reset(cb, {DeviceTimer::COMPUTE_TUNNEL_ADVANCE});
@@ -215,7 +215,7 @@ namespace ve
             timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
             vk::BufferMemoryBarrier tunnel_buffer_memory_barrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, storage.get_buffer(tunnel.vertex_buffer).get(), 0, storage.get_buffer(tunnel.vertex_buffer).get_byte_size());
             cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR, vk::DependencyFlagBits::eDeviceGroup, {}, {tunnel_buffer_memory_barrier}, {});
-            path_tracer.update_blas(cb, tunnel.vertex_buffer, tunnel.index_buffer, tunnel_render_index_start, index_count, blas_indices[0], gs.current_frame, sizeof(TunnelVertex));
+            path_tracer.update_blas(cb, tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{gs.first_segment_indices_idx}, std::vector<uint32_t>{index_count}, blas_indices[0], gs.current_frame, sizeof(TunnelVertex));
         }
         path_tracer.create_tlas(cb, gs.current_frame);
         cb.end();
@@ -234,10 +234,5 @@ namespace ve
     glm::vec3 TunnelObjects::get_player_reset_normal()
     {
         return glm::normalize(get_tunnel_bezier_point(player_segment_position, 1, false) - get_tunnel_bezier_point(player_segment_position, 0, false));
-    }
-
-    uint32_t TunnelObjects::get_tunnel_render_index_start() const
-    {
-        return tunnel_render_index_start;
     }
 }

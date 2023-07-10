@@ -20,7 +20,7 @@ namespace ve
         void create_buffers();
         void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
-        void draw(vk::CommandBuffer& cb, GameState& gs, uint32_t render_index_start, const glm::vec3& p1, const glm::vec3& p2);
+        void draw(vk::CommandBuffer& cb, GameState& gs, const glm::vec3& p1, const glm::vec3& p2);
 
         uint32_t vertex_buffer;
         uint32_t index_buffer;

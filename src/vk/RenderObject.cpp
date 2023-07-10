@@ -50,8 +50,6 @@ namespace ve
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, dsh.get_sets()[gs.current_frame], {});
         for (uint32_t i = 0; i < model_indices.size() - 1; ++i)
         {
-            PushConstants pc{.mvp_idx = i};
-            cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, PushConstants::get_vertex_push_constant_size(), &pc);
             for (uint32_t j = model_indices[i]; j < model_indices[i + 1]; ++j) meshes[j].draw(cb, pipeline_layout, dsh.get_sets(), gs);
         }
     }

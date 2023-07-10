@@ -21,6 +21,12 @@ namespace ve
         Size = 3
     };
 
+    struct MeshRenderData {
+        int32_t model_render_data_idx;
+        int32_t mat_idx;
+        uint32_t indices_idx;
+    };
+
     struct ModelRenderData {
         glm::mat4 MVP = glm::mat4(1.0f);
         glm::mat4 M = glm::mat4(1.0f);
@@ -28,25 +34,11 @@ namespace ve
     };
 
     struct PushConstants {
-        // vertex push constants
-        uint32_t mvp_idx;
-        // fragment push constants
-        int32_t mat_idx;
+        uint32_t mesh_render_data_idx;
+        uint32_t first_segment_indices_idx;
         float time;
-        alignas(4) bool normal_view;
-        alignas(4) bool tex_view;
-
-        void* get_fragment_push_constant_pointer()
-        { return &mat_idx; }
-
-        static uint32_t get_vertex_push_constant_size()
-        { return offsetof(PushConstants, mat_idx); }
-
-        static uint32_t get_fragment_push_constant_size()
-        { return sizeof(PushConstants) - offsetof(PushConstants, mat_idx); }
-
-        static uint32_t get_fragment_push_constant_offset()
-        { return offsetof(PushConstants, mat_idx); }
+        uint32_t normal_view;
+        uint32_t tex_view;
     };
 
     struct NewSegmentPushConstants {
@@ -82,6 +74,7 @@ namespace ve
         float tunnel_distance_travelled = 0.0f;
         int32_t current_scene = 0;
         uint32_t current_frame = 0;
+        uint32_t first_segment_indices_idx = 0;
         bool load_scene = false;
         bool show_ui = true;
         bool mesh_view = false;

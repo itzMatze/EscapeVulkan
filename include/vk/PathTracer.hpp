@@ -29,11 +29,11 @@ namespace ve
     public:
         PathTracer(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage);
         void self_destruct();
-        uint32_t add_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, uint32_t index_offset, uint32_t num_indices, vk::DeviceSize vertex_stride);
+        uint32_t add_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, const std::vector<uint32_t>& index_offsets, const std::vector<uint32_t>& index_counts, vk::DeviceSize vertex_stride);
         uint32_t add_instance(uint32_t blas_idx, const glm::mat4& M, uint32_t custom_index);
         void update_instance(uint32_t instance_idx, const glm::mat4& M);
         void create_tlas(vk::CommandBuffer& cb, uint32_t idx);
-        void update_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, uint32_t index_offset, uint32_t num_indices, uint32_t blas_idx, uint32_t frame_idx, vk::DeviceSize vertex_stride);
+        void update_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, const std::vector<uint32_t>& index_offsets, const std::vector<uint32_t>& index_counts, uint32_t blas_idx, uint32_t frame_idx, vk::DeviceSize vertex_stride);
 
     private:
         const VulkanMainContext& vmc;
@@ -45,6 +45,6 @@ namespace ve
         std::array<TopLevelAccelerationStructure, 2> topLevelAS;
         std::array<uint32_t, 2> instances_buffer;
 
-        void create_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, uint32_t index_offset, uint32_t num_indices, vk::DeviceSize vertex_stride, BottomLevelAccelerationStructure& blas);
+        void create_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, const std::vector<uint32_t>& index_offsets, const std::vector<uint32_t>& index_counts, vk::DeviceSize vertex_stride, BottomLevelAccelerationStructure& blas);
     };
 } // namespace ve

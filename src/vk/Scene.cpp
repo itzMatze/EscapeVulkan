@@ -14,6 +14,7 @@ namespace ve
     void Scene::construct(const RenderPass& render_pass)
     {
         if (!loaded) VE_THROW("Cannot construct scene before loading one!");
+        mesh_render_data_buffer = storage.add_named_buffer("mesh_render_data", mesh_render_data, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         tunnel_objects.create_buffers(path_tracer);
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
         path_tracer.create_tlas(cb, 0);
@@ -29,21 +30,36 @@ namespace ve
 
             ros.at(ShaderFlavor::Default).dsh.new_set();
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
-            if (texture_image > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(2, storage.get_image(texture_image));
-            if (material_buffer > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(3, storage.get_buffer(material_buffer));
-            if (light_buffers[i] > -1) ros.at(ShaderFlavor::Default).dsh.add_descriptor(4, storage.get_buffer(light_buffers[i]));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(1, storage.get_buffer_by_name("mesh_render_data"));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(2, storage.get_image_by_name("textures"));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(3, storage.get_buffer_by_name("materials"));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(4, storage.get_buffer_by_name("spaceship_lights_" + std::to_string(i)));
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
-            ros.at(ShaderFlavor::Default).dsh.add_descriptor(6, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(6, storage.get_image_by_name("noise_textures"));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(10, storage.get_buffer_by_name("tunnel_indices"));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(11, storage.get_buffer_by_name("tunnel_vertices"));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(12, storage.get_buffer_by_name("indices"));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(13, storage.get_buffer_by_name("vertices"));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(99, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
+ 
+            ros.at(ShaderFlavor::Basic).dsh.new_set();
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(1, storage.get_buffer_by_name("mesh_render_data"));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(2, storage.get_image_by_name("textures"));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(3, storage.get_buffer_by_name("materials"));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(4, storage.get_buffer_by_name("spaceship_lights_" + std::to_string(i)));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(6, storage.get_image_by_name("noise_textures"));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(10, storage.get_buffer_by_name("tunnel_indices"));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(11, storage.get_buffer_by_name("tunnel_vertices"));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(12, storage.get_buffer_by_name("indices"));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(13, storage.get_buffer_by_name("vertices"));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(99, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
 
             ros.at(ShaderFlavor::Emissive).dsh.new_set();
             ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
+            ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(1, storage.get_buffer(mesh_render_data_buffer));
             if (material_buffer > -1) ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(3, storage.get_buffer(material_buffer));
-
-            ros.at(ShaderFlavor::Basic).dsh.new_set();
-            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
-            if (light_buffers[i] > -1) ros.at(ShaderFlavor::Basic).dsh.add_descriptor(4, storage.get_buffer(light_buffers[i]));
-            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(5, storage.get_buffer_by_name("firefly_vertices_" + std::to_string(i)));
-            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(6, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
         }
         construct_pipelines(render_pass, false);
     }
@@ -53,6 +69,7 @@ namespace ve
         path_tracer.self_destruct();
         storage.destroy_buffer(vertex_buffer);
         storage.destroy_buffer(index_buffer);
+        storage.destroy_buffer(mesh_render_data_buffer);
         if (material_buffer > -1) storage.destroy_buffer(material_buffer);
         material_buffer = -1;
         for (int32_t& light_buffer : light_buffers)
@@ -135,7 +152,15 @@ namespace ve
             model_handles.emplace(name, model_render_data.size() - 1);
             for (auto& ro : ros)
             {
-                ro.second.add_model_meshes(model.get_mesh_list(ro.first));
+                std::vector<Mesh>& meshes = model.get_mesh_list(ro.first);
+                for (Mesh& mesh : meshes)
+                {
+                    mesh_render_data.push_back(MeshRenderData{.model_render_data_idx = int32_t(model_render_data.size() - 1), .mat_idx = mesh.material_idx, .indices_idx = mesh.index_offset});
+                    mesh.mesh_render_data_idx = mesh_render_data.size() - 1;
+                    model_infos.back().mesh_index_offsets.push_back(mesh.index_offset);
+                    model_infos.back().mesh_index_count.push_back(mesh.index_count);
+                }
+                ro.second.add_model_meshes(meshes);
             }
         };
 
@@ -144,18 +169,33 @@ namespace ve
         ros.emplace(ShaderFlavor::Emissive, vmc);
 
         ros.at(ShaderFlavor::Default).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(2, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
-        ros.at(ShaderFlavor::Default).dsh.add_binding(6, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(6, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(10, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(11, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(12, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(13, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(99, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(2, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
-        ros.at(ShaderFlavor::Basic).dsh.add_binding(6, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
-
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(6, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(10, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(11, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(12, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(13, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(99, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
+       
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
+        ros.at(ShaderFlavor::Emissive).dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         // load scene from custom json file
         using json = nlohmann::json;
@@ -208,7 +248,7 @@ namespace ve
         for (uint32_t i = 0; i < model_infos.size(); ++i)
         {
             ModelInfo& mi = model_infos[i];
-            mi.blas_idx = path_tracer.add_blas(cb, vertex_buffer, index_buffer, mi.index_buffer_idx, mi.num_indices, sizeof(Vertex));
+            mi.blas_idx = path_tracer.add_blas(cb, vertex_buffer, index_buffer, mi.mesh_index_offsets, mi.mesh_index_count, sizeof(Vertex));
             mi.instance_idx = path_tracer.add_instance(mi.blas_idx, model_render_data[i].M, i);
         }
         vcc.submit_compute(cb, true);
@@ -226,7 +266,6 @@ namespace ve
             light_buffers[0] = storage.add_named_buffer(std::string("spaceship_lights_0"), lights, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
             light_buffers[1] = storage.add_named_buffer(std::string("spaceship_lights_1"), lights, vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         }
-
         if (!texture_data.empty())
         {
             texture_image = storage.add_named_image(std::string("textures"), texture_data, texture_dimensions.width, texture_dimensions.height, true, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer}, vk::ImageUsageFlagBits::eSampled);
@@ -338,7 +377,7 @@ namespace ve
         ModelMatrices bb_mm{.m = model_render_data[player_idx].M, .inv_m = glm::inverse(model_render_data[player_idx].M)};
         storage.get_buffer(bb_mm_buffers[gs.current_frame]).update_data(bb_mm);
         tunnel_objects.advance(gs, timer, path_tracer);
-        collision_handler.compute(gs, timer, tunnel_objects.get_tunnel_render_index_start());
+        collision_handler.compute(gs, timer);
 
         if (!lights.empty()) storage.get_buffer(light_buffers[gs.current_frame]).update_data(lights);
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(model_render_data);

@@ -20,15 +20,19 @@ layout(binding = 0) uniform ModelRenderDataBuffer {
     ModelRenderData mrd[NUM_MVPS];
 };
 
+layout(binding = 1) buffer MeshRenderDataBuffer {
+    MeshRenderData mesh_rd[];
+};
+
 layout(push_constant) uniform PushConstant {
     PushConstants pc;
 };
 
 void main() {
-    gl_Position = mrd[pc.mvp_idx].mvp * vec4(pos, 1.0);
-    frag_pos = vec3(mrd[pc.mvp_idx].m * vec4(pos, 1.0));
+    gl_Position = mrd[mesh_rd[pc.mesh_render_data_idx].model_render_data_idx].mvp * vec4(pos, 1.0);
+    frag_pos = vec3(mrd[mesh_rd[pc.mesh_render_data_idx].model_render_data_idx].m * vec4(pos, 1.0));
     frag_normal = normal;
     frag_color = color;
     frag_tex = tex;
-    frag_segment_uid = mrd[pc.mvp_idx].segment_uid;
+    frag_segment_uid = mrd[mesh_rd[pc.mesh_render_data_idx].model_render_data_idx].segment_uid;
 }

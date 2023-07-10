@@ -30,6 +30,8 @@ namespace ve
 
     private:
         struct ModelInfo {
+            std::vector<uint32_t> mesh_index_offsets;
+            std::vector<uint32_t> mesh_index_count;
             uint32_t index_buffer_idx;
             uint32_t num_indices;
             uint32_t blas_idx;
@@ -42,6 +44,7 @@ namespace ve
         std::unordered_map<ShaderFlavor, RenderObject> ros;
         std::vector<Light> lights;
         std::vector<std::pair<glm::vec3, glm::vec3>> initial_light_values;
+        std::vector<MeshRenderData> mesh_render_data;
         std::vector<ModelRenderData> model_render_data;
         std::unordered_map<std::string, uint32_t> model_handles;
         std::vector<ModelInfo> model_infos;
@@ -52,6 +55,7 @@ namespace ve
         int32_t material_buffer = -1;
         int32_t texture_image = -1;
         std::array<int32_t, 2> light_buffers = {-1, -1};
+        uint32_t mesh_render_data_buffer;
         std::vector<uint32_t> model_render_data_buffers;
         TunnelObjects tunnel_objects;
         CollisionHandler collision_handler;

@@ -59,7 +59,6 @@ namespace ve
     {
         total_time += gs.time_diff;
         //scene.rotate("Player", gs.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
-        scene.rotate("floor", gs.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
 
         vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), syncs[gs.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
         VE_CHECK(image_idx.result, "Failed to acquire next image!");

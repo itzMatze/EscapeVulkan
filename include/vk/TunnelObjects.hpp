@@ -39,7 +39,6 @@ namespace ve
         bool is_pos_past_segment(glm::vec3 pos, uint32_t idx, bool use_global_id);
         glm::vec3 get_player_reset_position();
         glm::vec3 get_player_reset_normal();
-        uint32_t get_tunnel_render_index_start() const;
 
     private:
         const VulkanMainContext& vmc;
@@ -54,7 +53,6 @@ namespace ve
         std::queue<glm::vec3> tunnel_bezier_points_queue;
         uint32_t tunnel_bezier_points_buffer;
         NewSegmentPushConstants cpc;
-        uint32_t tunnel_render_index_start = 0;
         Pipeline compute_pipeline;
         Pipeline compute_normals_pipeline;
         std::mt19937 rnd;

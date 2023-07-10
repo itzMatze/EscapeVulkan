@@ -16,7 +16,7 @@ layout(location = 2) out vec2 frag_tex;
 layout(location = 3) flat out int frag_segment_uid;
 
 layout(binding = 0) uniform ModelRenderDataBuffer {
-    ModelRenderData mrd[NUM_MVPS];
+    ModelRenderData mrd;
 };
 
 layout(push_constant) uniform PushConstant {
@@ -24,8 +24,8 @@ layout(push_constant) uniform PushConstant {
 };
 
 void main() {
-    gl_Position = mrd[pc.mvp_idx].mvp * vec4(pos, 1.0);
-    frag_pos = vec3(mrd[pc.mvp_idx].m * vec4(pos, 1.0));
+    gl_Position = mrd.mvp * vec4(pos, 1.0);
+    frag_pos = pos;
     frag_normal = vec3(normal, sign(segment_uid) * sqrt(1.0 - normal.x * normal.x - normal.y * normal.y));
     frag_tex = tex;
     frag_segment_uid = int(abs(segment_uid) + 0.1);
