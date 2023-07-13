@@ -9,14 +9,14 @@ namespace ve
     {
     public:
         RenderPass(const VulkanMainContext& vmc, const vk::Format& color_format, const vk::Format& depth_format);
+        RenderPass(const VulkanMainContext& vmc, const vk::Format& depth_format);
         vk::RenderPass get() const;
-        vk::SampleCountFlagBits get_sample_count() const;
         void self_destruct();
-        vk::SampleCountFlagBits choose_sample_count();
+
+        uint32_t attachment_count;
         
     private:
         const VulkanMainContext& vmc;
-        vk::SampleCountFlagBits sample_count;
         vk::RenderPass render_pass;
     };
 } // namespace ve

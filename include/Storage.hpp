@@ -43,7 +43,7 @@ namespace ve
         uint32_t add_named_image(const std::string& name, Args&&... args)
         {
             images.emplace_back(std::make_optional<Image>(vmc, vcc, std::forward<Args>(args)...));
-            if (buffer_names.contains(name))
+            if (image_names.contains(name))
             {
                 if (images.at(image_names.at(name)).has_value())
                 {

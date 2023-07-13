@@ -196,22 +196,30 @@ namespace ve
         view = vmc.logical_device.get().createImageView(ivci);
     }
 
-    void Image::create_sampler()
+    void Image::create_sampler(vk::Filter filter, vk::SamplerAddressMode sampler_address_mode, bool enable_anisotropy)
     {
         vk::SamplerCreateInfo sci{};
         sci.sType = vk::StructureType::eSamplerCreateInfo;
-        sci.magFilter = vk::Filter::eLinear;
-        sci.minFilter = vk::Filter::eLinear;
-        sci.addressModeU = vk::SamplerAddressMode::eRepeat;
-        sci.addressModeV = vk::SamplerAddressMode::eRepeat;
-        sci.addressModeW = vk::SamplerAddressMode::eRepeat;
-        sci.anisotropyEnable = VK_TRUE;
-        sci.maxAnisotropy = std::min(8.0f, vmc.physical_device.get().getProperties().limits.maxSamplerAnisotropy);
+        sci.magFilter = filter;
+        sci.minFilter = filter;
+        sci.addressModeU = sampler_address_mode;
+        sci.addressModeV = sampler_address_mode;
+        sci.addressModeW = sampler_address_mode;
+        if (enable_anisotropy)
+        {
+            sci.anisotropyEnable = VK_TRUE;
+            sci.maxAnisotropy = std::min(8.0f, vmc.physical_device.get().getProperties().limits.maxSamplerAnisotropy);
+        }
+        else
+        {
+            sci.anisotropyEnable = VK_FALSE;
+            sci.maxAnisotropy = 1.0f;
+        }
         sci.borderColor = vk::BorderColor::eIntOpaqueBlack;
         sci.unnormalizedCoordinates = VK_FALSE;
         sci.compareEnable = VK_FALSE;
         sci.compareOp = vk::CompareOp::eAlways;
-        sci.mipmapMode = vk::SamplerMipmapMode::eLinear;
+        sci.mipmapMode = format == vk::Format::eR32Sint ? vk::SamplerMipmapMode::eNearest : vk::SamplerMipmapMode::eLinear;
         sci.mipLodBias = 0.0f;
         sci.minLod = 0.0f;
         sci.maxLod = mip_levels;

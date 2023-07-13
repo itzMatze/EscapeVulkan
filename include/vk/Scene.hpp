@@ -25,6 +25,7 @@ namespace ve
         DescriptorSetHandler& get_dsh(ShaderFlavor flavor);
         void draw(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer);
         void update_game_state(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer);
+        uint32_t get_light_count();
 
         bool loaded = false;
 

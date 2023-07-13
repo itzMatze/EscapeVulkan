@@ -99,7 +99,7 @@ namespace ve
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, render_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, render_pipeline.get_layout(), 0, render_dsh.get_sets()[gs.current_frame], {});
-        PushConstants pc{.mesh_render_data_idx = 0, .time = gs.time, .normal_view = gs.normal_view, .tex_view = gs.tex_view};
+        PushConstants pc{.mesh_render_data_idx = 0, .time = gs.time, .tex_view = gs.tex_view};
         cb.pushConstants(render_pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants), &pc);
         cb.draw(firefly_count, 1, 0, 0);
     }

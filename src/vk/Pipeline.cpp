@@ -82,28 +82,31 @@ namespace ve
         vk::PipelineMultisampleStateCreateInfo pmssci{};
         pmssci.sType = vk::StructureType::ePipelineMultisampleStateCreateInfo;
         pmssci.sampleShadingEnable = VK_TRUE;
-        pmssci.rasterizationSamples = render_pass.get_sample_count();
+        pmssci.rasterizationSamples = vk::SampleCountFlagBits::e1;
         pmssci.minSampleShading = 0.4f;
         pmssci.pSampleMask = nullptr;
         pmssci.alphaToCoverageEnable = VK_FALSE;
         pmssci.alphaToOneEnable = VK_FALSE;
 
-        vk::PipelineColorBlendAttachmentState pcbas{};
-        pcbas.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
-        pcbas.blendEnable = VK_FALSE;
-        pcbas.srcColorBlendFactor = vk::BlendFactor::eOne;
-        pcbas.dstColorBlendFactor = vk::BlendFactor::eZero;
-        pcbas.colorBlendOp = vk::BlendOp::eAdd;
-        pcbas.srcAlphaBlendFactor = vk::BlendFactor::eOne;
-        pcbas.dstAlphaBlendFactor = vk::BlendFactor::eZero;
-        pcbas.alphaBlendOp = vk::BlendOp::eAdd;
+        std::vector<vk::PipelineColorBlendAttachmentState> pcbas(render_pass.attachment_count);
+        for (uint32_t i = 0; i < render_pass.attachment_count; ++i)
+        {
+            pcbas[i].colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+            pcbas[i].blendEnable = VK_FALSE;
+            pcbas[i].srcColorBlendFactor = vk::BlendFactor::eOne;
+            pcbas[i].dstColorBlendFactor = vk::BlendFactor::eZero;
+            pcbas[i].colorBlendOp = vk::BlendOp::eAdd;
+            pcbas[i].srcAlphaBlendFactor = vk::BlendFactor::eOne;
+            pcbas[i].dstAlphaBlendFactor = vk::BlendFactor::eZero;
+            pcbas[i].alphaBlendOp = vk::BlendOp::eAdd;
+        }
 
         vk::PipelineColorBlendStateCreateInfo pcbsci{};
         pcbsci.sType = vk::StructureType::ePipelineColorBlendStateCreateInfo;
         pcbsci.logicOpEnable = VK_FALSE;
         pcbsci.logicOp = vk::LogicOp::eCopy;
-        pcbsci.attachmentCount = 1;
-        pcbsci.pAttachments = &pcbas;
+        pcbsci.attachmentCount = pcbas.size();
+        pcbsci.pAttachments = pcbas.data();
         pcbsci.blendConstants[0] = 0.0f;
         pcbsci.blendConstants[1] = 0.0f;
         pcbsci.blendConstants[2] = 0.0f;

@@ -4,8 +4,15 @@ struct PushConstants {
     uint mesh_render_data_idx;
     uint first_segment_indices_idx;
     float time;
-    bool normal_view;
     bool tex_view;
+};
+
+struct LightingPassPushConstants {
+    uint first_segment_indices_idx;
+    float time;
+    bool normal_view;
+    bool color_view;
+    bool segment_uid_view;
 };
 
 struct NewSegmentPushConstants {

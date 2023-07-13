@@ -37,8 +37,15 @@ namespace ve
         uint32_t mesh_render_data_idx;
         uint32_t first_segment_indices_idx;
         float time;
-        uint32_t normal_view;
         uint32_t tex_view;
+    };
+
+    struct LightingPassPushConstants {
+        uint32_t first_segment_indices_idx;
+        float time;
+        uint32_t normal_view;
+        uint32_t color_view;
+        uint32_t segment_uid_view;
     };
 
     struct NewSegmentPushConstants {
@@ -79,9 +86,12 @@ namespace ve
         bool show_ui = true;
         bool mesh_view = false;
         bool normal_view = false;
+        bool color_view = false;
+        bool segment_uid_view = false;
         bool tex_view = false;
         bool show_player_bb = false;
         bool show_player = true;
+        bool collision_detection_active = true;
         bool save_screenshot = false;
     };
 

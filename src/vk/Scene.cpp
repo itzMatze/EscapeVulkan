@@ -382,7 +382,7 @@ namespace ve
         if (!lights.empty()) storage.get_buffer(light_buffers[gs.current_frame]).update_data(lights);
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(model_render_data);
         // handle collision: reset ship and let it blink for 3s
-        if (gs.player_reset_blink_counter == 0 && collision_handler.get_shader_return_value(gs.current_frame) != 0)
+        if (gs.player_reset_blink_counter == 0 && collision_handler.get_shader_return_value(gs.current_frame) != 0 && gs.collision_detection_active)
         {
             gs.cam.position = tunnel_objects.get_player_reset_position();
             gs.player_lifes--;
@@ -411,5 +411,10 @@ namespace ve
                 gs.show_player = !gs.show_player;
             }
         }
+    }
+
+    uint32_t Scene::get_light_count()
+    {
+        return lights.size();
     }
 } // namespace ve

@@ -14,7 +14,10 @@ layout(location = 1) in vec3 frag_normal;
 layout(location = 2) in vec2 frag_tex;
 layout(location = 3) flat in int frag_segment_uid;
 
-layout(location = 0) out vec4 out_color;
+layout(location = 0) out vec4 out_position;
+layout(location = 1) out vec4 out_normal;
+layout(location = 2) out vec4 out_color;
+layout(location = 3) out int out_segment_uid;
 
 layout(push_constant) uniform PushConstant {
     PushConstants pc;
@@ -62,18 +65,13 @@ layout(binding = 99, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 void main()
 {
-    rng_state = floatBitsToUint(frag_pos.x * frag_normal.z * frag_tex.t * pc.time);
     // read displacement of normal from noise texture
     vec3 normal = normalize(frag_normal + texture(noise_tex_sampler, vec3(frag_tex, 0)).rgb - 0.5);
 
-    if (pc.normal_view)
-    {
-        out_color = vec4((normal + 1.0) / 2.0, 1.0);
-        return;
-    }
     if (pc.tex_view)
     {
         out_color = vec4(frag_tex, 1.0, 1.0);
+        out_segment_uid = -1;
         return;
     }
 
@@ -81,15 +79,9 @@ void main()
         // add noise from noise texture to color
         vec4 color = vec4(0.63, 0.32, 0.18, 1.0) * texture(noise_tex_sampler, vec3(frag_tex, 1));
 
-        out_color = calculate_color(normal, color, frag_segment_uid);
-        /*
-        out_color = vec4(0.0, 0.0, 0.0, 1.0);
-        rayQueryEXT rayQuery;
-        rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsNoneEXT, 0xFF, frag_pos, 0.01, vec3(1.0, 0.0, 0.0), 1000.0);
-        while (rayQueryProceedEXT(rayQuery));
-        if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
-        {
-            out_color += color * calculate_phong(normal, color, frag_segment_uid);
-        }*/
+        out_position = vec4(frag_pos, 1.0);
+        out_normal = vec4(normal, 1.0);
+        out_color = color;
+        out_segment_uid = frag_segment_uid;
     }
 }
