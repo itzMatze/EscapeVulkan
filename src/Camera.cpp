@@ -13,7 +13,7 @@ Camera::Camera(float fov, float width, float height) : fov(fov), yaw(0.0f), pitc
     orientation = glm::quatLookAt(glm::normalize(-position), glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f)));
 }
 
-void Camera::updateVP()
+void Camera::updateVP(float time_diff)
 {
     // rotate initial coordinate system to camera orientation
     glm::quat q_front = glm::normalize(orientation * glm::quat(0.0f, front) * glm::conjugate(orientation));
@@ -30,33 +30,41 @@ void Camera::updateVP()
 
     // apply incremental change to camera orientation
     orientation = glm::normalize(q_yaw * q_pitch * q_roll * orientation);
+    const float orientation_t = std::min((-50.0f / (time_diff + 50.0f)) + 1.0f, 1.0f);
+    interpolated_orientation = glm::normalize(interpolated_orientation * (1 - orientation_t) + orientation * orientation_t);
+    const float position_t = std::min((-50.0f / (time_diff + 50.0f)) + 1.0f, 1.0f);
+    interpolated_position = interpolated_position * (1 - position_t) + position * position_t;
 
     // calculate view matrix
     glm::quat revers_orient = glm::conjugate(orientation);
     glm::mat4 rotation = glm::mat4_cast(revers_orient);
     view = glm::translate(rotation, -position);
 
+    revers_orient = glm::conjugate(interpolated_orientation);
+    rotation = glm::mat4_cast(revers_orient);
+    interpolated_view = glm::translate(rotation, -interpolated_position);
+
     // reset angles as the changes were applied to camera orientation
     pitch = 0;
     yaw = 0;
     roll = 0;
     vp = projection * view;
+    interpolated_vp = projection * interpolated_view;
 }
 
 glm::mat4 Camera::getVP()
 {
-    return is_tracking_camera ? projection * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * view : vp;
+    return is_tracking_camera ? projection * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * interpolated_view : interpolated_vp;
 }
 
 glm::mat4 Camera::getV()
 {
-    return is_tracking_camera ? glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * view : view;
+    return is_tracking_camera ? glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * interpolated_view : interpolated_view;
 }
 
 void Camera::translate(glm::vec3 amount)
 {
     position += amount;
-    view = glm::translate(view, amount);
 }
 
 void Camera::onMouseMove(float xRel, float yRel)

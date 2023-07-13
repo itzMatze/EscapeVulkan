@@ -55,7 +55,7 @@ public:
         {
             move_amount = gs.time_diff * move_speed;
             dispatch_pressed_keys();
-            gs.cam.updateVP();
+            gs.cam.updateVP(gs.time_diff);
             try
             {
                 //std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - gs.frametime));
