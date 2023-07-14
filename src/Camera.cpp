@@ -112,3 +112,8 @@ float Camera::getFar() const
 {
     return far;
 }
+
+glm::vec3 Camera::getFront() const
+{
+    return w;
+}

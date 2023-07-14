@@ -66,8 +66,13 @@ namespace ve
 
     void Fireflies::construct_pipelines(const RenderPass& render_pass)
     {
+        std::array<vk::SpecializationMapEntry, 1> vertex_entries;
+        vertex_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
+        std::array<uint32_t, 1> vertex_entries_data{500};
+        vk::SpecializationInfo vertex_spec_info(vertex_entries.size(), vertex_entries.data(), sizeof(uint32_t) * vertex_entries_data.size(), vertex_entries_data.data());
+
         std::vector<ShaderInfo> shader_infos(2);
-        shader_infos[0] = ShaderInfo{"fireflies.vert", vk::ShaderStageFlagBits::eVertex};
+        shader_infos[0] = ShaderInfo{"fireflies.vert", vk::ShaderStageFlagBits::eVertex, vertex_spec_info};
         shader_infos[1] = ShaderInfo{"fireflies.frag", vk::ShaderStageFlagBits::eFragment};
         render_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::ePoint, FireflyVertex::get_binding_descriptions(), FireflyVertex::get_attribute_descriptions(), vk::PrimitiveTopology::ePointList);
 
@@ -99,7 +104,7 @@ namespace ve
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, render_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, render_pipeline.get_layout(), 0, render_dsh.get_sets()[gs.current_frame], {});
-        PushConstants pc{.mesh_render_data_idx = 0, .time = gs.time, .normal_view = gs.normal_view, .tex_view = gs.tex_view};
+        PushConstants pc{.mesh_render_data_idx = 0, .time = gs.time, .tex_view = gs.tex_view};
         cb.pushConstants(render_pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants), &pc);
         cb.draw(firefly_count, 1, 0, 0);
     }

@@ -186,11 +186,11 @@ namespace ve
                     {
                         flavor = ShaderFlavor::Basic;
                     }
-                    model_data.add_mesh(flavor, Mesh(material_indices[primitive.material], total_index_count + idx_count, model_data.indices.size() - idx_count));
+                    model_data.add_mesh(flavor, Mesh(material_indices[primitive.material], total_index_count + idx_count, model_data.indices.size() - idx_count, mesh.name));
                 }
                 else
                 {
-                    model_data.add_mesh(ShaderFlavor::Basic, Mesh(-1, total_index_count + idx_count, model_data.indices.size() - idx_count));
+                    model_data.add_mesh(ShaderFlavor::Basic, Mesh(-1, total_index_count + idx_count, model_data.indices.size() - idx_count, mesh.name));
                 }
             }
         }
@@ -297,11 +297,11 @@ namespace ve
             material_indices.push_back(model_data.materials.size() + total_material_count - 1);
             if (model.value("ShaderFlavor", "") == "Basic")
             {
-                model_data.add_mesh(ShaderFlavor::Basic, Mesh(material_indices.back(), total_index_count, model_data.indices.size()));
+                model_data.add_mesh(ShaderFlavor::Basic, Mesh(material_indices.back(), total_index_count, model_data.indices.size(), "custom_model"));
             }
             else if (model.value("ShaderFlavor", "") == "Default")
             {
-                model_data.add_mesh(ShaderFlavor::Default, Mesh(material_indices.back(), total_index_count, model_data.indices.size()));
+                model_data.add_mesh(ShaderFlavor::Default, Mesh(material_indices.back(), total_index_count, model_data.indices.size(), "custom_model"));
             }
             else
             {

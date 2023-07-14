@@ -168,7 +168,7 @@ namespace ve
         const vk::PipelineLayout& pipeline_layout = gs.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, gs.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[gs.current_frame], {});
-        PushConstants pc{.mesh_render_data_idx = 0, .first_segment_indices_idx = gs.first_segment_indices_idx, .time = gs.time, .normal_view = gs.normal_view, .tex_view = gs.tex_view};
+        PushConstants pc{.mesh_render_data_idx = 0, .first_segment_indices_idx = gs.first_segment_indices_idx, .time = gs.time, .tex_view = gs.tex_view};
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants), &pc);
         cb.drawIndexed(index_count, 1, gs.first_segment_indices_idx, 0, 0);
 

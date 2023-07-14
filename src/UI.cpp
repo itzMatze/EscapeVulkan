@@ -58,13 +58,7 @@ namespace ve
         ii.DescriptorPool = imgui_pool;
         ii.MinImageCount = frames;
         ii.ImageCount = frames;
-        if (render_pass.get_sample_count() == vk::SampleCountFlagBits::e1) ii.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-        if (render_pass.get_sample_count() == vk::SampleCountFlagBits::e2) ii.MSAASamples = VK_SAMPLE_COUNT_2_BIT;
-        if (render_pass.get_sample_count() == vk::SampleCountFlagBits::e4) ii.MSAASamples = VK_SAMPLE_COUNT_4_BIT;
-        if (render_pass.get_sample_count() == vk::SampleCountFlagBits::e8) ii.MSAASamples = VK_SAMPLE_COUNT_8_BIT;
-        if (render_pass.get_sample_count() == vk::SampleCountFlagBits::e16) ii.MSAASamples = VK_SAMPLE_COUNT_16_BIT;
-        if (render_pass.get_sample_count() == vk::SampleCountFlagBits::e32) ii.MSAASamples = VK_SAMPLE_COUNT_32_BIT;
-        if (render_pass.get_sample_count() == vk::SampleCountFlagBits::e64) ii.MSAASamples = VK_SAMPLE_COUNT_64_BIT;
+        ii.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
         ImGui_ImplVulkan_Init(&ii, render_pass.get());
         ImGui::StyleColorsDark();
@@ -101,7 +95,9 @@ namespace ve
             ImGui::Text("'M': toggle mesh view");
             ImGui::Text("'N': toggle normal view");
             ImGui::Text("'T': toggle texel view");
+            ImGui::Text("'C': toggle texel view");
             ImGui::Text("'B': toggle player bounding box");
+            ImGui::Text("'P': toggle player collision detection");
             ImGui::Text("'R': reload shaders");
             ImGui::Text("'G': Show/Hide UI");
             ImGui::Text("'F': toggle tracking camera");
@@ -116,6 +112,11 @@ namespace ve
         ImGui::Checkbox("NormalView", &(gs.normal_view));
         ImGui::SameLine();
         ImGui::Checkbox("TexelView", &(gs.tex_view));
+        ImGui::Checkbox("ColorView", &(gs.color_view));
+        ImGui::SameLine();
+        ImGui::Checkbox("SegmentUIDView", &(gs.segment_uid_view));
+        ImGui::Separator();
+        ImGui::Checkbox("CollisionDetection", &(gs.collision_detection_active));
         ImGui::Separator();
         time_diff = time_diff * (1 - update_weight) + gs.time_diff * update_weight;
         frametime = frametime * (1 - update_weight) + gs.frametime * update_weight;

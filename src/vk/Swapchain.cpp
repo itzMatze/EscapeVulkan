@@ -4,10 +4,8 @@
 
 namespace ve
 {
-    Swapchain::Swapchain(const VulkanMainContext& vmc) : vmc(vmc), extent(choose_extent()), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format)
-    {
-        create();
-    }
+    Swapchain::Swapchain(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), extent(choose_extent()), surface_format(choose_surface_format()), depth_format(choose_depth_format()), render_pass(vmc, surface_format.format, depth_format), deferred_render_pass(vmc, depth_format)
+    {}
 
     const vk::SwapchainKHR& Swapchain::get() const
     {
@@ -17,6 +15,11 @@ namespace ve
     const RenderPass& Swapchain::get_render_pass() const
     {
         return render_pass;
+    }
+
+    const RenderPass& Swapchain::get_deferred_render_pass() const
+    {
+        return deferred_render_pass;
     }
 
     vk::Extent2D Swapchain::get_extent() const
@@ -29,16 +32,23 @@ namespace ve
         return framebuffers[idx];
     }
 
-    void Swapchain::create()
+    vk::Framebuffer Swapchain::get_deferred_framebuffer() const
+    {
+        return deferred_framebuffer;
+    }
+
+    void Swapchain::construct()
     {
         extent = choose_extent();
         surface_format = choose_surface_format();
         swapchain = create_swapchain();
-        depth_buffer.emplace(create_depth_buffer());
-        if (render_pass.get_sample_count() != vk::SampleCountFlagBits::e1)
-        {
-            color_image.emplace(create_color_buffer());
-        }
+        depth_buffer = storage.add_image(extent.width, extent.height, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_format, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics});
+        deferred_depth_buffer = storage.add_image(extent.width, extent.height, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_format, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics});
+        deferred_images.push_back(storage.add_named_image("deferred_position", extent.width, extent.height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::Format::eR32G32B32A32Sfloat, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics}));
+        deferred_images.push_back(storage.add_named_image("deferred_normal", extent.width, extent.height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::Format::eR16G16B16A16Sfloat, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics}));
+        deferred_images.push_back(storage.add_named_image("deferred_color", extent.width, extent.height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::Format::eR8G8B8A8Unorm, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics}));
+        deferred_images.push_back(storage.add_named_image("deferred_segment_uid", extent.width, extent.height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::Format::eR32Sint, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics}));
+        for (uint32_t i : deferred_images) storage.get_image(i).transition_image_layout(vcc, vk::ImageLayout::eShaderReadOnlyOptimal, vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eNone);
         create_framebuffers();
     }
 
@@ -102,9 +112,7 @@ namespace ve
 
         for (const auto& image_view : image_views)
         {
-            std::vector<vk::ImageView> attachments;
-            if (color_image.has_value()) attachments = {color_image.value().get_view(), depth_buffer.value().get_view(), image_view};
-            else attachments = {image_view, depth_buffer.value().get_view()};
+            std::vector<vk::ImageView> attachments = {image_view, storage.get_image(depth_buffer).get_view()};
             vk::FramebufferCreateInfo fbci{};
             fbci.sType = vk::StructureType::eFramebufferCreateInfo;
             fbci.renderPass = render_pass.get();
@@ -116,18 +124,42 @@ namespace ve
 
             framebuffers.push_back(vmc.logical_device.get().createFramebuffer(fbci));
         }
+
+        std::vector<vk::ImageView> attachments = {storage.get_image(deferred_images[0]).get_view(), storage.get_image(deferred_images[1]).get_view(), storage.get_image(deferred_images[2]).get_view(), storage.get_image(deferred_images[3]).get_view(), storage.get_image(deferred_depth_buffer).get_view()};
+        vk::FramebufferCreateInfo fbci{};
+        fbci.sType = vk::StructureType::eFramebufferCreateInfo;
+        fbci.renderPass = deferred_render_pass.get();
+        fbci.attachmentCount = attachments.size();
+        fbci.pAttachments = attachments.data();
+        fbci.width = extent.width;
+        fbci.height = extent.height;
+        fbci.layers = 1;
+
+        deferred_framebuffer = vmc.logical_device.get().createFramebuffer(fbci);
+
+        for (uint32_t i : deferred_images)
+        {
+            storage.get_image(i).create_sampler(vk::Filter::eNearest, vk::SamplerAddressMode::eClampToEdge, false);
+        }
     }
 
     void Swapchain::self_destruct(bool full)
     {
         for (auto& framebuffer : framebuffers) vmc.logical_device.get().destroyFramebuffer(framebuffer);
         framebuffers.clear();
+        vmc.logical_device.get().destroyFramebuffer(deferred_framebuffer);
         for (auto& image_view : image_views) vmc.logical_device.get().destroyImageView(image_view);
         image_views.clear();
-        if (depth_buffer.has_value()) depth_buffer.value().self_destruct();
-        if (color_image.has_value()) color_image.value().self_destruct();
+        storage.destroy_image(depth_buffer);
+        storage.destroy_image(deferred_depth_buffer);
+        for (uint32_t i : deferred_images) storage.destroy_image(i);
+        deferred_images.clear();
         vmc.logical_device.get().destroySwapchainKHR(swapchain);
-        if (full) render_pass.self_destruct();
+        if (full)
+        {
+            render_pass.self_destruct();
+            deferred_render_pass.self_destruct();
+        }
     }
 
     vk::PresentModeKHR Swapchain::choose_present_mode()
@@ -189,32 +221,22 @@ namespace ve
         VE_THROW("Failed to find supported format!");
     }
 
-    Image Swapchain::create_depth_buffer()
-    {
-        return Image(vmc, extent.width, extent.height, vk::ImageUsageFlagBits::eDepthStencilAttachment, depth_format, render_pass.get_sample_count(), false, 0, {vmc.queue_family_indices.graphics});
-    }
-
-    Image Swapchain::create_color_buffer()
-    {
-        return Image(vmc, extent.width, extent.height, vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment, surface_format.format, render_pass.get_sample_count(), false, 0, {vmc.queue_family_indices.graphics});
-    }
-
     void Swapchain::save_screenshot(VulkanCommandContext& vcc, uint32_t image_idx, uint32_t current_frame)
     {
-		vk::Image& src_image = images[image_idx];
-        Image dst_image(vmc, extent.width, extent.height, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc, surface_format.format, vk::SampleCountFlagBits::e1, false, 0, {vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer}, false);
+        vk::Image& src_image = images[image_idx];
+        uint32_t dst_image = storage.add_image(extent.width, extent.height, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eTransferSrc, surface_format.format, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics, vmc.queue_family_indices.transfer}, false);
 
-		vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[current_frame]);
-        perform_image_layout_transition(cb, dst_image.get_image(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite, 0, 1, 1);
+        vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[current_frame]);
+        perform_image_layout_transition(cb, storage.get_image(dst_image).get_image(), vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eTransferWrite, 0, 1, 1);
         perform_image_layout_transition(cb, src_image, vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::eTransferSrcOptimal, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eMemoryRead ,vk::AccessFlagBits::eTransferRead, 0, 1, 1);
 
-        copy_image(cb, src_image, dst_image.get_image(), extent.width, extent.height, 1);
+        copy_image(cb, src_image, storage.get_image(dst_image).get_image(), extent.width, extent.height, 1);
 
-        perform_image_layout_transition(cb, dst_image.get_image(), vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eMemoryRead, 0, 1, 1);
+        perform_image_layout_transition(cb, storage.get_image(dst_image).get_image(), vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eGeneral, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eMemoryRead, 0, 1, 1);
         perform_image_layout_transition(cb, src_image, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::ePresentSrcKHR, vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, vk::AccessFlagBits::eTransferRead, vk::AccessFlagBits::eMemoryRead, 0, 1, 1);
         vcc.submit_graphics(cb, true);
 
-        dst_image.save_to_file();
-        dst_image.self_destruct();
+        storage.get_image(dst_image).save_to_file();
+        storage.get_image(dst_image).self_destruct();
     }
 } // namespace ve

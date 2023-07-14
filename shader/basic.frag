@@ -15,7 +15,10 @@ layout(location = 2) in vec4 frag_color;
 layout(location = 3) in vec2 frag_tex;
 layout(location = 4) flat in int frag_segment_uid;
 
-layout(location = 0) out vec4 out_color;
+layout(location = 0) out vec4 out_position;
+layout(location = 1) out vec4 out_normal;
+layout(location = 2) out vec4 out_color;
+layout(location = 3) out int out_segment_uid;
 
 layout(push_constant) uniform PushConstant {
     PushConstants pc;
@@ -59,21 +62,16 @@ layout(binding = 13) buffer SceneVerticesBuffer {
 
 layout(binding = 99, set = 0) uniform accelerationStructureEXT topLevelAS;
 
-#include "functions.glsl"
-
 void main()
 {
-    rng_state = floatBitsToUint(frag_pos.x * frag_normal.z * frag_tex.t * pc.time);
-    if (pc.normal_view)
-    {
-        out_color = vec4((frag_normal + 1.0) / 2.0, 1.0);
-        return;
-    }
     if (pc.tex_view)
     {
         out_color = vec4(frag_tex, 1.0f, 1.0f);
+        out_segment_uid = -1;
         return;
     }
-
-    out_color = calculate_phong(frag_pos, frag_normal, frag_color, frag_segment_uid);
+    out_position = vec4(frag_pos, 1.0);
+    out_normal = vec4(frag_normal, 1.0);
+    out_color = frag_color;
+    out_segment_uid = frag_segment_uid;
 }

@@ -1,0 +1,103 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive: require
+#include "common.glsl"
+
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+
+layout(constant_id = 0) const uint JET_PARTICLE_COUNT = 1;
+layout(constant_id = 1) const uint SPAWN_MESH_INDEX_OFFSET = 1;
+layout(constant_id = 2) const uint SPAWN_MESH_INDEX_COUNT = 1;
+layout(constant_id = 3) const uint NUM_MVPS = 1;
+layout(constant_id = 4) const uint SPAWN_MESH_MODEL_RENDER_DATA_IDX = 1;
+layout(constant_id = 5) const float MAX_LIFETIME = 1.0f;
+
+layout(binding = 0) readonly buffer InVertexBuffer {
+    AlignedJetParticleVertex in_vertices[];
+};
+
+layout(binding = 1) buffer OutVertexBuffer {
+    AlignedJetParticleVertex out_vertices[];
+};
+
+layout(binding = 2) buffer SceneIndicesBuffer {
+    uint scene_indices[];
+};
+
+layout(binding = 3) buffer SceneVerticesBuffer {
+    AlignedVertex scene_vertices[];
+};
+
+layout(binding = 4) uniform ModelRenderDataBuffer {
+    ModelRenderData mrd[NUM_MVPS];
+};
+
+layout(push_constant) uniform PushConstant {
+    JetParticleMovePushConstants pc;
+};
+
+uint rng_state;
+
+uint PCGHashState()
+{
+    rng_state = rng_state * 747796405u + 2891336453u;
+    uint state = rng_state;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+uint PCGHash(uint seed)
+{
+    uint state = seed * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+float pcg_random_state()
+{
+    return ((float(PCGHashState()) / float(0xFFFFFFFFU)));
+}
+
+float pcg_random(uint seed)
+{
+    return ((float(PCGHash(seed)) / float(0xFFFFFFFFU)));
+}
+
+float pcg_random_state_clipped()
+{
+    return cos(PI * PCGHashState()) * (((float(PCGHashState()) / float(0xFFFFFFFFU)) * 0.5) + 0.5);
+}
+
+float pcg_random_clipped(uint seed)
+{
+    return cos(PI * PCGHashState()) * (((float(PCGHash(seed)) / float(0xFFFFFFFFU)) * 0.5) + 0.5);
+}
+
+void main()
+{
+    if (gl_GlobalInvocationID.x >= JET_PARTICLE_COUNT) return;
+
+    rng_state = floatBitsToUint((gl_GlobalInvocationID.x + 1) * 432.5 * pc.time * pc.time_diff);
+
+    JetParticleVertex v = unpack_jet_particle_vertex(in_vertices[gl_GlobalInvocationID.x]);
+    v.lifetime -= pc.time_diff;
+    if (v.lifetime < 0.0f)
+    {
+        v.lifetime = MAX_LIFETIME * pcg_random_state();
+        v.pos = (mrd[SPAWN_MESH_MODEL_RENDER_DATA_IDX].m * vec4(get_vertex_pos(scene_vertices[scene_indices[SPAWN_MESH_INDEX_OFFSET + uint(pcg_random_state() * SPAWN_MESH_INDEX_COUNT)]]), 1.0)).xyz;
+        v.vel = -pcg_random_state() * pc.move_dir * 40.0f;// * (vec3(pcg_random_state(), pcg_random_state(), pcg_random_state()) + vec3(0.2));
+    }
+    if (v.lifetime > MAX_LIFETIME / 2.0f)
+    {
+        v.col = vec3(pcg_random_state(), 0.0, 0.0);
+    }
+    else
+    {
+        v.col = vec3(0.0, 0.0, pcg_random_state());
+    }
+    v.col *= (v.lifetime / MAX_LIFETIME);
+    v.pos += pcg_random_state() * v.vel * pc.time_diff;
+    v.vel *= 0.999;
+
+    out_vertices[gl_GlobalInvocationID.x] = pack_jet_particle_vertex(v);
+}

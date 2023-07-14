@@ -4,8 +4,15 @@ struct PushConstants {
     uint mesh_render_data_idx;
     uint first_segment_indices_idx;
     float time;
-    bool normal_view;
     bool tex_view;
+};
+
+struct LightingPassPushConstants {
+    uint first_segment_indices_idx;
+    float time;
+    bool normal_view;
+    bool color_view;
+    bool segment_uid_view;
 };
 
 struct NewSegmentPushConstants {
@@ -21,6 +28,12 @@ struct FireflyMovePushConstants {
     float time_diff;
     uint segment_uid;
     uint first_segment_indices_idx;
+};
+
+struct JetParticleMovePushConstants {
+    vec3 move_dir;
+    float time;
+    float time_diff;
 };
 
 struct DebugPushConstants {
@@ -176,6 +189,61 @@ AlignedFireflyVertex pack_firefly_vertex(FireflyVertex v)
     vert.col_gb_vel_xy.zw = v.vel.xy;
     vert.vel_z_acc.x = v.vel.z;
     vert.vel_z_acc.yzw = v.acc;
+    return vert;
+}
+
+struct AlignedJetParticleVertex {
+    vec4 pos_col_r;
+    vec4 col_gb_vel_xy;
+    vec2 vel_z_lifetime;
+};
+
+vec3 get_jet_particle_vertex_pos(in AlignedJetParticleVertex v) { return v.pos_col_r.xyz; }
+void set_jet_particle_vertex_pos(inout AlignedJetParticleVertex v, in vec3 pos) { v.pos_col_r.xyz = pos; }
+
+vec3 get_jet_particle_vertex_color(in AlignedJetParticleVertex v) { return vec3(v.pos_col_r.w, v.col_gb_vel_xy.xy); }
+void set_jet_particle_vertex_color(inout AlignedJetParticleVertex v, in vec3 color) {
+    v.pos_col_r.w = color.x;
+    v.col_gb_vel_xy.xy = color.yz;
+}
+
+vec3 get_jet_particle_vertex_vel(in AlignedJetParticleVertex v) { return vec3(v.col_gb_vel_xy.zw, v.vel_z_lifetime.x); }
+void set_jet_particle_vertex_vel(inout AlignedJetParticleVertex v, in vec3 vel) {
+    v.col_gb_vel_xy.zw = vel.xy;
+    v.vel_z_lifetime.x = vel.z;
+}
+
+float get_jet_particle_vertex_lifetime(in AlignedJetParticleVertex v) { return v.vel_z_lifetime.y; }
+void set_jet_particle_vertex_lifetime(inout AlignedJetParticleVertex v, in float lifetime) { v.vel_z_lifetime.y = lifetime; }
+
+struct JetParticleVertex {
+    vec3 pos;
+    vec3 col;
+    vec3 vel;
+    float lifetime;
+};
+
+JetParticleVertex unpack_jet_particle_vertex(AlignedJetParticleVertex v)
+{
+    JetParticleVertex vert;
+    vert.pos = v.pos_col_r.xyz;
+    vert.col.r = v.pos_col_r.w;
+    vert.col.gb = v.col_gb_vel_xy.xy;
+    vert.vel.xy = v.col_gb_vel_xy.zw;
+    vert.vel.z = v.vel_z_lifetime.x;
+    vert.lifetime = v.vel_z_lifetime.y;
+    return vert;
+}
+
+AlignedJetParticleVertex pack_jet_particle_vertex(JetParticleVertex v)
+{
+    AlignedJetParticleVertex vert;
+    vert.pos_col_r.xyz = v.pos;
+    vert.pos_col_r.w = v.col.r;
+    vert.col_gb_vel_xy.xy = v.col.gb;
+    vert.col_gb_vel_xy.zw = v.vel.xy;
+    vert.vel_z_lifetime.x = v.vel.z;
+    vert.vel_z_lifetime.y = v.lifetime;
     return vert;
 }
 

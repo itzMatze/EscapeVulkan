@@ -128,10 +128,10 @@ vec4 calculate_phong(in vec3 pos, in vec3 normal, in vec4 color, in int segment_
     return color * out_color;
 }
 
-vec4 calculate_color(vec3 normal, vec4 color, int segment_uid)
+vec4 calculate_color(vec3 position, vec3 normal, vec4 color, int segment_uid)
 {
     vec3 n = normal;
-    vec3 pos = frag_pos;
+    vec3 pos = position;
     vec3 p = pos;
     vec4 out_color = calculate_phong(pos, normal, color, segment_uid);
     float t = 0.0;
@@ -139,7 +139,7 @@ vec4 calculate_color(vec3 normal, vec4 color, int segment_uid)
     int primitive_idx = 0;
     int geometry_idx = 0;
     vec2 bary = vec2(0.0);
-    for (uint i = 0; i < 1; ++i)
+    for (uint i = 0; i < 0; ++i)
     {
         vec3 dir = importance_sample_ggx(n, 0.6);
         if (evaluate_ray(p, dir, t, instance_id, geometry_idx, primitive_idx, bary))
@@ -147,9 +147,9 @@ vec4 calculate_color(vec3 normal, vec4 color, int segment_uid)
             pos = pos + t * dir;
             if (instance_id == 666)
             {
-                TunnelVertex v0 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[primitive_idx * 3]]);
-                TunnelVertex v1 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[primitive_idx * 3 + 1]]);
-                TunnelVertex v2 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[primitive_idx * 3 + 2]]);
+                TunnelVertex v0 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + primitive_idx * 3]]);
+                TunnelVertex v1 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + primitive_idx * 3 + 1]]);
+                TunnelVertex v2 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + primitive_idx * 3 + 2]]);
                 color = vec4(0.63, 0.32, 0.18, 1.0) * texture(noise_tex_sampler, vec3(v0.tex, 1));
                 normal = normalize(v0.normal + texture(noise_tex_sampler, vec3(v0.tex, 0)).rgb - 0.5);
             }
@@ -167,7 +167,7 @@ vec4 calculate_color(vec3 normal, vec4 color, int segment_uid)
                 }
                 else if (m.base_texture >= 0)
                 {
-                    color = texture(tex_sampler, vec3(frag_tex, materials[mesh_rd[geometry_idx].mat_idx].base_texture));
+                    color = texture(tex_sampler, vec3(v0.tex, materials[mesh_rd[geometry_idx].mat_idx].base_texture));
                     normal = normalize(v0.normal + v1.normal + v2.normal);
                 }
                 else return out_color;

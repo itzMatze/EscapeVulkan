@@ -8,6 +8,7 @@
 #include "TunnelObjects.hpp"
 #include "CollisionHandler.hpp"
 #include "vk/PathTracer.hpp"
+#include "vk/JetParticles.hpp"
 
 namespace ve
 {
@@ -25,6 +26,7 @@ namespace ve
         DescriptorSetHandler& get_dsh(ShaderFlavor flavor);
         void draw(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer);
         void update_game_state(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer);
+        uint32_t get_light_count();
 
         bool loaded = false;
 
@@ -60,6 +62,7 @@ namespace ve
         TunnelObjects tunnel_objects;
         CollisionHandler collision_handler;
         PathTracer path_tracer;
+        JetParticles jp;
 
         void construct_pipelines(const RenderPass& render_pass, bool reload);
     };

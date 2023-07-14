@@ -33,6 +33,8 @@ namespace ve
         UI ui;
         std::vector<Synchronization> syncs;
         std::vector<DeviceTimer> timers;
+        Pipeline lighting_pipeline;
+        DescriptorSetHandler lighting_dsh;
 
         void draw_frame(GameState& gs);
         vk::Extent2D recreate_swapchain();
@@ -40,6 +42,8 @@ namespace ve
     private:
         float total_time = 0.0f;
 
+        void create_lighting_pipeline();
+        void create_lighting_descriptor_sets();
         void record_graphics_command_buffer(uint32_t image_idx, GameState& gs);
         void submit(uint32_t image_idx, GameState& gs);
     };

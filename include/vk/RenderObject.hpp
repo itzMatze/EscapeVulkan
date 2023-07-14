@@ -16,6 +16,7 @@ namespace ve
         void add_model_meshes(std::vector<Mesh>& mesh_list);
         void construct(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_names, bool reload = false);
         void draw(vk::CommandBuffer& cb, GameState& gs);
+        bool get_mesh(const std::string& name, Mesh& mesh);
 
         DescriptorSetHandler dsh;
 

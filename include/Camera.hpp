@@ -31,6 +31,7 @@ public:
     const glm::vec3& getPosition() const;
     float getNear() const;
     float getFar() const;
+    glm::vec3 getFront() const;
 
 private:
     glm::mat4 vp;

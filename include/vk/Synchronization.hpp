@@ -10,8 +10,9 @@ namespace ve
         enum SemaphoreNames
         {
             S_IMAGE_AVAILABLE = 0,
-            S_RENDER_FINISHED = 1,
-            S_COMPUTE_FINISHED = 2,
+            S_GEOMETRY_PASS_FINISHED = 1,
+            S_LIGHTING_PASS_FINISHED = 2,
+            S_COMPUTE_FINISHED = 3,
             SEMAPHORE_COUNT
         };
 

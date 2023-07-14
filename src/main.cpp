@@ -120,6 +120,7 @@ private:
                 velocity = 0.0f;
                 rotation_speed = glm::vec3(0.0f);
             }
+            gs.tunnel_distance_travelled += move_amount * velocity;
             camera.moveFront(move_amount * velocity);
             camera.onMouseMove(rotation_speed.x * gs.time_diff, 0.0f);
             camera.onMouseMove(0.0f, rotation_speed.y * gs.time_diff);
@@ -169,6 +170,16 @@ private:
         {
             gs.tex_view = !gs.tex_view;
             eh.set_released_key(Key::T, false);
+        }
+        if (eh.is_key_released(Key::C))
+        {
+            gs.color_view = !gs.color_view;
+            eh.set_released_key(Key::C, false);
+        }
+        if (eh.is_key_released(Key::P))
+        {
+            gs.collision_detection_active = !gs.collision_detection_active;
+            eh.set_released_key(Key::P, false);
         }
         if (eh.is_key_released(Key::B))
         {

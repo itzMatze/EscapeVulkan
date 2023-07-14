@@ -176,7 +176,6 @@ namespace ve
             glm::vec3& bp0 = get_tunnel_bezier_point(player_segment_position, 0, false);
             glm::vec3& bp1 = get_tunnel_bezier_point(player_segment_position, 1, false);
             glm::vec3& bp2 = get_tunnel_bezier_point(player_segment_position, 2, false);
-            gs.tunnel_distance_travelled += glm::distance(bp0, bp1) + glm::distance(bp1, bp2);
             // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
             // increment the idx at which the rendering starts by the same amount
             cpc.segment_uid++;

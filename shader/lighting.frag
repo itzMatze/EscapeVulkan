@@ -9,19 +9,12 @@ layout(constant_id = 0) const uint NUM_LIGHTS = 1;
 layout(constant_id = 1) const uint SEGMENT_COUNT = 1;
 layout(constant_id = 2) const uint FIREFLIES_PER_SEGMENT = 1;
 
-layout(location = 0) in vec3 frag_pos;
-layout(location = 1) in vec3 frag_normal;
-layout(location = 2) in vec4 frag_color;
-layout(location = 3) in vec2 frag_tex;
-layout(location = 4) flat in int frag_segment_uid;
+layout(location = 0) in vec2 frag_tex;
 
-layout(location = 0) out vec4 out_position;
-layout(location = 1) out vec4 out_normal;
-layout(location = 2) out vec4 out_color;
-layout(location = 3) out int out_segment_uid;
+layout(location = 0) out vec4 out_color;
 
 layout(push_constant) uniform PushConstant {
-    PushConstants pc;
+    LightingPassPushConstants pc;
 };
 
 layout(binding = 1) buffer MeshRenderDataBuffer {
@@ -62,20 +55,38 @@ layout(binding = 13) buffer SceneVerticesBuffer {
 
 layout(binding = 99, set = 0) uniform accelerationStructureEXT topLevelAS;
 
+layout(binding = 100) uniform sampler2D deferred_position_sampler;
+layout(binding = 101) uniform sampler2D deferred_normal_sampler;
+layout(binding = 102) uniform sampler2D deferred_color_sampler;
+layout(binding = 103) uniform isampler2D deferred_segment_uid_sampler;
+
 #include "functions.glsl"
 
 void main()
 {
-    if (pc.tex_view)
+    vec3 frag_pos = texture(deferred_position_sampler, frag_tex).xyz;
+    vec3 frag_normal = texture(deferred_normal_sampler, frag_tex).xyz;
+    vec4 frag_color = texture(deferred_color_sampler, frag_tex);
+    int frag_segment_uid = texture(deferred_segment_uid_sampler, frag_tex).x;
+
+    rng_state = floatBitsToUint(frag_pos.x * frag_normal.z * frag_tex.t * pc.time);
+    if (pc.normal_view)
     {
-        out_color = vec4(frag_tex, 1.0f, 1.0f);
-        out_segment_uid = -1;
+        out_color = vec4((frag_normal + 1.0) / 2.0, 1.0);
         return;
     }
-
-    vec4 texture_color = texture(tex_sampler, vec3(frag_tex, materials[mesh_rd[pc.mesh_render_data_idx].mat_idx].base_texture));
-    out_position = vec4(frag_pos, 1.0);
-    out_normal = vec4(frag_normal, 1.0);
-    out_color = texture_color;
-    out_segment_uid = frag_segment_uid;
+    if (pc.color_view)
+    {
+        out_color = frag_color;
+        return;
+    }
+    if (frag_segment_uid < 0)
+    {
+        out_color = frag_color;
+    }
+    else
+    {
+        out_color = calculate_color(frag_pos, frag_normal, frag_color, frag_segment_uid);
+    }
 }
+
