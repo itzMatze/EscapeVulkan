@@ -15,7 +15,8 @@ namespace ve
         HostTimer() : t(std::chrono::high_resolution_clock::now())
         {}
 
-        template<class Period = std::milli>
+        // default timer unit is seconds
+        template<class Period = std::ratio<1, 1>>
         inline Precision restart()
         {
             double elapsed_time = elapsed<Period>();
@@ -23,7 +24,7 @@ namespace ve
             return elapsed_time;
         }
 
-        template<class Period = std::milli>
+        template<class Period = std::ratio<1, 1>>
         inline Precision elapsed() const
         {
             return std::chrono::duration<Precision, Period>(std::chrono::high_resolution_clock::now() - t).count();

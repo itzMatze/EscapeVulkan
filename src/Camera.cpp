@@ -30,9 +30,9 @@ void Camera::updateVP(float time_diff)
 
     // apply incremental change to camera orientation
     orientation = glm::normalize(q_yaw * q_pitch * q_roll * orientation);
-    const float orientation_t = std::min((-50.0f / (time_diff + 50.0f)) + 1.0f, 1.0f);
+    const float orientation_t = std::min((-0.05f / (time_diff + 0.05f)) + 1.0f, 1.0f);
     interpolated_orientation = glm::normalize(interpolated_orientation * (1 - orientation_t) + orientation * orientation_t);
-    const float position_t = std::min((-50.0f / (time_diff + 50.0f)) + 1.0f, 1.0f);
+    const float position_t = std::min((-0.05f / (time_diff + 0.05f)) + 1.0f, 1.0f);
     interpolated_position = interpolated_position * (1 - position_t) + position * position_t;
 
     // calculate view matrix

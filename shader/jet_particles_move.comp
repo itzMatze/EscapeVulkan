@@ -85,7 +85,7 @@ void main()
     {
         v.lifetime = MAX_LIFETIME * pcg_random_state();
         v.pos = (mrd[SPAWN_MESH_MODEL_RENDER_DATA_IDX].m * vec4(get_vertex_pos(scene_vertices[scene_indices[SPAWN_MESH_INDEX_OFFSET + uint(pcg_random_state() * SPAWN_MESH_INDEX_COUNT)]]), 1.0)).xyz;
-        v.vel = -pcg_random_state() * pc.move_dir * 40.0f;// * (vec3(pcg_random_state(), pcg_random_state(), pcg_random_state()) + vec3(0.2));
+        v.vel = -pcg_random_state() * pc.move_dir * 10.0f * (max(vec3(pcg_random_state(), pcg_random_state(), pcg_random_state()), vec3(0.3)));
     }
     if (v.lifetime > MAX_LIFETIME / 2.0f)
     {

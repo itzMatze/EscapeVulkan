@@ -6,6 +6,7 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
+#include <SDL2/SDL_mixer.h>
 
 #include "vk/common.hpp"
 #include "Camera.hpp"
@@ -16,7 +17,6 @@
 #include "vk/VulkanCommandContext.hpp"
 #include "Storage.hpp"
 #include "WorkContext.hpp"
-#include <SDL2/SDL_mixer.h>
 
 class MainContext
 {
@@ -63,7 +63,7 @@ public:
         // initialize mixer
         Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
         spaceship_sound = Mix_LoadWAV("../assets/sounds/spaceship_thrust_1.wav");
-        crash_sound = Mix_LoadWAV("../assets/sounds/spaceship_crash_2.wav");
+        crash_sound = Mix_LoadWAV("../assets/sounds/spaceship_crash.wav");
         game_over_sound = Mix_LoadWAV("../assets/sounds/game_over.wav");
 
         Mix_PlayChannel(0, spaceship_sound, -1);
@@ -77,17 +77,16 @@ public:
             try
             {
                 //std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - gs.frametime));
-                gs.time_diff /= 1000.0f;
                 gs.player_pos = camera.getPosition();
                 uint32_t old_player_lifes = gs.player_lifes;
                 wc.draw_frame(gs);
                 if (gs.player_lifes < old_player_lifes) Mix_PlayChannel(1, crash_sound, 0);
-                if (gs.player_lifes == 0) 
+                if (gs.player_lifes == 0)
                 {
                     Mix_PlayChannel(1, game_over_sound, 0);
                     std::this_thread::sleep_for(std::chrono::seconds(1));
                     quit = true;
-                } 
+                }
             }
             catch (const vk::OutOfDateKHRError e)
             {
@@ -124,7 +123,7 @@ private:
     Camera camera;
     EventHandler eh;
     float move_amount;
-    float move_speed = 0.02f;
+    float move_speed = 20.0f;
     float velocity = 1.0f;
     glm::vec3 rotation_speed;
     ve::GameState gs;
@@ -134,22 +133,22 @@ private:
     {
         if(game_mode)
         {
-            if (eh.is_key_pressed(Key::Left)) rotation_speed.x -= 0.0004f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Right)) rotation_speed.x += 0.0004f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Up)) rotation_speed.y -= 0.0004f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Down)) rotation_speed.y += 0.0004f * gs.time_diff;
-            if (eh.is_key_pressed(Key::A)) camera.rotate(0.1f * gs.time_diff);//rotation_speed.z -= 0.002f;
-            if (eh.is_key_pressed(Key::D)) camera.rotate(-0.1f * gs.time_diff);//rotation_speed.z += 0.002f;
-            if (eh.is_key_pressed(Key::W)) velocity += 0.002f * gs.time_diff;
-            if (eh.is_key_pressed(Key::S)) velocity -= 0.002f * gs.time_diff;
-            velocity = std::max(1.0f, velocity);
+            if (eh.is_key_pressed(Key::Left)) rotation_speed.x -= 400.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::Right)) rotation_speed.x += 400.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::Up)) rotation_speed.y -= 400.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::Down)) rotation_speed.y += 400.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::A)) camera.rotate(100.0f * gs.time_diff);//rotation_speed.z -= 0.002f;
+            if (eh.is_key_pressed(Key::D)) camera.rotate(-100.0f * gs.time_diff);//rotation_speed.z += 0.002f;
+            if (eh.is_key_pressed(Key::W)) velocity += 40.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::S)) velocity -= 40.0f * gs.time_diff;
+            velocity = std::max(20.0f, velocity);
             if (gs.player_reset_blink_counter > 0)
             {
                 velocity = 0.0f;
                 rotation_speed = glm::vec3(0.0f);
             }
-            gs.tunnel_distance_travelled += move_amount * velocity;
-            camera.moveFront(move_amount * velocity);
+            gs.tunnel_distance_travelled += gs.time_diff * velocity;
+            camera.moveFront(gs.time_diff * velocity);
             camera.onMouseMove(rotation_speed.x * gs.time_diff, 0.0f);
             camera.onMouseMove(0.0f, rotation_speed.y * gs.time_diff);
         }
@@ -161,7 +160,7 @@ private:
             if (eh.is_key_pressed(Key::D)) camera.moveRight(move_amount);
             if (eh.is_key_pressed(Key::Q)) camera.moveDown(move_amount);
             if (eh.is_key_pressed(Key::E)) camera.moveDown(-move_amount);
-            float panning_speed = eh.is_key_pressed(Key::Shift) ? 0.2f : 0.6f;
+            float panning_speed = eh.is_key_pressed(Key::Shift) ? 200.0f : 600.0f;
             if (eh.is_key_pressed(Key::Left)) camera.onMouseMove(-panning_speed * gs.time_diff, 0.0f);
             if (eh.is_key_pressed(Key::Right)) camera.onMouseMove(panning_speed * gs.time_diff, 0.0f);
             if (eh.is_key_pressed(Key::Up)) camera.onMouseMove(0.0f, -panning_speed * gs.time_diff);
@@ -238,9 +237,9 @@ private:
         if (game_mode && eh.is_controller_available())
         {
             std::pair<glm::vec2, glm::vec2> joystick_pos = eh.get_controller_joystick_pos();
-            rotation_speed.x += 0.0004f * joystick_pos.second.x * gs.time_diff;
-            rotation_speed.y += 0.0004f * joystick_pos.second.y * gs.time_diff;
-            velocity -= 0.002f * joystick_pos.first.y * gs.time_diff;
+            rotation_speed.x += 400.0f * joystick_pos.second.x * gs.time_diff;
+            rotation_speed.y += 400.0f * joystick_pos.second.y * gs.time_diff;
+            velocity -= 40.0f * joystick_pos.first.y * gs.time_diff;
             camera.rotate(joystick_pos.first.x * move_amount * 5.0f);
         }
         if (eh.is_key_pressed(Key::MouseLeft))

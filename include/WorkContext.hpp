@@ -40,8 +40,6 @@ namespace ve
         vk::Extent2D recreate_swapchain();
 
     private:
-        float total_time = 0.0f;
-
         void create_lighting_pipeline();
         void create_lighting_descriptor_sets();
         void record_graphics_command_buffer(uint32_t image_idx, GameState& gs);

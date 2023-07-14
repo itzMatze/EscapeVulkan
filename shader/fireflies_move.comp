@@ -132,7 +132,7 @@ void main()
     uint firefly_idx = (segment_uid * FIREFLIES_PER_SEGMENT) % FIREFLIES_COUNT + gl_GlobalInvocationID.x % FIREFLIES_PER_SEGMENT;
 
     // different state every 2 seconds and for every firefly
-    rng_state = uint(pc.time / 2000.0 + firefly_idx);
+    rng_state = uint(pc.time / 2.0 + firefly_idx);
     // seed is used to have different random number in every frame
     uint seed = uint(gl_GlobalInvocationID.x + FIREFLIES_COUNT * pc.time * pc.time_diff);
 

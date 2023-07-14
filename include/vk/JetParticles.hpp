@@ -22,7 +22,7 @@ namespace ve
         std::vector<uint32_t> vertex_buffers;
 
     private:
-        static constexpr float max_particle_lifetime = 0.1f;
+        static constexpr float max_particle_lifetime = 0.3f;
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
         Storage& storage;
