@@ -16,6 +16,7 @@
 #include "vk/VulkanCommandContext.hpp"
 #include "Storage.hpp"
 #include "WorkContext.hpp"
+#include <SDL2/SDL_mixer.h>
 
 class MainContext
 {
@@ -29,6 +30,13 @@ public:
 
     ~MainContext()
     {
+        Mix_FreeChunk(spaceship_sound);
+        Mix_FreeChunk(crash_sound);
+        Mix_FreeChunk(game_over_sound);
+        spaceship_sound = nullptr;
+        crash_sound = nullptr;
+        game_over_sound = nullptr;
+        Mix_CloseAudio();
         wc.self_destruct();
         vcc.self_destruct();
         vmc.self_destruct();
@@ -51,8 +59,18 @@ public:
         ve::HostTimer timer;
         bool quit = false;
         SDL_Event e;
+
+        // initialize mixer
+        Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
+        spaceship_sound = Mix_LoadWAV("../assets/sounds/spaceship_thrust_1.wav");
+        crash_sound = Mix_LoadWAV("../assets/sounds/spaceship_crash_2.wav");
+        game_over_sound = Mix_LoadWAV("../assets/sounds/game_over.wav");
+
+        Mix_PlayChannel(0, spaceship_sound, -1);
         while (!quit)
         {
+            Mix_Volume(0, velocity * 10 + 10);
+            Mix_Volume(1, velocity * 10 + 80);
             move_amount = gs.time_diff * move_speed;
             dispatch_pressed_keys();
             gs.cam.updateVP(gs.time_diff);
@@ -61,8 +79,15 @@ public:
                 //std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - gs.frametime));
                 gs.time_diff /= 1000.0f;
                 gs.player_pos = camera.getPosition();
+                uint32_t old_player_lifes = gs.player_lifes;
                 wc.draw_frame(gs);
-                if (gs.player_lifes == 0) quit = true;
+                if (gs.player_lifes < old_player_lifes) Mix_PlayChannel(1, crash_sound, 0);
+                if (gs.player_lifes == 0) 
+                {
+                    Mix_PlayChannel(1, game_over_sound, 0);
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                    quit = true;
+                } 
             }
             catch (const vk::OutOfDateKHRError e)
             {
@@ -89,6 +114,9 @@ public:
     }
 
 private:
+    Mix_Chunk* spaceship_sound = nullptr;
+    Mix_Chunk* crash_sound = nullptr;
+    Mix_Chunk* game_over_sound = nullptr;
     vk::Extent2D extent;
     ve::VulkanMainContext vmc;
     ve::VulkanCommandContext vcc;

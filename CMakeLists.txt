@@ -27,12 +27,12 @@ include_directories(EscapeVulkan PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJE
 
 find_package(glm REQUIRED)
 find_package(SDL2 REQUIRED)
+find_package(SDL2_mixer REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(Boost REQUIRED)
 
-target_link_libraries(EscapeVulkan ${SDL2_LIBRARIES} ${Vulkan_LIBRARIES} spdlog::spdlog)
-
+target_link_libraries(EscapeVulkan SDL2::SDL2main SDL2::SDL2 /lib/libSDL2_mixer.so ${Vulkan_LIBRARIES} spdlog::spdlog)
 
 function(add_shader TARGET SHADER)
     find_program(GLSLC glslc)
