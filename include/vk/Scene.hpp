@@ -8,6 +8,7 @@
 #include "TunnelObjects.hpp"
 #include "CollisionHandler.hpp"
 #include "vk/PathTracer.hpp"
+#include "vk/JetParticles.hpp"
 
 namespace ve
 {
@@ -61,6 +62,7 @@ namespace ve
         TunnelObjects tunnel_objects;
         CollisionHandler collision_handler;
         PathTracer path_tracer;
+        JetParticles jp;
 
         void construct_pipelines(const RenderPass& render_pass, bool reload);
     };

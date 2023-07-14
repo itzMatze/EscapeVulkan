@@ -53,4 +53,17 @@ namespace ve
             for (uint32_t j = model_indices[i]; j < model_indices[i + 1]; ++j) meshes[j].draw(cb, pipeline_layout, dsh.get_sets(), gs);
         }
     }
+
+    bool RenderObject::get_mesh(const std::string& name, Mesh& mesh)
+    {
+        for (Mesh& m : meshes)
+        {
+            if (m.name == name)
+            {
+                mesh = m;
+                return true;
+            }
+        }
+        return false;
+    }
 } // namespace ve

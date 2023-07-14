@@ -22,6 +22,7 @@ namespace ve
     constexpr uint32_t index_count = indices_per_segment * segment_count;
     constexpr uint32_t fireflies_per_segment = 5;
     constexpr uint32_t firefly_count = fireflies_per_segment * segment_count;
+    constexpr uint32_t jet_particle_count = 10000;
     // player is always in the same segment as the tunnel moves with the player
     constexpr uint32_t player_segment_position = 1;
 

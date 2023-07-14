@@ -8,7 +8,7 @@
 
 namespace ve
 {
-    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), tunnel_objects(vmc, vcc, storage), collision_handler(vmc, vcc, storage), path_tracer(vmc, vcc, storage)
+    Scene::Scene(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), tunnel_objects(vmc, vcc, storage), collision_handler(vmc, vcc, storage), path_tracer(vmc, vcc, storage), jp(vmc, vcc, storage)
     {}
 
     void Scene::construct(const RenderPass& render_pass)
@@ -16,6 +16,7 @@ namespace ve
         if (!loaded) VE_THROW("Cannot construct scene before loading one!");
         mesh_render_data_buffer = storage.add_named_buffer("mesh_render_data", mesh_render_data, vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.transfer, vmc.queue_family_indices.graphics);
         tunnel_objects.create_buffers(path_tracer);
+        jp.create_buffers();
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
         path_tracer.create_tlas(cb, 0);
         path_tracer.create_tlas(cb, 1);
@@ -61,12 +62,16 @@ namespace ve
             ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(1, storage.get_buffer(mesh_render_data_buffer));
             if (material_buffer > -1) ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(3, storage.get_buffer(material_buffer));
         }
+        Mesh spawn_mesh;
+        if (!ros.at(ShaderFlavor::Emissive).get_mesh("Engine_Lights", spawn_mesh)) VE_THROW("Failed to find desired spawn mesh for particles!");
+        jp.construct(render_pass, spawn_mesh, model_render_data_buffers, mesh_render_data[spawn_mesh.mesh_render_data_idx].model_render_data_idx);
         construct_pipelines(render_pass, false);
     }
 
     void Scene::self_destruct()
     {
         path_tracer.self_destruct();
+        jp.self_destruct();
         storage.destroy_buffer(vertex_buffer);
         storage.destroy_buffer(index_buffer);
         storage.destroy_buffer(mesh_render_data_buffer);
@@ -339,6 +344,7 @@ namespace ve
         tunnel_objects.draw(cb, gs);
         timer.stop(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
         if (gs.show_player_bb) collision_handler.draw(cb, gs, model_render_data[player_idx].MVP);
+        jp.draw(cb, gs);
     }
 
     void Scene::update_game_state(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer)
@@ -411,6 +417,7 @@ namespace ve
                 gs.show_player = !gs.show_player;
             }
         }
+        jp.move_step(cb, gs);
     }
 
     uint32_t Scene::get_light_count()
