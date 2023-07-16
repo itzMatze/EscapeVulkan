@@ -24,6 +24,15 @@ namespace ve
         bool is_built = false;
     };
 
+    struct BLASBuildInfo {
+        uint32_t vertex_buffer_id;
+        uint32_t index_buffer_id;
+        const std::vector<uint32_t> index_offsets;
+        const std::vector<uint32_t> index_counts;
+        vk::DeviceSize vertex_stride;
+        uint32_t blas_idx;
+    };
+
     class PathTracer
     {
     public:
@@ -33,7 +42,7 @@ namespace ve
         uint32_t add_instance(uint32_t blas_idx, const glm::mat4& M, uint32_t custom_index);
         void update_instance(uint32_t instance_idx, const glm::mat4& M);
         void create_tlas(vk::CommandBuffer& cb, uint32_t idx);
-        void update_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, const std::vector<uint32_t>& index_offsets, const std::vector<uint32_t>& index_counts, uint32_t blas_idx, uint32_t frame_idx, vk::DeviceSize vertex_stride);
+        void update_blas(uint32_t vertex_buffer_id, uint32_t index_buffer_id, const std::vector<uint32_t>& index_offsets, const std::vector<uint32_t>& index_counts, uint32_t blas_idx, uint32_t frame_idx, vk::DeviceSize vertex_stride);
 
     private:
         const VulkanMainContext& vmc;
@@ -41,6 +50,7 @@ namespace ve
         Storage& storage;
         std::array<vk::WriteDescriptorSetAccelerationStructureKHR, 2> wdsas;
         std::array<std::vector<BottomLevelAccelerationStructure>, 2> bottomLevelAS;
+        std::array<std::vector<BLASBuildInfo>, 2> bottomLevelAS_dirty_build_info;
         std::array<std::vector<vk::AccelerationStructureInstanceKHR>, 2> instances;
         std::array<TopLevelAccelerationStructure, 2> topLevelAS;
         std::array<uint32_t, 2> instances_buffer;

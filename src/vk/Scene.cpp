@@ -41,7 +41,6 @@ namespace ve
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(11, storage.get_buffer_by_name("tunnel_vertices"));
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(12, storage.get_buffer_by_name("indices"));
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(13, storage.get_buffer_by_name("vertices"));
-            ros.at(ShaderFlavor::Default).dsh.add_descriptor(99, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
  
             ros.at(ShaderFlavor::Basic).dsh.new_set();
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
@@ -55,7 +54,6 @@ namespace ve
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(11, storage.get_buffer_by_name("tunnel_vertices"));
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(12, storage.get_buffer_by_name("indices"));
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(13, storage.get_buffer_by_name("vertices"));
-            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(99, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
 
             ros.at(ShaderFlavor::Emissive).dsh.new_set();
             ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
@@ -184,7 +182,6 @@ namespace ve
         ros.at(ShaderFlavor::Default).dsh.add_binding(11, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(12, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(13, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
-        ros.at(ShaderFlavor::Default).dsh.add_binding(99, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
@@ -197,7 +194,6 @@ namespace ve
         ros.at(ShaderFlavor::Basic).dsh.add_binding(11, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(12, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(13, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
-        ros.at(ShaderFlavor::Basic).dsh.add_binding(99, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
        
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
@@ -344,7 +340,7 @@ namespace ve
         tunnel_objects.draw(cb, gs);
         timer.stop(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
         if (gs.show_player_bb) collision_handler.draw(cb, gs, model_render_data[player_idx].MVP);
-        jp.draw(cb, gs);
+        if (gs.show_player) jp.draw(cb, gs);
     }
 
     void Scene::update_game_state(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer)
@@ -365,6 +361,7 @@ namespace ve
         }
         for (uint32_t i = 0; i < model_render_data.size(); ++i)
         {
+            model_render_data[i].prev_MVP = model_render_data[i].MVP;
             model_render_data[i].MVP = vp * model_render_data[i].M;
         }
         // update lights with current position of player object

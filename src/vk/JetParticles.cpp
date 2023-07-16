@@ -97,6 +97,7 @@ namespace ve
     void JetParticles::draw(vk::CommandBuffer& cb, GameState& gs)
     {
         cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffers[gs.current_frame]).get(), {0});
+        mrd.prev_MVP = mrd.MVP;
         mrd.MVP = gs.cam.getVP();
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, render_pipeline.get());

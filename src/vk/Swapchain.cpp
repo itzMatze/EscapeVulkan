@@ -48,6 +48,7 @@ namespace ve
         deferred_images.push_back(storage.add_named_image("deferred_normal", extent.width, extent.height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::Format::eR16G16B16A16Sfloat, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics}));
         deferred_images.push_back(storage.add_named_image("deferred_color", extent.width, extent.height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::Format::eR8G8B8A8Unorm, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics}));
         deferred_images.push_back(storage.add_named_image("deferred_segment_uid", extent.width, extent.height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::Format::eR32Sint, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics}));
+        deferred_images.push_back(storage.add_named_image("deferred_motion", extent.width, extent.height, vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, vk::Format::eR32G32Sfloat, vk::SampleCountFlagBits::e1, false, 0, std::vector<uint32_t>{vmc.queue_family_indices.graphics}));
         for (uint32_t i : deferred_images) storage.get_image(i).transition_image_layout(vcc, vk::ImageLayout::eShaderReadOnlyOptimal, vk::PipelineStageFlagBits::eAllCommands, vk::PipelineStageFlagBits::eAllCommands, vk::AccessFlagBits::eNone, vk::AccessFlagBits::eNone);
         create_framebuffers();
     }
@@ -125,7 +126,7 @@ namespace ve
             framebuffers.push_back(vmc.logical_device.get().createFramebuffer(fbci));
         }
 
-        std::vector<vk::ImageView> attachments = {storage.get_image(deferred_images[0]).get_view(), storage.get_image(deferred_images[1]).get_view(), storage.get_image(deferred_images[2]).get_view(), storage.get_image(deferred_images[3]).get_view(), storage.get_image(deferred_depth_buffer).get_view()};
+        std::vector<vk::ImageView> attachments = {storage.get_image(deferred_images[0]).get_view(), storage.get_image(deferred_images[1]).get_view(), storage.get_image(deferred_images[2]).get_view(), storage.get_image(deferred_images[3]).get_view(), storage.get_image(deferred_images[4]).get_view(), storage.get_image(deferred_depth_buffer).get_view()};
         vk::FramebufferCreateInfo fbci{};
         fbci.sType = vk::StructureType::eFramebufferCreateInfo;
         fbci.renderPass = deferred_render_pass.get();

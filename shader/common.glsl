@@ -48,6 +48,7 @@ struct MeshRenderData {
 
 struct ModelRenderData {
     mat4 mvp;
+    mat4 prev_mvp;
     mat4 m;
     int segment_uid;
 };

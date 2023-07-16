@@ -1,8 +1,6 @@
 #version 460
 
 #extension GL_GOOGLE_include_directive: require
-#extension GL_EXT_ray_tracing : enable
-#extension GL_EXT_ray_query : enable
 #include "common.glsl"
 
 layout(constant_id = 0) const uint NUM_LIGHTS = 1;
@@ -13,11 +11,14 @@ layout(location = 0) in vec3 frag_pos;
 layout(location = 1) in vec3 frag_normal;
 layout(location = 2) in vec2 frag_tex;
 layout(location = 3) flat in int frag_segment_uid;
+layout(location = 4) in vec4 prev_cs_frag_pos;
+layout(location = 5) in vec4 cs_frag_pos;
 
 layout(location = 0) out vec4 out_position;
 layout(location = 1) out vec4 out_normal;
 layout(location = 2) out vec4 out_color;
 layout(location = 3) out int out_segment_uid;
+layout(location = 4) out vec2 out_motion;
 
 layout(push_constant) uniform PushConstant {
     PushConstants pc;
@@ -59,10 +60,6 @@ layout(binding = 13) buffer SceneVerticesBuffer {
     AlignedVertex scene_vertices[];
 };
 
-layout(binding = 99, set = 0) uniform accelerationStructureEXT topLevelAS;
-
-#include "functions.glsl"
-
 void main()
 {
     // read displacement of normal from noise texture
@@ -83,5 +80,6 @@ void main()
         out_normal = vec4(normal, 1.0);
         out_color = color;
         out_segment_uid = frag_segment_uid;
+        out_motion = prev_cs_frag_pos.xy / prev_cs_frag_pos.w - cs_frag_pos.xy / cs_frag_pos.w;
     }
 }
