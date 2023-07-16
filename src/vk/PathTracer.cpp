@@ -110,9 +110,9 @@ namespace ve
         return bottomLevelAS[0].size() - 1;
     }
 
-    void PathTracer::update_blas(vk::CommandBuffer& cb, uint32_t vertex_buffer_id, uint32_t index_buffer_id, const std::vector<uint32_t>& index_offsets, const std::vector<uint32_t>& index_counts, uint32_t blas_idx, uint32_t frame_idx, vk::DeviceSize vertex_stride)
+    void PathTracer::update_blas(uint32_t vertex_buffer_id, uint32_t index_buffer_id, const std::vector<uint32_t>& index_offsets, const std::vector<uint32_t>& index_counts, uint32_t blas_idx, uint32_t frame_idx, vk::DeviceSize vertex_stride)
     {
-        create_blas(cb, vertex_buffer_id, index_buffer_id, index_offsets, index_counts, vertex_stride, bottomLevelAS[frame_idx][blas_idx]);
+        for (auto& i : bottomLevelAS_dirty_build_info) i.push_back(BLASBuildInfo{vertex_buffer_id, index_buffer_id, index_offsets, index_counts, vertex_stride, blas_idx});
     }
 
     uint32_t PathTracer::add_instance(uint32_t blas_idx, const glm::mat4& M, uint32_t custom_index)
@@ -137,6 +137,11 @@ namespace ve
 
     void PathTracer::create_tlas(vk::CommandBuffer& cb, uint32_t frame_idx)
     {
+        for (const BLASBuildInfo& b : bottomLevelAS_dirty_build_info[frame_idx])
+        {
+            create_blas(cb, b.vertex_buffer_id, b.index_buffer_id, b.index_offsets, b.index_counts, b.vertex_stride, bottomLevelAS[frame_idx][b.blas_idx]);
+        }
+        bottomLevelAS_dirty_build_info[frame_idx].clear();
         if (!topLevelAS[frame_idx].is_built)
         {
             instances_buffer[frame_idx] = storage.add_buffer(instances[frame_idx].data(), instances[frame_idx].size(), vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress | vk::BufferUsageFlagBits::eAccelerationStructureBuildInputReadOnlyKHR, false, vmc.queue_family_indices.graphics, vmc.queue_family_indices.compute);

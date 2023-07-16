@@ -20,9 +20,10 @@ namespace ve
     // two triangles per vertex on a sample (3 indices per triangle); every sample of a segment except the last one has triangles
     constexpr uint32_t indices_per_segment = (samples_per_segment - 1) * vertices_per_sample * 6;
     constexpr uint32_t index_count = indices_per_segment * segment_count;
-    constexpr uint32_t fireflies_per_segment = 5;
+    constexpr uint32_t fireflies_per_segment = 15;
     constexpr uint32_t firefly_count = fireflies_per_segment * segment_count;
     constexpr uint32_t jet_particle_count = 20000;
+    constexpr uint32_t reservoir_count = 4;
     // player is always in the same segment as the tunnel moves with the player
     constexpr uint32_t player_segment_position = 1;
 

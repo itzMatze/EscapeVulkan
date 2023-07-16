@@ -44,6 +44,7 @@ namespace ve
         core_device_features.samplerAnisotropy = VK_TRUE;
         core_device_features.sampleRateShading = VK_TRUE;
         core_device_features.fillModeNonSolid = VK_TRUE;
+        core_device_features.fragmentStoresAndAtomics = VK_TRUE;
         core_device_features.wideLines = VK_TRUE;
 
         vk::PhysicalDeviceFeatures2 device_features;

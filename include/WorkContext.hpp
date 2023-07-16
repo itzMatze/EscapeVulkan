@@ -33,7 +33,9 @@ namespace ve
         UI ui;
         std::vector<Synchronization> syncs;
         std::vector<DeviceTimer> timers;
-        Pipeline lighting_pipeline;
+        std::vector<uint32_t> restir_reservoir_buffers;
+        Pipeline lighting_pipeline_0;
+        Pipeline lighting_pipeline_1;
         DescriptorSetHandler lighting_dsh;
 
         void draw_frame(GameState& gs);

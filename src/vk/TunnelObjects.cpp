@@ -214,7 +214,7 @@ namespace ve
             timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
             vk::BufferMemoryBarrier tunnel_buffer_memory_barrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, storage.get_buffer(tunnel.vertex_buffer).get(), 0, storage.get_buffer(tunnel.vertex_buffer).get_byte_size());
             cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR, vk::DependencyFlagBits::eDeviceGroup, {}, {tunnel_buffer_memory_barrier}, {});
-            path_tracer.update_blas(cb, tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{gs.first_segment_indices_idx}, std::vector<uint32_t>{index_count}, blas_indices[0], gs.current_frame, sizeof(TunnelVertex));
+            path_tracer.update_blas(tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{gs.first_segment_indices_idx}, std::vector<uint32_t>{index_count}, blas_indices[0], gs.current_frame, sizeof(TunnelVertex));
         }
         path_tracer.create_tlas(cb, gs.current_frame);
         cb.end();

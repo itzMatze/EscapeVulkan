@@ -46,7 +46,7 @@ namespace ve
         }
 
         // used to create depth buffer and multisampling color attachment
-        Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, uint32_t width, uint32_t height, vk::ImageUsageFlags usage, vk::Format format, vk::SampleCountFlagBits sample_count, bool use_mip_maps, uint32_t base_mip_map_lvl, const std::vector<uint32_t>& queue_family_indices, bool image_view_required = true) : vmc(vmc), format(format), w(width), h(height), c(4), mip_levels(use_mip_maps ? std::floor(std::log2(std::max(w, h))) + 1 : 1), layer_count(1)
+        Image(const VulkanMainContext& vmc, const VulkanCommandContext& vcc, uint32_t width, uint32_t height, vk::ImageUsageFlags usage, vk::Format format, vk::SampleCountFlagBits sample_count, bool use_mip_maps, uint32_t base_mip_map_lvl, const std::vector<uint32_t>& queue_family_indices, bool image_view_required = true, uint32_t layer_count = 1) : vmc(vmc), format(format), w(width), h(height), c(4), mip_levels(use_mip_maps ? std::floor(std::log2(std::max(w, h))) + 1 : 1), layer_count(layer_count)
         {
             std::tie(image, vmaa) = create_image(queue_family_indices, usage, sample_count, use_mip_maps, format, vk::Extent3D(w, h, 1), layer_count, vmc.va, !image_view_required);
             layout = vk::ImageLayout::eUndefined;

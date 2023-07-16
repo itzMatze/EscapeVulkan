@@ -93,7 +93,6 @@ namespace ve
         render_dsh.add_binding(11, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         render_dsh.add_binding(12, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         render_dsh.add_binding(13, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
-        render_dsh.add_binding(99, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
 
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
@@ -114,7 +113,6 @@ namespace ve
             render_dsh.add_descriptor(11, storage.get_buffer_by_name("tunnel_vertices"));
             render_dsh.add_descriptor(12, storage.get_buffer_by_name("indices"));
             render_dsh.add_descriptor(13, storage.get_buffer_by_name("vertices"));
-            render_dsh.add_descriptor(99, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
         }
         skybox_dsh.construct();
         render_dsh.construct();
@@ -163,6 +161,7 @@ namespace ve
     {
         cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
         cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
+        mrd.prev_MVP = mrd.MVP;
         mrd.MVP = gs.cam.getVP();
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
         const vk::PipelineLayout& pipeline_layout = gs.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();

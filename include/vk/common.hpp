@@ -29,6 +29,7 @@ namespace ve
 
     struct ModelRenderData {
         glm::mat4 MVP = glm::mat4(1.0f);
+        glm::mat4 prev_MVP = glm::mat4(1.0f);
         glm::mat4 M = glm::mat4(1.0f);
         alignas(16) int32_t segment_uid;
     };
@@ -87,6 +88,7 @@ namespace ve
         float tunnel_distance_travelled = 0.0f;
         int32_t current_scene = 0;
         uint32_t current_frame = 0;
+        uint32_t total_frames = 0;
         uint32_t first_segment_indices_idx = 0;
         bool load_scene = false;
         bool show_ui = true;
@@ -125,6 +127,13 @@ namespace ve
     struct ModelMatrices {
         glm::mat4 m;
         glm::mat4 inv_m;
+    };
+
+    struct Reservoir {
+        uint32_t y = 0;
+        float w = 0.0f;
+        uint32_t M = 1;
+        float W = 0.0f;
     };
 
     struct Vertex {

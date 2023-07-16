@@ -15,6 +15,8 @@ layout(location = 1) out vec3 frag_normal;
 layout(location = 2) out vec4 frag_color;
 layout(location = 3) out vec2 frag_tex;
 layout(location = 4) out int frag_segment_uid;
+layout(location = 5) out vec4 prev_cs_frag_pos;
+layout(location = 6) out vec4 cs_frag_pos;
 
 layout(binding = 0) uniform ModelRenderDataBuffer {
     ModelRenderData mrd[NUM_MVPS];
@@ -29,6 +31,8 @@ layout(push_constant) uniform PushConstant {
 };
 
 void main() {
+    prev_cs_frag_pos = mrd[mesh_rd[pc.mesh_render_data_idx].model_render_data_idx].prev_mvp * vec4(pos, 1.0);
+    cs_frag_pos = mrd[mesh_rd[pc.mesh_render_data_idx].model_render_data_idx].mvp * vec4(pos, 1.0);
     gl_Position = mrd[mesh_rd[pc.mesh_render_data_idx].model_render_data_idx].mvp * vec4(pos, 1.0);
     frag_pos = vec3(mrd[mesh_rd[pc.mesh_render_data_idx].model_render_data_idx].m * vec4(pos, 1.0));
     frag_normal = normal;
