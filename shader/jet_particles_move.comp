@@ -95,7 +95,7 @@ void main()
     {
         v.col = vec3(0.0, 0.0, pcg_random_state());
     }
-    v.col *= (v.lifetime / MAX_LIFETIME);
+    //v.col *= (v.lifetime / MAX_LIFETIME);
     v.pos += pcg_random_state() * v.vel * pc.time_diff;
     v.vel *= 0.999;
 
