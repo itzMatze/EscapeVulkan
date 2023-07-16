@@ -226,7 +226,7 @@ namespace ve
                 l.color.g = light.color[1];
                 l.color.b = light.color[2];
 
-                l.intensity = light.intensity;
+                l.intensity = light.intensity * 20.0;
 
                 l.innerConeAngle = std::cos(light.spot.innerConeAngle);
                 l.outerConeAngle = std::cos(light.spot.outerConeAngle);

@@ -171,9 +171,11 @@ namespace ve
         swapchain.self_destruct(false);
         swapchain.construct();
         lighting_dsh.self_destruct();
-        for (uint32_t i : restir_reservoir_buffers) storage.destroy_image(i);
+        for (uint32_t i : restir_reservoir_buffers) storage.destroy_buffer(i);
+        lighting_pipeline_0.self_destruct();
+        lighting_pipeline_1.self_destruct();
         restir_reservoir_buffers.clear();
-        create_lighting_descriptor_sets();
+        create_lighting_pipeline();
         return swapchain.get_extent();
     }
 
