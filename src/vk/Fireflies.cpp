@@ -68,7 +68,7 @@ namespace ve
     {
         std::array<vk::SpecializationMapEntry, 1> vertex_entries;
         vertex_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
-        std::array<uint32_t, 1> vertex_entries_data{500};
+        std::array<uint32_t, 1> vertex_entries_data{200};
         vk::SpecializationInfo vertex_spec_info(vertex_entries.size(), vertex_entries.data(), sizeof(uint32_t) * vertex_entries_data.size(), vertex_entries_data.data());
 
         std::vector<ShaderInfo> shader_infos(2);

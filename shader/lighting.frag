@@ -367,6 +367,30 @@ vec4 calculate_phong(in vec3 pos, in vec3 normal, in vec4 color, in int segment_
     return out_color;
 }
 
+const float gaussian[5][5] = {{0.0030, 0.0133, 0.0219, 0.0133, 0.0030},
+                        {0.0133, 0.0596, 0.0983, 0.0596, 0.0133},
+                        {0.0219, 0.0983, 0.1621, 0.0983, 0.0219},
+                        {0.0133, 0.0596, 0.0983, 0.0596, 0.0133},
+                        {0.0030, 0.0133, 0.0219, 0.0133, 0.0030}};
+
+vec4 get_blooming_value()
+{
+    vec4 value = vec4(0.0);
+    for (int i = -4; i <= 4; ++i)
+    {
+        for (int j = -4; j <= 4; ++j)
+        {
+            if (i == 0 && j == 0) continue;
+            int segment_uid = texture(deferred_segment_uid_sampler, frag_tex + vec2(float(i) / float(RESOLUTION_X), float(j) / float(RESOLUTION_Y))).x;
+            if (segment_uid < 0)
+            {
+                value += texture(deferred_color_sampler, frag_tex + vec2(float(i) / float(RESOLUTION_X), float(j) / float(RESOLUTION_Y))) / (float(abs(i*i) + abs(j*j) + 15));// * gaussian[i+2][j+2];
+            }
+        }
+    }
+    return value;
+}
+
 vec4 calculate_color(vec3 position, vec3 normal, vec4 color, int segment_uid)
 {
     vec3 pos = position;
@@ -374,6 +398,7 @@ vec4 calculate_color(vec3 position, vec3 normal, vec4 color, int segment_uid)
     vec4 out_color = vec4(0.0);
     for (uint i = 0; i < RESERVOIR_COUNT; ++i) out_color += calculate_light_contribution_with_visibility_check(pos, normal, color, local_reservoirs[i].y) * local_reservoirs[i].W;
     out_color /= RESERVOIR_COUNT;
+    out_color += get_blooming_value();
 #else
     vec4 out_color = calculate_phong(pos, normal, color, segment_uid);
 #endif
