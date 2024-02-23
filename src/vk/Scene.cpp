@@ -1,7 +1,8 @@
 #include "vk/Scene.hpp"
 
 #include <fstream>
-#include <glm/gtx/transform.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/ext/quaternion_transform.hpp>
 
 #include "json.hpp"
 #include "vk/TunnelObjects.hpp"
@@ -286,7 +287,7 @@ namespace ve
     {
         if (model_handles.contains(model))
         {
-            model_render_data[model_handles.at(model)].M = glm::translate(trans) * model_render_data[model_handles.at(model)].M;
+            model_render_data[model_handles.at(model)].M = glm::translate(model_render_data[model_handles.at(model)].M, trans);
         }
         else
         {
@@ -298,7 +299,7 @@ namespace ve
     {
         if (model_handles.contains(model))
         {
-            model_render_data[model_handles.at(model)].M = glm::scale(scale) * model_render_data[model_handles.at(model)].M;
+            model_render_data[model_handles.at(model)].M = glm::scale(model_render_data[model_handles.at(model)].M, scale);
         }
         else
         {
@@ -313,7 +314,7 @@ namespace ve
             glm::mat4& transformation = model_render_data[model_handles.at(model)].M;
             glm::vec3 translation = transformation[3];
             transformation[3] = glm::vec4(0.0f, 0.0f, 0.0f, transformation[3].w);
-            transformation = glm::rotate(glm::radians(degree), axis) * transformation;
+            transformation = glm::rotate(transformation, glm::radians(degree), axis);
             translate(model, translation);
         }
         else

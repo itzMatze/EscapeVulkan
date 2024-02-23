@@ -11,6 +11,7 @@ layout(location = 0) out vec4 out_position;
 layout(location = 1) out vec4 out_normal;
 layout(location = 2) out vec4 out_color;
 layout(location = 3) out int out_segment_uid;
+layout(location = 4) out vec2 out_motion;
 
 layout(push_constant) uniform PushConstant {
     PushConstants pc;
@@ -32,5 +33,8 @@ void main()
         return;
     }
     out_color = materials[mesh_rd[pc.mesh_render_data_idx].mat_idx].emission;
+    out_position = vec4(0.0);
+    out_normal = vec4(0.0);
     out_segment_uid = -1;
+    out_motion = vec2(0.0);
 }

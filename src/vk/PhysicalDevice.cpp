@@ -42,7 +42,7 @@ namespace ve
             VE_THROW("No suitable GPUs found!");
         }
         vk::PhysicalDeviceProperties pdp = physical_device.getProperties();
-        spdlog::info("GPU: {}", pdp.deviceName);
+        spdlog::info("GPU: " + std::string(pdp.deviceName));
         extensions_handler.remove_missing_extensions();
     }
 

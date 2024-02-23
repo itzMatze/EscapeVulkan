@@ -145,11 +145,11 @@ namespace ve
     {
         //scene.rotate("Player", gs.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
 
-        vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), syncs[gs.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
-        VE_CHECK(image_idx.result, "Failed to acquire next image!");
         syncs[gs.current_frame].wait_for_fence(Synchronization::F_RENDER_FINISHED);
         syncs[gs.current_frame].reset_fence(Synchronization::F_RENDER_FINISHED);
-        for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT; ++i)
+        vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), syncs[gs.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
+        VE_CHECK(image_idx.result, "Failed to acquire next image!");
+        for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT && gs.total_frames > timers.size(); ++i)
         {
             double timing = timers[gs.current_frame].get_result_by_idx(i);
             gs.devicetimings[i] = timing;
