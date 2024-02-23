@@ -38,3 +38,4 @@ void main()
     out_segment_uid = -1;
     out_motion = vec2(0.0);
 }
+

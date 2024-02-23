@@ -8,7 +8,6 @@ layout(constant_id = 1) const float MAX_LIFETIME = 1.0f;
 
 layout(location = 0) in vec3 pos;
 layout(location = 1) in vec3 col;
-layout(location = 2) in vec3 vel;
 layout(location = 3) in float lifetime;
 
 layout(binding = 0) uniform ModelRenderDataBuffer {

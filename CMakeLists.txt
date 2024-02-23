@@ -13,7 +13,7 @@ src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/WorkContext.cpp
 "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_draw.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_widgets.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_tables.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/backends/imgui_impl_vulkan.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/backends/imgui_impl_sdl.cpp" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/implot.cpp" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/implot_items.cpp")
 
 set(SHADER_FILES lighting.vert lighting.frag
-debug.vert debug.frag default.vert default.frag basic.frag emissive.frag
+debug.vert debug.frag default.vert default.frag basic.frag emissive.vert emissive.frag
 tunnel_skybox.vert tunnel_skybox.frag tunnel.vert tunnel.frag tunnel.comp tunnel_normals.comp
 fireflies.vert fireflies.frag fireflies_move.comp fireflies_tunnel_collision.comp
 jet_particles.vert jet_particles.frag jet_particles_move.comp

@@ -118,6 +118,7 @@ namespace ve
         ros.at(ShaderFlavor::Default).construct(render_pass, shader_infos, reload);
         shader_infos[1] = ShaderInfo{"basic.frag", vk::ShaderStageFlagBits::eFragment, fragment_spec_info};
         ros.at(ShaderFlavor::Basic).construct(render_pass, shader_infos, reload);
+        shader_infos[0] = ShaderInfo("emissive.vert", vk::ShaderStageFlagBits::eVertex, model_render_spec_info);
         shader_infos[1] = ShaderInfo{"emissive.frag", vk::ShaderStageFlagBits::eFragment};
         ros.at(ShaderFlavor::Emissive).construct(render_pass, shader_infos, reload);
     }
