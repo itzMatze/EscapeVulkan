@@ -203,15 +203,17 @@ bool evaluate_ray(in vec3 ro, in vec3 rd, out float t, out int instance_id, out 
 {
     rayQueryEXT rayQuery;
     rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsNoneEXT, 0xFF, ro, 0.01, rd, 10000.0);
-    rayQueryProceedEXT(rayQuery);
-    if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
+    while(rayQueryProceedEXT(rayQuery))
     {
-        t = rayQueryGetIntersectionTEXT(rayQuery, true);
-        instance_id = rayQueryGetIntersectionInstanceCustomIndexEXT(rayQuery, true);
-        geometry_idx = rayQueryGetIntersectionGeometryIndexEXT(rayQuery, true);
-        primitive_idx = rayQueryGetIntersectionPrimitiveIndexEXT(rayQuery, true);
-        bary = rayQueryGetIntersectionBarycentricsEXT(rayQuery, true);
-        return true;
+        if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
+        {
+            t = rayQueryGetIntersectionTEXT(rayQuery, true);
+            instance_id = rayQueryGetIntersectionInstanceCustomIndexEXT(rayQuery, true);
+            geometry_idx = rayQueryGetIntersectionGeometryIndexEXT(rayQuery, true);
+            primitive_idx = rayQueryGetIntersectionPrimitiveIndexEXT(rayQuery, true);
+            bary = rayQueryGetIntersectionBarycentricsEXT(rayQuery, true);
+            return true;
+        }
     }
     return false;
 }

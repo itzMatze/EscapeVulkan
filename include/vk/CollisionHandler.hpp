@@ -18,7 +18,7 @@ namespace ve
         void self_destruct(bool full = true);
         void draw(vk::CommandBuffer& cb, GameState& gs, const glm::mat4& mvp);
         void compute(GameState& gs, DeviceTimer& timer);
-        int32_t get_shader_return_value(uint32_t frame_idx);
+        CollisionResults get_collision_results(uint32_t frame_idx);
         void reset_shader_return_values(uint32_t frame_idx);
     private:
         struct BoundingBox

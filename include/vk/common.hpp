@@ -12,6 +12,7 @@
 namespace ve
 {
     constexpr uint32_t frames_in_flight = 2;
+    constexpr uint32_t distance_directions_count = 5;
 
     enum class ShaderFlavor
     {
@@ -74,11 +75,25 @@ namespace ve
         glm::mat4 mvp;
     };
 
+    struct CollisionResults
+    {
+        int32_t collision_detected = 0;
+        std::array<float, distance_directions_count> distances;
+    };
+
+    struct PlayerData
+    {
+        glm::vec4 pos;
+        glm::vec4 dir;
+        glm::vec4 up;
+    };
+
     struct GameState {
         std::vector<const char*> scene_names;
         std::vector<float> devicetimings;
-        glm::vec3 player_pos;
+        PlayerData player_data;
         Camera& cam;
+        CollisionResults collision_results;
         float time_diff = 0.000001f;
         float time = 0.0f;
         float frametime = 0.0f;

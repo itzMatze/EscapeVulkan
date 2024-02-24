@@ -1,7 +1,10 @@
 #version 460
 
 #extension GL_GOOGLE_include_directive: require
+#extension GL_EXT_ray_tracing : enable
+#extension GL_EXT_ray_query : enable
 #include "common.glsl"
+#include "utils.glsl"
 
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 
@@ -12,13 +15,20 @@ layout(constant_id = 3) const uint INDICES_PER_SEGMENT = 1;
 layout(constant_id = 4) const uint PLAYER_START_IDX = 1;
 layout(constant_id = 5) const uint PLAYER_IDX_COUNT = 1;
 layout(constant_id = 6) const uint PLAYER_SEGMENT_POS = 1;
+layout(constant_id = 7) const uint DISTANCE_DIRECTIONS_COUNT = 2;
 
 layout(binding = 0) readonly buffer BoundingBoxBuffer {
     BoundingBox bb;
 };
 
+struct CollisionResults
+{
+    int collision_detected;
+    float distances[DISTANCE_DIRECTIONS_COUNT];
+};
+
 layout(binding = 1) buffer ReturnBuffer {
-    int return_value;
+    CollisionResults collision_result;
 };
 
 layout(binding = 2) readonly buffer TunnelIndexBuffer {
@@ -40,6 +50,12 @@ layout(binding = 5) buffer SceneVertexBuffer {
 layout(binding = 6) uniform BoundingBoxModelMatricesBuffer {
     ModelMatrices bb_mm;
 };
+
+layout(binding = 90) uniform PlayerDataBuffer {
+    PlayerData player_data;
+};
+
+layout(binding = 99, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(push_constant) uniform PushConstant {
     uint first_segment_indices_idx;
@@ -98,11 +114,43 @@ bool triangle_aabb_intersection(BoundingBox bb, vec3 a, vec3 b, vec3 c)
     return true;
 }
 
+float distance_player_to_wall(in vec3 ro, in vec3 rd)
+{
+    rayQueryEXT rayQuery;
+    rayQueryInitializeEXT(rayQuery, topLevelAS, gl_RayFlagsNoneEXT, 0x01, ro, 0.01, rd, 10000.0);
+    while (rayQueryProceedEXT(rayQuery));
+    if (rayQueryGetIntersectionTypeEXT(rayQuery, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
+    {
+        return rayQueryGetIntersectionTEXT(rayQuery, true);
+    }
+    return 0.0;
+}
+
 void main()
 {
-    if (gl_GlobalInvocationID.x >= INDICES_PER_SEGMENT * 2) return;
-    vec3 t_p0 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 3 * gl_GlobalInvocationID.x]]), 1.0)).xyz;
-    vec3 t_p1 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 1 + 3 * gl_GlobalInvocationID.x]]), 1.0)).xyz;
-    vec3 t_p2 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 2 + 3 * gl_GlobalInvocationID.x]]), 1.0)).xyz;
-    if (triangle_aabb_intersection(bb, t_p0, t_p1, t_p2)) return_value = 1;
+    if (gl_GlobalInvocationID.x >= ((INDICES_PER_SEGMENT * 2) / 3 + DISTANCE_DIRECTIONS_COUNT)) return;
+    if (gl_GlobalInvocationID.x >= ((INDICES_PER_SEGMENT * 2) / 3))
+    {
+        uint idx = gl_GlobalInvocationID.x - (INDICES_PER_SEGMENT * 2) / 3;
+        vec3 dir;
+        if (idx == 0)
+        {
+            // front
+            dir = vec3(player_data.dir);
+        }
+        else
+        {
+            // front left down right up
+            dir = normalize(vec3(player_data.dir) + rotate(vec3(player_data.up), vec3(player_data.dir), idx * 90));
+        }
+        collision_result.distances[idx] = distance_player_to_wall(vec3(player_data.pos), dir);
+    }
+    else
+    {
+        vec3 t_p0 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 3 * gl_GlobalInvocationID.x]]), 1.0)).xyz;
+        vec3 t_p1 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 1 + 3 * gl_GlobalInvocationID.x]]), 1.0)).xyz;
+        vec3 t_p2 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 2 + 3 * gl_GlobalInvocationID.x]]), 1.0)).xyz;
+        if (triangle_aabb_intersection(bb, t_p0, t_p1, t_p2)) atomicExchange(collision_result.collision_detected, 1);
+    }
 }
+

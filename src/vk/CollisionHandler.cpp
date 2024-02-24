@@ -1,6 +1,7 @@
 #include "vk/CollisionHandler.hpp"
 
 #include "vk/TunnelObjects.hpp"
+#include "vk/common.hpp"
 
 namespace ve
 {
@@ -20,8 +21,8 @@ namespace ve
         }
         bb_buffer = storage.add_named_buffer(std::string("player_bb"), sizeof(bb), vk::BufferUsageFlagBits::eStorageBuffer, true, vmc.queue_family_indices.compute);
         storage.get_buffer(bb_buffer).update_data(bb);
-        return_buffers.push_back(storage.add_named_buffer(std::string("collision_return_0"), sizeof(int32_t), vk::BufferUsageFlagBits::eStorageBuffer, false, vmc.queue_family_indices.compute));
-        return_buffers.push_back(storage.add_named_buffer(std::string("collision_return_1"), sizeof(int32_t), vk::BufferUsageFlagBits::eStorageBuffer, false, vmc.queue_family_indices.compute));
+        return_buffers.push_back(storage.add_named_buffer(std::string("collision_return_0"), sizeof(CollisionResults), vk::BufferUsageFlagBits::eStorageBuffer, false, vmc.queue_family_indices.compute));
+        return_buffers.push_back(storage.add_named_buffer(std::string("collision_return_1"), sizeof(CollisionResults), vk::BufferUsageFlagBits::eStorageBuffer, false, vmc.queue_family_indices.compute));
         reset_shader_return_values(0);
         reset_shader_return_values(1);
         std::vector<DebugVertex> bb_vertices(36);
@@ -81,6 +82,8 @@ namespace ve
         compute_dsh.add_binding(4, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(5, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(6, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eCompute);
+        compute_dsh.add_binding(90, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eCompute);
+        compute_dsh.add_binding(99, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eCompute);
         for (uint32_t i = 0; i < frames_in_flight; ++i)
         {
             compute_dsh.new_set();
@@ -91,6 +94,8 @@ namespace ve
             compute_dsh.add_descriptor(4, storage.get_buffer_by_name("indices"));
             compute_dsh.add_descriptor(5, storage.get_buffer_by_name("vertices"));
             compute_dsh.add_descriptor(6, storage.get_buffer_by_name("bb_mm_" + std::to_string(i)));
+            compute_dsh.add_descriptor(90, storage.get_buffer_by_name("player_data_" + std::to_string(i)));
+            compute_dsh.add_descriptor(99, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
         }
         compute_dsh.construct();
         construct_pipelines(render_pass);
@@ -111,7 +116,7 @@ namespace ve
         pcrs.push_back(vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(DebugPushConstants)));
         render_pipeline.construct(render_pass, std::nullopt, shader_infos, vk::PolygonMode::eLine, DebugVertex::get_binding_descriptions(), DebugVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, pcrs);
 
-        std::array<vk::SpecializationMapEntry, 7> compute_entries;
+        std::array<vk::SpecializationMapEntry, 8> compute_entries;
         compute_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
         compute_entries[1] = vk::SpecializationMapEntry(1, sizeof(uint32_t), sizeof(uint32_t));
         compute_entries[2] = vk::SpecializationMapEntry(2, sizeof(uint32_t) * 2, sizeof(uint32_t));
@@ -119,7 +124,8 @@ namespace ve
         compute_entries[4] = vk::SpecializationMapEntry(4, sizeof(uint32_t) * 4, sizeof(uint32_t));
         compute_entries[5] = vk::SpecializationMapEntry(5, sizeof(uint32_t) * 5, sizeof(uint32_t));
         compute_entries[6] = vk::SpecializationMapEntry(6, sizeof(uint32_t) * 6, sizeof(uint32_t));
-        std::array<uint32_t, 7> compute_entries_data{segment_count, samples_per_segment, vertices_per_sample, indices_per_segment, player_start_idx, player_idx_count, player_segment_position};
+        compute_entries[7] = vk::SpecializationMapEntry(7, sizeof(uint32_t) * 7, sizeof(uint32_t));
+        std::array<uint32_t, 8> compute_entries_data{segment_count, samples_per_segment, vertices_per_sample, indices_per_segment, player_start_idx, player_idx_count, player_segment_position, distance_directions_count};
         vk::SpecializationInfo compute_spec_info(compute_entries.size(), compute_entries.data(), compute_entries_data.size() * sizeof(uint32_t), compute_entries_data.data());
         compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"player_tunnel_collision.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(uint32_t));
     }
@@ -156,18 +162,18 @@ namespace ve
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
         cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(uint32_t), &gs.first_segment_indices_idx);
-        cb.dispatch(((indices_per_segment * 2) / 3 + 31) / 32, 1, 1);
+        cb.dispatch(((indices_per_segment * 2) / 3 + 31 + distance_directions_count) / 32, 1, 1);
         timer.stop(cb, DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION, vk::PipelineStageFlagBits::eComputeShader);
         cb.end();
     }
 
-    int32_t CollisionHandler::get_shader_return_value(uint32_t frame_idx)
+    CollisionResults CollisionHandler::get_collision_results(uint32_t frame_idx)
     {
-        return storage.get_buffer(return_buffers[frame_idx]).obtain_first_element<int32_t>();
+        return storage.get_buffer(return_buffers[frame_idx]).obtain_first_element<CollisionResults>();
     }
 
     void CollisionHandler::reset_shader_return_values(uint32_t frame_idx)
     {
-        storage.get_buffer(return_buffers[frame_idx]).update_data(0);
+        storage.get_buffer(return_buffers[frame_idx]).erase_bytes(sizeof(CollisionResults::collision_detected));
     }
 } // namespace ve

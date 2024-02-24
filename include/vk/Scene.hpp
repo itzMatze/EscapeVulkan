@@ -32,6 +32,7 @@ namespace ve
 
     private:
         struct ModelInfo {
+            std::string name;
             std::vector<uint32_t> mesh_index_offsets;
             std::vector<uint32_t> mesh_index_count;
             uint32_t index_buffer_idx;
@@ -51,6 +52,7 @@ namespace ve
         std::unordered_map<std::string, uint32_t> model_handles;
         std::vector<ModelInfo> model_infos;
         std::vector<uint32_t> bb_mm_buffers;
+        std::vector<uint32_t> player_data_buffers;
         uint32_t vertex_buffer;
         uint32_t index_buffer;
         // use -1 to encode missing material buffer and/or textures as they are not required

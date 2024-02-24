@@ -115,14 +115,14 @@ namespace ve
         for (auto& i : bottomLevelAS_dirty_build_info) i.push_back(BLASBuildInfo{vertex_buffer_id, index_buffer_id, index_offsets, index_counts, vertex_stride, blas_idx});
     }
 
-    uint32_t PathTracer::add_instance(uint32_t blas_idx, const glm::mat4& M, uint32_t custom_index)
+    uint32_t PathTracer::add_instance(uint32_t blas_idx, const glm::mat4& M, uint32_t custom_index, uint32_t mask)
     {
         vk::AccelerationStructureInstanceKHR instance;
         instance.transform = std::array<std::array<float, 4>, 3>({std::array<float, 4>({M[0][0], M[0][1], M[0][2], M[0][3]}), std::array<float, 4>({M[1][0], M[1][1], M[1][2], M[1][3]}), std::array<float, 4>({M[2][0], M[2][1], M[2][2], M[2][3]})});
         instance.accelerationStructureReference = bottomLevelAS[0][blas_idx].deviceAddress;
         instance.instanceCustomIndex = custom_index;
         instance.setFlags(vk::GeometryInstanceFlagBitsKHR::eTriangleFacingCullDisable);
-        instance.mask = 0xFF;
+        instance.mask = mask;
         instances[0].push_back(instance);
         instance.accelerationStructureReference = bottomLevelAS[1][blas_idx].deviceAddress;
         instances[1].push_back(instance);

@@ -1,6 +1,5 @@
 #include <iostream>
 #include <filesystem>
-#include <stdexcept>
 #include <thread>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -77,7 +76,6 @@ public:
             try
             {
                 //std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - gs.frametime));
-                gs.player_pos = camera.getPosition();
                 uint32_t old_player_lifes = gs.player_lifes;
                 wc.draw_frame(gs);
                 if (gs.player_lifes < old_player_lifes) Mix_PlayChannel(1, crash_sound, 0);

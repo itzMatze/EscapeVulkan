@@ -57,6 +57,39 @@ namespace ve
             return byte_size;
         }
 
+        void erase_bytes(std::size_t byte_count = 0)
+        {
+            if (byte_count == 0) byte_count = byte_size;
+            VE_ASSERT(byte_count <= byte_size, "Data is larger than buffer!");
+
+            if (device_local)
+            {
+                auto [staging_buffer, staging_vmaa] = create_buffer((vk::BufferUsageFlagBits::eTransferSrc), VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT, true, {vmc.queue_family_indices.transfer});
+                void* mapped_mem;
+                vmaMapMemory(vmc.va, staging_vmaa, &mapped_mem);
+                memset(mapped_mem, 0, byte_count);
+                vmaUnmapMemory(vmc.va, staging_vmaa);
+
+                vk::CommandBuffer& cb(vcc.begin(vcc.transfer_cb[0]));
+
+                vk::BufferCopy copy_region{};
+                copy_region.srcOffset = 0;
+                copy_region.dstOffset = 0;
+                copy_region.size = byte_count;
+                cb.copyBuffer(staging_buffer, buffer, copy_region);
+                vcc.submit_transfer(cb, true);
+
+                vmaDestroyBuffer(vmc.va, staging_buffer, staging_vmaa);
+            }
+            else
+            {
+                void* mapped_mem;
+                vmaMapMemory(vmc.va, vmaa, &mapped_mem);
+                memset(mapped_mem, 0, byte_count);
+                vmaUnmapMemory(vmc.va, vmaa);
+            }
+        }
+
         void update_data_bytes(const void* data, std::size_t byte_count)
         {
             VE_ASSERT(byte_count <= byte_size, "Data is larger than buffer!");

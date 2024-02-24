@@ -71,7 +71,7 @@ namespace ve
         //for (uint32_t i = 0; i < segment_count; ++i)
         {
             blas_indices.push_back(path_tracer.add_blas(path_tracer_cb, tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{0}, std::vector<uint32_t>{index_count}, sizeof(TunnelVertex)));
-            instance_indices.push_back(path_tracer.add_instance(blas_indices.back(), glm::mat4(1.0f), 666));
+            instance_indices.push_back(path_tracer.add_instance(blas_indices.back(), glm::mat4(1.0f), 666, 0xFF));
         }
         vcc.submit_compute(path_tracer_cb, true);
     }
@@ -170,7 +170,7 @@ namespace ve
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame]);
         FireflyMovePushConstants fmpc{.time = gs.time, .time_diff = gs.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = gs.first_segment_indices_idx};
         fireflies.move_step(cb, gs, timer, fmpc);
-        if (is_pos_past_segment(gs.player_pos, player_segment_position + 1, false))
+        if (is_pos_past_segment(gs.cam.getPosition(), player_segment_position + 1, false))
         {
             // player passed a segment, add distance of passed segment
             glm::vec3& bp0 = get_tunnel_bezier_point(player_segment_position, 0, false);

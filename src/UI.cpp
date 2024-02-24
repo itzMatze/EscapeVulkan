@@ -118,6 +118,12 @@ namespace ve
         ImGui::Separator();
         ImGui::Checkbox("CollisionDetection", &(gs.collision_detection_active));
         ImGui::Separator();
+        ImGui::Text("Player pos: %.4f;%.4f;%.4f", gs.player_data.pos.x, gs.player_data.pos.y, gs.player_data.pos.z);
+        ImGui::Text("Player dir: %.4f;%.4f;%.4f", gs.player_data.dir.x, gs.player_data.dir.y, gs.player_data.dir.z);
+        ImGui::Text("Player up: %.4f;%.4f;%.4f", gs.player_data.up.x, gs.player_data.up.y, gs.player_data.up.z);
+        ImGui::Text("Distances");
+        for (const float d : gs.collision_results.distances) ImGui::Text("%.4f", d);
+        ImGui::Separator();
         time_diff = time_diff * (1 - update_weight) + gs.time_diff * update_weight;
         frametime = frametime * (1 - update_weight) + gs.frametime * update_weight;
         frametime_values.push_back(gs.frametime);
@@ -131,14 +137,14 @@ namespace ve
         }
         if (ImGui::CollapsingHeader("Timings"))
         {
-            ImGui::Text((ve::to_string(time_diff * 1000, 4) + " ms; FPS: " + ve::to_string(1.0 / time_diff) + " (" + ve::to_string(frametime, 4) + " ms; FPS: " + ve::to_string(1000.0 / frametime) + ")").c_str());
-            ImGui::Text(("RENDERING_ALL: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_ALL], 4) + " ms").c_str());
-            ImGui::Text(("RENDERING_APP: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_APP], 4) + " ms").c_str());
-            ImGui::Text(("RENDERING_UI: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_UI], 4) + " ms").c_str());
-            ImGui::Text(("RENDERING_TUNNEL: " + ve::to_string(devicetimings[DeviceTimer::RENDERING_TUNNEL], 4) + " ms").c_str());
-            ImGui::Text(("COMPUTE_TUNNEL_ADVANCE: " + ve::to_string(devicetimings[DeviceTimer::COMPUTE_TUNNEL_ADVANCE], 4) + " ms").c_str());
-            ImGui::Text(("FIREFLY_MOVE_STEP: " + ve::to_string(devicetimings[DeviceTimer::FIREFLY_MOVE_STEP], 4) + " ms").c_str());
-            ImGui::Text(("PLAYER_TUNNEL_COLLISION: " + ve::to_string(devicetimings[DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION], 4) + " ms").c_str());
+            ImGui::Text("%.4f ms; FPS: %.2f (%.4f ms; FPS: %.2f)", time_diff * 1000, 1.0 / time_diff, frametime, 1000.0 / frametime);
+            ImGui::Text("RENDERING_ALL: %.4f ms", devicetimings[DeviceTimer::RENDERING_ALL]);
+            ImGui::Text("RENDERING_APP: %.4f ms", devicetimings[DeviceTimer::RENDERING_APP]);
+            ImGui::Text("RENDERING_UI: %.4f ms", devicetimings[DeviceTimer::RENDERING_UI]);
+            ImGui::Text("RENDERING_TUNNEL: %.4f ms", devicetimings[DeviceTimer::RENDERING_TUNNEL]);
+            ImGui::Text("COMPUTE_TUNNEL_ADVANCE: %.4f ms", devicetimings[DeviceTimer::COMPUTE_TUNNEL_ADVANCE]);
+            ImGui::Text("FIREFLY_MOVE_STEP: %.4f ms", devicetimings[DeviceTimer::FIREFLY_MOVE_STEP]);
+            ImGui::Text("PLAYER_TUNNEL_COLLISION: %.4f ms", devicetimings[DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION]);
         }
         if (ImGui::CollapsingHeader("Plots"))
         {

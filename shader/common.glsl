@@ -83,6 +83,13 @@ struct ModelMatrices
     mat4 inv_m;
 };
 
+struct PlayerData
+{
+    vec4 pos;
+    vec4 dir;
+    vec4 up;
+};
+
 struct AlignedVertex {
     vec4 pos_normal_x;
     vec4 normal_yz_color_rg;

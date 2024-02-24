@@ -2,6 +2,7 @@
 
 #extension GL_GOOGLE_include_directive: require
 #include "common.glsl"
+#include "utils.glsl"
 
 layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 
@@ -83,15 +84,6 @@ float cellular(vec2 P) {
     d1.y = min(d1.y, d2.x); // F2 is in d1.y, we're done.
     vec2 F = sqrt(d1.xy);
     return 0.1+(F.y-F.x);
-}
-
-// rotate v around k by angle degrees
-vec3 rotate(vec3 v, vec3 k, float angle)
-{
-    float cos_theta = cos(radians(angle));
-    float sin_theta = sin(radians(angle));
-    vec3 rotated = (v * cos_theta) + (cross(k, v) * sin_theta) + (k * dot(k, v)) * (1 - cos_theta);
-    return rotated;
 }
 
 void main()
