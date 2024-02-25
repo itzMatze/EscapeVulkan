@@ -247,6 +247,10 @@ namespace ve
     
     glm::vec3 TunnelObjects::get_player_reset_normal()
     {
-        return glm::normalize(get_tunnel_bezier_point(camera_segment_position, 1, false) - get_tunnel_bezier_point(camera_segment_position, 0, false));
+        // use direction that points somewhat in the direction of the bezier curve
+        glm::vec3& b0 = get_tunnel_bezier_point(camera_segment_position, 0, false);
+        glm::vec3& b1 = get_tunnel_bezier_point(camera_segment_position, 1, false);
+        glm::vec3& b2 = get_tunnel_bezier_point(camera_segment_position, 2, false);
+        return glm::normalize(b1 - b0 + b2 - b0);
     }
 }
