@@ -136,8 +136,8 @@ private:
             if (eh.is_key_pressed(Key::Right)) rotation_speed.x += 400.0f * gs.time_diff;
             if (eh.is_key_pressed(Key::Up)) rotation_speed.y -= 400.0f * gs.time_diff;
             if (eh.is_key_pressed(Key::Down)) rotation_speed.y += 400.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::A)) camera.rotate(100.0f * gs.time_diff);//rotation_speed.z -= 0.002f;
-            if (eh.is_key_pressed(Key::D)) camera.rotate(-100.0f * gs.time_diff);//rotation_speed.z += 0.002f;
+            if (eh.is_key_pressed(Key::A)) camera.rotate(-100.0f * gs.time_diff);//rotation_speed.z -= 0.002f;
+            if (eh.is_key_pressed(Key::D)) camera.rotate(100.0f * gs.time_diff);//rotation_speed.z += 0.002f;
             if (eh.is_key_pressed(Key::W)) velocity += 40.0f * gs.time_diff;
             if (eh.is_key_pressed(Key::S)) velocity -= 40.0f * gs.time_diff;
             min_velocity += 10.0f * gs.time_diff;
