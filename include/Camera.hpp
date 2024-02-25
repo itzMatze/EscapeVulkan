@@ -18,6 +18,7 @@ public:
     bool is_tracking_camera = true;
 
     Camera(float fov, float width, float height);
+    void reset();
     void updateVP(float time_diff);
     glm::mat4 getV();
     glm::mat4 getVP();

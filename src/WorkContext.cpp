@@ -138,6 +138,12 @@ namespace ve
         lighting_dsh.construct();
     }
 
+    void WorkContext::restart(GameState& gs)
+    {
+        vmc.logical_device.get().waitIdle();
+        scene.restart(gs);
+    }
+
     void WorkContext::draw_frame(GameState& gs)
     {
         //scene.rotate("Player", gs.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));

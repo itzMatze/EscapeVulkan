@@ -23,6 +23,7 @@ namespace ve
         void self_destruct();
         void reload_shaders();
         void load_scene(const std::string& filename);
+        void restart(GameState& gs);
 
     public:
         const VulkanMainContext& vmc;

@@ -158,6 +158,9 @@ void EventHandler::dispatch_event(SDL_Event e)
         case SDLK_F1:
             apply_key_event(Key::F1, e.type);
             break;
+        case SDLK_F2:
+            apply_key_event(Key::F2, e.type);
+            break;
     }
 }
 

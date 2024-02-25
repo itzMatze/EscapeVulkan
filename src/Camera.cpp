@@ -7,9 +7,18 @@ inline constexpr glm::vec3 front(0.0f, 0.0f, -1.0f);
 inline constexpr glm::vec3 right(1.0f, 0.0f, 0.0f);
 inline constexpr glm::vec3 up(0.0f, -1.0f, 0.0f);
 
-Camera::Camera(float fov, float width, float height) : fov(fov), yaw(0.0f), pitch(0.0f), roll(0.0f), near(0.1f), far(10000.0f), position(0.0f, 0.0f, 0.0f)
+Camera::Camera(float fov, float width, float height) : fov(fov), near(0.1f), far(10000.0f)
 {
     projection = glm::perspective(glm::radians(fov), width / height, near, far);
+    reset();
+}
+
+void Camera::reset()
+{
+    yaw = 0.0f;
+    pitch = 0.0f;
+    roll = 0.0f;
+    position = glm::vec3(0.0f);
     orientation = glm::quatLookAt(glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f)), glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f)));
 }
 

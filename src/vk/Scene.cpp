@@ -6,6 +6,7 @@
 
 #include "json.hpp"
 #include "vk/TunnelObjects.hpp"
+#include "vk/Model.hpp"
 
 namespace ve
 {
@@ -133,6 +134,7 @@ namespace ve
 
     void Scene::load(const std::string& path)
     {
+        std::vector<ModelInfo> model_infos;
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
         std::vector<std::vector<unsigned char>> texture_data;
@@ -332,6 +334,22 @@ namespace ve
     DescriptorSetHandler& Scene::get_dsh(ShaderFlavor flavor)
     {
         return ros.at(flavor).dsh;
+    }
+
+    void Scene::restart(GameState& gs)
+    {
+        gs.player_segment_position = 0;
+        gs.first_segment_indices_idx = 0;
+        gs.tunnel_distance_travelled = 0.0;
+        gs.player_lifes = 3;
+        gs.current_frame = 0;
+        gs.cam.reset();
+        for (auto& d : model_render_data)
+        {
+            d.M = glm::mat4(1.0f);
+            d.segment_uid = 0;
+        }
+        tunnel_objects.restart(path_tracer);
     }
 
     void Scene::draw(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer)

@@ -34,6 +34,7 @@ namespace ve
         void self_destruct(bool full = true);
         void create_buffers(PathTracer& path_tracer);
         void construct(const RenderPass& render_pass);
+        void restart(PathTracer& path_tracer);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, GameState& gs);
         // move tunnel one segment forward if player enters the n-th segment
@@ -62,6 +63,7 @@ namespace ve
 
         glm::vec3 random_cosine(const glm::vec3& normal, const float cosine_weight = 40.0f);
         void construct_pipelines();
+        void init_tunnel(vk::CommandBuffer& cb, PathTracer& path_tracer);
         void compute_new_segment(vk::CommandBuffer& cb, uint32_t current_frame);
         glm::vec3 pop_tunnel_bezier_point_queue();
         glm::vec3& get_tunnel_bezier_point(uint32_t segment_id, uint32_t bezier_point_idx, bool use_global_id);

@@ -3,9 +3,7 @@
 namespace ve
 {
     TunnelObjects::TunnelObjects(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : vmc(vmc), vcc(vcc), storage(storage), fireflies(vmc, vcc, storage), tunnel(vmc, vcc, storage), compute_dsh(vmc), compute_pipeline(vmc), compute_normals_pipeline(vmc), tunnel_bezier_points(segment_count * 2 + 1), rnd(0), dis(0.0f, 1.0f)
-    {
-        cpc.indices_start_idx = 0;
-    }
+    {}
 
     void TunnelObjects::self_destruct(bool full)
     {
@@ -17,6 +15,35 @@ namespace ve
             fireflies.self_destruct();
             tunnel.self_destruct();
             compute_dsh.self_destruct();
+        }
+    }
+
+    void TunnelObjects::init_tunnel(vk::CommandBuffer& cb, PathTracer& path_tracer)
+    {
+        tunnel_bezier_points_queue = std::queue<glm::vec3>();
+        cpc.segment_uid = 0;
+        cpc.indices_start_idx = 0;
+        cpc.p0 = glm::vec3(0.0f, 0.0f, 1.0f);
+        cpc.p1 = glm::vec3(0.0f, 0.0f, 1.0f - segment_scale / 2.0f);
+        cpc.p2 = glm::vec3(0.0f, 0.0f, 1.0f - segment_scale);
+        tunnel_bezier_points[0] = cpc.p0;
+        tunnel_bezier_points[1] = cpc.p1;
+        tunnel_bezier_points[2] = cpc.p2;
+        storage.get_buffer(tunnel_bezier_points_buffer).update_data_bytes(tunnel_bezier_points.data(), 16);
+        // set current_frame to 1 that fireflies are initially in buffer 1 as this is used as the in_buffer by the first frame
+        compute_new_segment(cb, 1);
+
+        for (uint32_t i = 1; i < segment_count; ++i)
+        {
+            cpc.segment_uid++;
+            cpc.indices_start_idx = i * indices_per_segment;
+            const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
+            cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
+            cpc.p0 = cpc.p2;
+            cpc.p2 = pop_tunnel_bezier_point_queue();
+            tunnel_bezier_points[i * 2 + 1] = cpc.p1;
+            tunnel_bezier_points[i * 2 + 2] = cpc.p2;
+            compute_new_segment(cb, 1);
         }
     }
 
@@ -43,37 +70,13 @@ namespace ve
         construct_pipelines();
 
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
-        cpc.segment_uid = 0;
-        cpc.p0 = glm::vec3(0.0f, 0.0f, 1.0f);
-        cpc.p1 = glm::vec3(0.0f, 0.0f, 1.0f - segment_scale / 2.0f);
-        cpc.p2 = glm::vec3(0.0f, 0.0f, 1.0f - segment_scale);
-        tunnel_bezier_points[0] = cpc.p0;
-        tunnel_bezier_points[1] = cpc.p1;
-        tunnel_bezier_points[2] = cpc.p2;
-        storage.get_buffer(tunnel_bezier_points_buffer).update_data_bytes(tunnel_bezier_points.data(), 16);
-        // set current_frame to 1 that fireflies are initially in buffer 1 as this is used as the in_buffer by the first frame
-        compute_new_segment(cb, 1);
-
-        for (uint32_t i = 1; i < segment_count; ++i)
-        {
-            cpc.segment_uid++;
-            cpc.indices_start_idx = i * indices_per_segment;
-            const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
-            cpc.p1 = cpc.p2 + cpc.p2 - cpc.p1;
-            cpc.p0 = cpc.p2;
-            cpc.p2 = pop_tunnel_bezier_point_queue();
-            tunnel_bezier_points[i * 2 + 1] = cpc.p1;
-            tunnel_bezier_points[i * 2 + 2] = cpc.p2;
-            compute_new_segment(cb, 1);
-        }
-        vcc.submit_compute(cb, true);
-        vk::CommandBuffer& path_tracer_cb = vcc.begin(vcc.compute_cb[0]);
+        init_tunnel(cb, path_tracer);
         //for (uint32_t i = 0; i < segment_count; ++i)
         {
-            blas_indices.push_back(path_tracer.add_blas(path_tracer_cb, tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{0}, std::vector<uint32_t>{index_count}, sizeof(TunnelVertex)));
+            blas_indices.push_back(path_tracer.add_blas(cb, tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{0}, std::vector<uint32_t>{index_count}, sizeof(TunnelVertex)));
             instance_indices.push_back(path_tracer.add_instance(blas_indices.back(), glm::mat4(1.0f), 666, 0xFF));
         }
-        vcc.submit_compute(path_tracer_cb, true);
+        vcc.submit_compute(cb, true);
     }
 
     void TunnelObjects::construct(const RenderPass& render_pass)
@@ -94,6 +97,16 @@ namespace ve
 
         compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"tunnel.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(NewSegmentPushConstants));
         compute_normals_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"tunnel_normals.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(NewSegmentPushConstants));
+    }
+
+    void TunnelObjects::restart(PathTracer& path_tracer)
+    {
+        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
+        init_tunnel(cb, path_tracer);
+        vk::BufferMemoryBarrier tunnel_buffer_memory_barrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, storage.get_buffer(tunnel.vertex_buffer).get(), 0, storage.get_buffer(tunnel.vertex_buffer).get_byte_size());
+        cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR, vk::DependencyFlagBits::eDeviceGroup, {}, {tunnel_buffer_memory_barrier}, {});
+        path_tracer.update_blas(tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{0}, std::vector<uint32_t>{index_count}, blas_indices[0], sizeof(TunnelVertex));
+        vcc.submit_compute(cb, true);
     }
 
     void TunnelObjects::reload_shaders(const RenderPass& render_pass)
@@ -216,7 +229,7 @@ namespace ve
             timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
             vk::BufferMemoryBarrier tunnel_buffer_memory_barrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, storage.get_buffer(tunnel.vertex_buffer).get(), 0, storage.get_buffer(tunnel.vertex_buffer).get_byte_size());
             cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR, vk::DependencyFlagBits::eDeviceGroup, {}, {tunnel_buffer_memory_barrier}, {});
-            path_tracer.update_blas(tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{gs.first_segment_indices_idx}, std::vector<uint32_t>{index_count}, blas_indices[0], gs.current_frame, sizeof(TunnelVertex));
+            path_tracer.update_blas(tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{gs.first_segment_indices_idx}, std::vector<uint32_t>{index_count}, blas_indices[0], sizeof(TunnelVertex));
         }
         path_tracer.create_tlas(cb, gs.current_frame);
         cb.end();

@@ -110,7 +110,7 @@ namespace ve
         return bottomLevelAS[0].size() - 1;
     }
 
-    void PathTracer::update_blas(uint32_t vertex_buffer_id, uint32_t index_buffer_id, const std::vector<uint32_t>& index_offsets, const std::vector<uint32_t>& index_counts, uint32_t blas_idx, uint32_t frame_idx, vk::DeviceSize vertex_stride)
+    void PathTracer::update_blas(uint32_t vertex_buffer_id, uint32_t index_buffer_id, const std::vector<uint32_t>& index_offsets, const std::vector<uint32_t>& index_counts, uint32_t blas_idx, vk::DeviceSize vertex_stride)
     {
         for (auto& i : bottomLevelAS_dirty_build_info) i.push_back(BLASBuildInfo{vertex_buffer_id, index_buffer_id, index_offsets, index_counts, vertex_stride, blas_idx});
     }

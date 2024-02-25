@@ -221,6 +221,11 @@ private:
             gs.save_screenshot = true;
             eh.set_released_key(Key::F1, false);
         }
+        if (eh.is_key_released(Key::F2))
+        {
+            wc.restart(gs);
+            eh.set_released_key(Key::F2, false);
+        }
         if (eh.is_key_released(Key::X))
         {
             game_mode = !game_mode;
