@@ -68,8 +68,8 @@ public:
         Mix_PlayChannel(0, spaceship_sound, -1);
         while (!quit)
         {
-            Mix_Volume(0, velocity * 10 + 10);
-            Mix_Volume(1, velocity * 10 + 80);
+            Mix_Volume(0, velocity + 40);
+            Mix_Volume(1, MIX_MAX_VOLUME);
             move_amount = gs.time_diff * move_speed;
             dispatch_pressed_keys();
             gs.cam.updateVP(gs.time_diff);
@@ -123,6 +123,7 @@ private:
     float move_amount;
     float move_speed = 20.0f;
     float velocity = 1.0f;
+    float min_velocity = 1.0f;
     glm::vec3 rotation_speed;
     ve::GameState gs;
     bool game_mode = true;
@@ -139,7 +140,10 @@ private:
             if (eh.is_key_pressed(Key::D)) camera.rotate(-100.0f * gs.time_diff);//rotation_speed.z += 0.002f;
             if (eh.is_key_pressed(Key::W)) velocity += 40.0f * gs.time_diff;
             if (eh.is_key_pressed(Key::S)) velocity -= 40.0f * gs.time_diff;
-            velocity = std::max(20.0f, velocity);
+            min_velocity += 10.0f * gs.time_diff;
+            min_velocity = std::min(20.0f, min_velocity);
+            if (gs.player_reset_blink_counter > 0) min_velocity = 1.0f;
+            velocity = std::max(min_velocity, velocity);
             if (gs.player_reset_blink_counter > 0)
             {
                 velocity = 0.0f;
