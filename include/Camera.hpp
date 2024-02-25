@@ -15,7 +15,7 @@ public:
     glm::mat4 projection;
     glm::mat4 view;
     glm::mat4 interpolated_view;
-    bool is_tracking_camera = false;
+    bool is_tracking_camera = true;
 
     Camera(float fov, float width, float height);
     void updateVP(float time_diff);

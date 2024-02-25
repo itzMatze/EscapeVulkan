@@ -125,7 +125,7 @@ private:
     float velocity = 1.0f;
     glm::vec3 rotation_speed;
     ve::GameState gs;
-    bool game_mode = false;
+    bool game_mode = true;
 
     void dispatch_pressed_keys()
     {

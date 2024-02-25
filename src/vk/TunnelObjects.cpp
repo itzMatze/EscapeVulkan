@@ -44,9 +44,9 @@ namespace ve
 
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[0]);
         cpc.segment_uid = 0;
-        cpc.p0 = glm::vec3(0.0f, 0.0f, -50.0f);
-        cpc.p1 = glm::vec3(0.0f, 0.0f, -50.0f - segment_scale / 2.0f);
-        cpc.p2 = glm::vec3(0.0f, 0.0f, -50.0f - segment_scale);
+        cpc.p0 = glm::vec3(0.0f, 0.0f, 1.0f);
+        cpc.p1 = glm::vec3(0.0f, 0.0f, 1.0f - segment_scale / 2.0f);
+        cpc.p2 = glm::vec3(0.0f, 0.0f, 1.0f - segment_scale);
         tunnel_bezier_points[0] = cpc.p0;
         tunnel_bezier_points[1] = cpc.p1;
         tunnel_bezier_points[2] = cpc.p2;
@@ -170,12 +170,14 @@ namespace ve
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame]);
         FireflyMovePushConstants fmpc{.time = gs.time, .time_diff = gs.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = gs.first_segment_indices_idx};
         fireflies.move_step(cb, gs, timer, fmpc);
-        if (is_pos_past_segment(gs.cam.getPosition(), player_segment_position + 1, false))
+        if (is_pos_past_segment(gs.cam.getPosition(), camera_segment_position + 1, false))
         {
+            // camera position determines the start of the tunnel, if it moved one on the player position is reduced by one as it is in local segment id
+            gs.player_segment_position--;
             // player passed a segment, add distance of passed segment
-            glm::vec3& bp0 = get_tunnel_bezier_point(player_segment_position, 0, false);
-            glm::vec3& bp1 = get_tunnel_bezier_point(player_segment_position, 1, false);
-            glm::vec3& bp2 = get_tunnel_bezier_point(player_segment_position, 2, false);
+            glm::vec3& bp0 = get_tunnel_bezier_point(camera_segment_position, 0, false);
+            glm::vec3& bp1 = get_tunnel_bezier_point(camera_segment_position, 1, false);
+            glm::vec3& bp2 = get_tunnel_bezier_point(camera_segment_position, 2, false);
             // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
             // increment the idx at which the rendering starts by the same amount
             cpc.segment_uid++;
@@ -227,11 +229,11 @@ namespace ve
 
     glm::vec3 TunnelObjects::get_player_reset_position()
     {
-        return get_tunnel_bezier_point(player_segment_position, 0, false);
+        return get_tunnel_bezier_point(camera_segment_position, 0, false);
     }
     
     glm::vec3 TunnelObjects::get_player_reset_normal()
     {
-        return glm::normalize(get_tunnel_bezier_point(player_segment_position, 1, false) - get_tunnel_bezier_point(player_segment_position, 0, false));
+        return glm::normalize(get_tunnel_bezier_point(camera_segment_position, 1, false) - get_tunnel_bezier_point(camera_segment_position, 0, false));
     }
 }

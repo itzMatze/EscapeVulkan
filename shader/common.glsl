@@ -1,6 +1,6 @@
 #define PI 3.1415926535897932384626433832
 
-struct PushConstants {
+struct RenderPushConstants {
     uint mesh_render_data_idx;
     uint first_segment_indices_idx;
     float time;

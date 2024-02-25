@@ -367,6 +367,7 @@ namespace ve
         for (uint32_t j = 0; j < segment_count && tunnel_objects.is_pos_past_segment(gs.player_data.pos, model_render_data[player_idx].segment_uid + 1, true); ++j)
         {
             model_render_data[player_idx].segment_uid++;
+            gs.player_segment_position++;
         }
         for (uint32_t i = 0; i < model_render_data.size(); ++i)
         {
@@ -396,6 +397,8 @@ namespace ve
         storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(model_render_data);
         // handle collision: reset ship and let it blink for 3s
         gs.collision_results = collision_handler.get_collision_results(gs.current_frame);
+        // check if player tries to move in the wrong direction
+        if (!tunnel_objects.is_pos_past_segment(gs.player_data.pos, std::max(gs.player_segment_position - 1, 0), false)) gs.collision_results.collision_detected = 1;
         if (gs.player_reset_blink_counter == 0 && gs.collision_results.collision_detected != 0 && gs.collision_detection_active)
         {
             gs.cam.position = tunnel_objects.get_player_reset_position();

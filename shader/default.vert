@@ -27,7 +27,7 @@ layout(binding = 1) buffer MeshRenderDataBuffer {
 };
 
 layout(push_constant) uniform PushConstant {
-    PushConstants pc;
+    RenderPushConstants pc;
 };
 
 void main() {

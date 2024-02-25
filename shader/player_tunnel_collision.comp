@@ -15,7 +15,7 @@ layout(constant_id = 3) const uint INDICES_PER_SEGMENT = 1;
 layout(constant_id = 4) const uint PLAYER_START_IDX = 1;
 layout(constant_id = 5) const uint PLAYER_IDX_COUNT = 1;
 layout(constant_id = 6) const uint PLAYER_SEGMENT_POS = 1;
-layout(constant_id = 7) const uint DISTANCE_DIRECTIONS_COUNT = 2;
+layout(constant_id = 7) const uint DISTANCE_DIRECTIONS_COUNT = 1;
 
 layout(binding = 0) readonly buffer BoundingBoxBuffer {
     BoundingBox bb;
@@ -35,7 +35,7 @@ layout(binding = 2) readonly buffer TunnelIndexBuffer {
     uint tunnel_indices[];
 };
 
-layout(binding = 3) readonly buffer TunnelVertexBuffer {
+layout(binding = 3) buffer TunnelVertexBuffer {
     AlignedTunnelVertex tunnel_vertices[];
 };
 
@@ -57,8 +57,14 @@ layout(binding = 90) uniform PlayerDataBuffer {
 
 layout(binding = 99, set = 0) uniform accelerationStructureEXT topLevelAS;
 
-layout(push_constant) uniform PushConstant {
+struct PushConstants
+{
     uint first_segment_indices_idx;
+    uint player_segment_pos;
+};
+
+layout(push_constant) uniform PushConstant {
+    PushConstants pc;
 };
 
 #define AXISTEST(a)                     \
@@ -128,10 +134,10 @@ float distance_player_to_wall(in vec3 ro, in vec3 rd)
 
 void main()
 {
-    if (gl_GlobalInvocationID.x >= ((INDICES_PER_SEGMENT * 2) / 3 + DISTANCE_DIRECTIONS_COUNT)) return;
-    if (gl_GlobalInvocationID.x >= ((INDICES_PER_SEGMENT * 2) / 3))
+    if (gl_GlobalInvocationID.x >= ((INDICES_PER_SEGMENT * 3) / 3 + DISTANCE_DIRECTIONS_COUNT)) return;
+    if (gl_GlobalInvocationID.x >= ((INDICES_PER_SEGMENT * 3) / 3))
     {
-        uint idx = gl_GlobalInvocationID.x - (INDICES_PER_SEGMENT * 2) / 3;
+        uint idx = gl_GlobalInvocationID.x - (INDICES_PER_SEGMENT * 3) / 3;
         vec3 dir;
         if (idx == 0)
         {
@@ -147,9 +153,11 @@ void main()
     }
     else
     {
-        vec3 t_p0 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 3 * gl_GlobalInvocationID.x]]), 1.0)).xyz;
-        vec3 t_p1 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 1 + 3 * gl_GlobalInvocationID.x]]), 1.0)).xyz;
-        vec3 t_p2 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[first_segment_indices_idx + INDICES_PER_SEGMENT * PLAYER_SEGMENT_POS + 2 + 3 * gl_GlobalInvocationID.x]]), 1.0)).xyz;
+        uint idx = pc.first_segment_indices_idx + INDICES_PER_SEGMENT * (pc.player_segment_pos - 1) + 3 * gl_GlobalInvocationID.x;
+        if (idx < 0) return;
+        vec3 t_p0 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[idx]]), 1.0)).xyz;
+        vec3 t_p1 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[idx + 1]]), 1.0)).xyz;
+        vec3 t_p2 = (bb_mm.inv_m * vec4(get_tunnel_vertex_pos(tunnel_vertices[tunnel_indices[idx + 2]]), 1.0)).xyz;
         if (triangle_aabb_intersection(bb, t_p0, t_p1, t_p2)) atomicExchange(collision_result.collision_detected, 1);
     }
 }

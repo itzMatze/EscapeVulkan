@@ -105,6 +105,8 @@ namespace ve
         uint32_t current_frame = 0;
         uint32_t total_frames = 0;
         uint32_t first_segment_indices_idx = 0;
+        // local index of segment in which player currently is
+        int32_t player_segment_position = 0;
         bool load_scene = false;
         bool show_ui = true;
         bool mesh_view = false;

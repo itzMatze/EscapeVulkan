@@ -27,12 +27,19 @@ namespace ve
             alignas(16) glm::vec3 max;
         };
 
+        struct PushConstants
+        {
+            uint32_t first_segment_indices_idx;
+            uint32_t player_segment_position;
+        };
+
         const VulkanMainContext& vmc;
         VulkanCommandContext& vcc;
         Storage& storage;
         uint32_t player_start_idx;
         uint32_t player_idx_count;
         BoundingBox bb;
+        PushConstants pc;
         uint32_t bb_buffer;
         std::vector<uint32_t> return_buffers;
         uint32_t vertex_buffer;

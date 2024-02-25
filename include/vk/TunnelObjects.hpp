@@ -25,7 +25,7 @@ namespace ve
     constexpr uint32_t jet_particle_count = 20000;
     constexpr uint32_t reservoir_count = 4;
     // player is always in the same segment as the tunnel moves with the player
-    constexpr uint32_t player_segment_position = 1;
+    constexpr uint32_t camera_segment_position = 1;
 
     class TunnelObjects
     {

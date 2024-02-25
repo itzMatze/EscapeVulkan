@@ -15,7 +15,7 @@ layout(binding = 0) uniform ModelRenderDataBuffer {
 };
 
 layout(push_constant) uniform PushConstant {
-    PushConstants pc;
+    RenderPushConstants pc;
 };
 
 layout(location = 0) out vec3 frag_color;

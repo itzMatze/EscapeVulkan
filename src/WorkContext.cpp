@@ -2,9 +2,6 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "backends/imgui_impl_vulkan.h"
-#include "backends/imgui_impl_sdl.h"
-
 namespace ve
 {
     WorkContext::WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), storage(vmc, vcc), swapchain(vmc, vcc, storage), scene(vmc, vcc, storage), ui(vmc, swapchain.get_render_pass(), frames_in_flight), lighting_pipeline_0(vmc), lighting_pipeline_1(vmc), lighting_dsh(vmc)

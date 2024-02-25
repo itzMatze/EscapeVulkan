@@ -7,10 +7,10 @@ inline constexpr glm::vec3 front(0.0f, 0.0f, -1.0f);
 inline constexpr glm::vec3 right(1.0f, 0.0f, 0.0f);
 inline constexpr glm::vec3 up(0.0f, -1.0f, 0.0f);
 
-Camera::Camera(float fov, float width, float height) : fov(fov), yaw(0.0f), pitch(0.0f), roll(0.0f), near(0.1f), far(10000.0f), position(0.0f, 0.0f, 3.0f)
+Camera::Camera(float fov, float width, float height) : fov(fov), yaw(0.0f), pitch(0.0f), roll(0.0f), near(0.1f), far(10000.0f), position(0.0f, 0.0f, 0.0f)
 {
     projection = glm::perspective(glm::radians(fov), width / height, near, far);
-    orientation = glm::quatLookAt(glm::normalize(-position), glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f)));
+    orientation = glm::quatLookAt(glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f)), glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f)));
 }
 
 void Camera::updateVP(float time_diff)
@@ -54,12 +54,12 @@ void Camera::updateVP(float time_diff)
 
 glm::mat4 Camera::getVP()
 {
-    return is_tracking_camera ? projection * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * interpolated_view : interpolated_vp;
+    return is_tracking_camera ? projection * glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -8.0f)) * interpolated_view : interpolated_vp;
 }
 
 glm::mat4 Camera::getV()
 {
-    return is_tracking_camera ? glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -10.0f)) * interpolated_view : interpolated_view;
+    return is_tracking_camera ? glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -8.0f)) * interpolated_view : interpolated_view;
 }
 
 void Camera::translate(glm::vec3 amount)
