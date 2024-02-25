@@ -1,6 +1,7 @@
 #include "WorkContext.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
+#include <thread>
 
 namespace ve
 {
@@ -162,8 +163,16 @@ namespace ve
             swapchain.save_screenshot(vcc, image_idx.value, gs.current_frame);
             gs.save_screenshot = false;
         }
-        record_graphics_command_buffer(image_idx.value, gs);
-        submit(image_idx.value, gs);
+        if (gs.player_lifes == 0)
+        {
+            display_dead_screen(image_idx.value, gs);
+            std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(5.0f));
+        }
+        else
+        {
+            record_graphics_command_buffer(image_idx.value, gs);
+            submit(image_idx.value, gs);
+        }
         gs.current_frame = (gs.current_frame + 1) % frames_in_flight;
         gs.total_frames++;
     }
@@ -180,6 +189,63 @@ namespace ve
         restir_reservoir_buffers.clear();
         create_lighting_pipeline();
         return swapchain.get_extent();
+    }
+
+    void WorkContext::display_dead_screen(uint32_t image_idx, GameState& gs)
+    {
+        vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[gs.current_frame + frames_in_flight * 2]);
+        vk::Viewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = swapchain.get_extent().width;
+        viewport.height = swapchain.get_extent().height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vk::Rect2D scissor{};
+        scissor.offset = vk::Offset2D(0, 0);
+        scissor.extent = swapchain.get_extent();
+        vk::RenderPassBeginInfo lighting_rpbi{};
+        lighting_rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
+        lighting_rpbi.renderPass = swapchain.get_render_pass().get();
+        lighting_rpbi.framebuffer = swapchain.get_framebuffer(image_idx);
+        lighting_rpbi.renderArea.offset = vk::Offset2D(0, 0);
+        lighting_rpbi.renderArea.extent = swapchain.get_extent();
+        std::vector<vk::ClearValue> lighting_clear_values(2);
+        lighting_clear_values[0].color = std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};
+        lighting_clear_values[1].depthStencil.depth = 1.0f;
+        lighting_clear_values[1].depthStencil.stencil = 0;
+        lighting_rpbi.clearValueCount = lighting_clear_values.size();
+        lighting_rpbi.pClearValues = lighting_clear_values.data();
+        cb.beginRenderPass(lighting_rpbi, vk::SubpassContents::eInline);
+        cb.setViewport(0, viewport);
+        cb.setScissor(0, scissor);
+        if (gs.show_ui) ui.draw(cb, gs);
+        cb.endRenderPass();
+        cb.end();
+        std::vector<vk::PipelineStageFlags> wait_stages;
+        std::vector<vk::Semaphore> wait_semaphores;
+        wait_stages.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+        wait_semaphores.push_back(syncs[gs.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
+        vk::SubmitInfo submit_info;
+        submit_info.sType = vk::StructureType::eSubmitInfo;
+        submit_info.waitSemaphoreCount = wait_semaphores.size();
+        submit_info.pWaitSemaphores = wait_semaphores.data();
+        submit_info.pWaitDstStageMask = wait_stages.data();
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &vcc.graphics_cb[gs.current_frame + frames_in_flight * 2];
+        submit_info.signalSemaphoreCount = 1;
+        submit_info.pSignalSemaphores = &syncs[gs.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_1_FINISHED);
+        vmc.get_graphics_queue().submit(submit_info, syncs[gs.current_frame].get_fence(Synchronization::F_RENDER_FINISHED));
+
+        vk::PresentInfoKHR present_info{};
+        present_info.sType = vk::StructureType::ePresentInfoKHR;
+        present_info.waitSemaphoreCount = 1;
+        present_info.pWaitSemaphores = &syncs[gs.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_1_FINISHED);
+        present_info.swapchainCount = 1;
+        present_info.pSwapchains = &swapchain.get();
+        present_info.pImageIndices = &image_idx;
+        present_info.pResults = nullptr;
+        VE_CHECK(vmc.get_present_queue().presentKHR(present_info), "Failed to present image!");
     }
 
     void WorkContext::record_graphics_command_buffer(uint32_t image_idx, GameState& gs)
@@ -220,8 +286,6 @@ namespace ve
         scissor.offset = vk::Offset2D(0, 0);
         scissor.extent = swapchain.get_extent();
         cb.setScissor(0, scissor);
-
-        std::vector<vk::DeviceSize> offsets(1, 0);
 
         timers[gs.current_frame].start(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eTopOfPipe);
         scene.draw(cb, gs, timers[gs.current_frame]);

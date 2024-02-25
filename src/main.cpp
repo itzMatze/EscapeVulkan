@@ -20,7 +20,7 @@
 class MainContext
 {
 public:
-    MainContext() : extent(1000, 800), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(60.0f, extent.width, extent.height), gs{.cam = camera}
+    MainContext() : extent(2000, 1500), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(60.0f, extent.width, extent.height), gs{.cam = camera}
     {
         gs.devicetimings.resize(ve::DeviceTimer::TIMER_COUNT, 0.0f);
         extent = wc.swapchain.get_extent();
@@ -66,10 +66,10 @@ public:
         game_over_sound = Mix_LoadWAV("../assets/sounds/game_over.wav");
 
         Mix_PlayChannel(0, spaceship_sound, -1);
+        Mix_Volume(1, MIX_MAX_VOLUME);
         while (!quit)
         {
             Mix_Volume(0, velocity + 40);
-            Mix_Volume(1, MIX_MAX_VOLUME);
             move_amount = gs.time_diff * move_speed;
             dispatch_pressed_keys();
             gs.cam.updateVP(gs.time_diff);
@@ -78,12 +78,19 @@ public:
                 //std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - gs.frametime));
                 uint32_t old_player_lifes = gs.player_lifes;
                 wc.draw_frame(gs);
-                if (gs.player_lifes < old_player_lifes) Mix_PlayChannel(1, crash_sound, 0);
-                if (gs.player_lifes == 0)
+                if (gs.player_lifes < old_player_lifes)
                 {
-                    Mix_PlayChannel(1, game_over_sound, 0);
-                    std::this_thread::sleep_for(std::chrono::seconds(1));
-                    quit = true;
+                    if (gs.player_lifes == 0)
+                    {
+                        Mix_HaltChannel(0);
+                        Mix_PlayChannel(1, game_over_sound, 0);
+                        std::cout << "Distance: " << gs.tunnel_distance_travelled << std::endl;
+                        gs.tunnel_distance_travelled = 0.0f;
+                    }
+                    else
+                    {
+                        Mix_PlayChannel(1, crash_sound, 0);
+                    }
                 }
             }
             catch (const vk::OutOfDateKHRError e)
@@ -107,7 +114,6 @@ public:
                 timer.restart();
             }
         }
-        std::cout << "Distance: " << gs.tunnel_distance_travelled << std::endl;
     }
 
 private:
@@ -228,6 +234,7 @@ private:
         if (eh.is_key_released(Key::F2))
         {
             wc.restart(gs);
+            Mix_PlayChannel(0, spaceship_sound, -1);
             eh.set_released_key(Key::F2, false);
         }
         if (eh.is_key_released(Key::X))
