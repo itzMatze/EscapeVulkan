@@ -95,14 +95,15 @@ namespace ve
             ImGui::Text("'M': toggle mesh view");
             ImGui::Text("'N': toggle normal view");
             ImGui::Text("'T': toggle texel view");
-            ImGui::Text("'C': toggle texel view");
+            ImGui::Text("'C': toggle color view");
             ImGui::Text("'B': toggle player bounding box");
             ImGui::Text("'P': toggle player collision detection");
             ImGui::Text("'R': reload shaders");
             ImGui::Text("'G': Show/Hide UI");
             ImGui::Text("'F': toggle tracking camera");
-            ImGui::Text("'X': toggle controller steering");
+            ImGui::Text("'X': toggle game mode");
             ImGui::Text("'F1': Screenshot");
+            ImGui::Text("'F2': Restart game");
         }
         ImGui::Separator();
         ImGui::Combo("Scene", &gs.current_scene, gs.scene_names.data(), gs.scene_names.size());

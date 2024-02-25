@@ -138,10 +138,19 @@ private:
     {
         if(game_mode)
         {
-            if (eh.is_key_pressed(Key::Left)) rotation_speed.x -= 400.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Right)) rotation_speed.x += 400.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Up)) rotation_speed.y -= 400.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Down)) rotation_speed.y += 400.0f * gs.time_diff;
+            // enable controller if found, always permit keyboard steering
+            if (eh.is_controller_available())
+            {
+                std::pair<glm::vec2, glm::vec2> joystick_pos = eh.get_controller_joystick_pos();
+                rotation_speed.x += 800.0f * joystick_pos.second.x * gs.time_diff;
+                rotation_speed.y += 800.0f * joystick_pos.second.y * gs.time_diff;
+                velocity -= 40.0f * joystick_pos.first.y * gs.time_diff;
+                camera.rotate(joystick_pos.first.x * move_amount * 5.0f);
+            }
+            if (eh.is_key_pressed(Key::Left)) rotation_speed.x -= 800.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::Right)) rotation_speed.x += 800.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::Up)) rotation_speed.y -= 800.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::Down)) rotation_speed.y += 800.0f * gs.time_diff;
             if (eh.is_key_pressed(Key::A)) camera.rotate(-100.0f * gs.time_diff);//rotation_speed.z -= 0.002f;
             if (eh.is_key_pressed(Key::D)) camera.rotate(100.0f * gs.time_diff);//rotation_speed.z += 0.002f;
             if (eh.is_key_pressed(Key::W)) velocity += 40.0f * gs.time_diff;
@@ -247,14 +256,6 @@ private:
             system("cmake --build . --target Shaders");
             eh.set_released_key(Key::R, false);
             wc.reload_shaders();
-        }
-        if (game_mode && eh.is_controller_available())
-        {
-            std::pair<glm::vec2, glm::vec2> joystick_pos = eh.get_controller_joystick_pos();
-            rotation_speed.x += 400.0f * joystick_pos.second.x * gs.time_diff;
-            rotation_speed.y += 400.0f * joystick_pos.second.y * gs.time_diff;
-            velocity -= 40.0f * joystick_pos.first.y * gs.time_diff;
-            camera.rotate(joystick_pos.first.x * move_amount * 5.0f);
         }
         if (eh.is_key_pressed(Key::MouseLeft))
         {
