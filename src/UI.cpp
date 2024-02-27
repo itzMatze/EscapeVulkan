@@ -106,8 +106,6 @@ namespace ve
             ImGui::Text("'F2': Restart game");
         }
         ImGui::Separator();
-        ImGui::Combo("Scene", &gs.current_scene, gs.scene_names.data(), gs.scene_names.size());
-        gs.load_scene = ImGui::Button("Load scene");
         ImGui::Checkbox("Meshview", &(gs.mesh_view));
         ImGui::SameLine();
         ImGui::Checkbox("NormalView", &(gs.normal_view));

@@ -44,15 +44,7 @@ public:
 
     void run()
     {
-        std::vector<std::string> scene_names;
-        gs.current_scene = 0;
-        for (const auto& entry : std::filesystem::directory_iterator("../assets/scenes/"))
-        {
-            if (entry.path().filename() == "escapevulkan.json") gs.current_scene = scene_names.size();
-            scene_names.push_back(entry.path().filename());
-        }
-        for (const auto& name : scene_names) gs.scene_names.push_back(&name.front());
-        wc.load_scene(gs.scene_names[gs.current_scene]);
+        wc.load_scene("escapevulkan.json");
         constexpr float min_frametime = 5.0f;
         // keep time measurement and frametime separate to be able to use a frame limiter
         ve::HostTimer timer;
@@ -107,12 +99,6 @@ public:
             gs.time += gs.time_diff;
             // calculate actual frametime by subtracting the waiting time
             //gs.frametime = gs.time_diff - std::max(0.0f, min_frametime - gs.frametime);
-            if (gs.load_scene)
-            {
-                gs.load_scene = false;
-                wc.load_scene(gs.scene_names[gs.current_scene]);
-                timer.restart();
-            }
         }
     }
 
