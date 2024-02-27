@@ -164,7 +164,6 @@ private:
                 velocity = 0.0f;
                 rotation_speed = glm::vec3(0.0f);
             }
-            gs.tunnel_distance_travelled += gs.time_diff * velocity;
             camera.moveFront(gs.time_diff * velocity);
             camera.onMouseMove(rotation_speed.x * gs.time_diff, 0.0f);
             camera.onMouseMove(0.0f, rotation_speed.y * gs.time_diff);
