@@ -1,6 +1,5 @@
 #include <random>
 #include <torch/optim/adam.h>
-#include <torch/torch.h>
 
 #include "NeuralNet.hpp"
 
@@ -30,7 +29,7 @@ public:
     void save_to_file(const std::string& filename);
     void load_from_file(const std::string& filename);
 private:
-    NeuralNet nn;
+    std::shared_ptr<NeuralNet> nn;
     std::unique_ptr<torch::optim::Adam> optimizer;
     std::mt19937 gen;
     std::vector<Action> actions;

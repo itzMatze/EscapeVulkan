@@ -1,28 +1,23 @@
 #include "Agent.hpp"
 #include "ve_log.hpp"
-#include <ATen/ops/randn.h>
 #include <ATen/ops/relu.h>
 #include <ATen/ops/sigmoid.h>
-#include <ATen/ops/zeros_like.h>
-#include <c10/core/TensorOptions.h>
 #include <random>
 #include <torch/csrc/autograd/anomaly_mode.h>
-#include <torch/csrc/autograd/autograd.h>
-#include <torch/serialize/output-archive.h>
-#include <torch/types.h>
+#include <torch/serialize.h>
 
 #define GAMMA 0.999
 
-Agent::Agent()
+Agent::Agent() : nn(std::make_shared<NeuralNet>())
 {
-    nn.train(true);
-    optimizer = std::make_unique<torch::optim::Adam>(nn.parameters(), 0.001);
+    nn->train(true);
+    optimizer = std::make_unique<torch::optim::Adam>(nn->parameters(), 0.001);
 }
 
 Agent::Action Agent::get_action(const std::vector<float>& state)
 {
     torch::Tensor t = torch::tensor(state);
-    torch::Tensor actions_t = nn.forward(t);
+    torch::Tensor actions_t = nn->forward(t);
     std::discrete_distribution<uint32_t> dis(actions_t.const_data_ptr<float>(), actions_t.const_data_ptr<float>() + actions_t.size(0));
     uint32_t action_index = dis(gen);
     actions.push_back(index_to_action_mask(action_index));
@@ -74,12 +69,12 @@ void Agent::optimize()
 
 void Agent::save_to_file(const std::string& filename)
 {
-    nn.save_to_file(filename);
+    torch::save(nn, filename);
 }
 
 void Agent::load_from_file(const std::string& filename)
 {
-    nn.load_from_file(filename);
+    torch::load(nn, filename);
 }
 
 void Agent::clear_buffers()

@@ -1,13 +1,10 @@
-#include <torch/serialize/output-archive.h>
-#include <torch/torch.h>
+#include <torch/nn/modules/linear.h>
 
 class NeuralNet : public torch::nn::Module
 {
 public:
     NeuralNet();
     torch::Tensor forward(torch::Tensor x);
-    void save_to_file(const std::string& filename);
-    void load_from_file(const std::string& filename);
 private:
     torch::nn::Linear fc0 = nullptr;
     torch::nn::Linear fc1 = nullptr;

@@ -1,6 +1,5 @@
 #include "NeuralNet.hpp"
 #include <ATen/ops/softmax.h>
-#include <torch/serialize/input-archive.h>
 
 NeuralNet::NeuralNet()
 {
@@ -21,29 +20,5 @@ torch::Tensor NeuralNet::forward(torch::Tensor x)
     x = torch::relu(fc4(x));
     x = torch::softmax(fc5(x), 0);
     return x;
-}
-
-void NeuralNet::save_to_file(const std::string& filename)
-{
-    torch::serialize::OutputArchive output;
-    fc0->save(output);
-    fc1->save(output);
-    fc2->save(output);
-    fc3->save(output);
-    fc4->save(output);
-    fc5->save(output);
-    output.save_to(filename);
-}
-
-void NeuralNet::load_from_file(const std::string& filename)
-{
-    torch::serialize::InputArchive input;
-    input.load_from(filename);
-    fc0->load(input);
-    fc1->load(input);
-    fc2->load(input);
-    fc3->load(input);
-    fc4->load(input);
-    fc5->load(input);
 }
 
