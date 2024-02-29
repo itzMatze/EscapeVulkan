@@ -2,7 +2,7 @@
 
 namespace ve
 {
-    DeviceTimer::DeviceTimer(const VulkanMainContext& vmc) : vmc(vmc), result_fetched(TIMER_COUNT, false)
+    DeviceTimer::DeviceTimer(const VulkanMainContext& vmc) : vmc(vmc), result_fetched(TIMER_COUNT, true)
     {
         vk::QueryPoolCreateInfo qpci{};
         qpci.sType = vk::StructureType::eQueryPoolCreateInfo;

@@ -153,7 +153,7 @@ namespace ve
         syncs[gs.current_frame].reset_fence(Synchronization::F_RENDER_FINISHED);
         vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), syncs[gs.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
-        for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT && gs.total_frames > timers.size(); ++i)
+        for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT && gs.total_frames >= timers.size(); ++i)
         {
             double timing = timers[gs.current_frame].get_result_by_idx(i);
             gs.devicetimings[i] = timing;
@@ -174,7 +174,6 @@ namespace ve
             submit(image_idx.value, gs);
         }
         gs.current_frame = (gs.current_frame + 1) % frames_in_flight;
-        gs.total_frames++;
     }
 
     vk::Extent2D WorkContext::recreate_swapchain()

@@ -96,6 +96,7 @@ public:
                 eh.dispatch_event(e);
             }
             gs.time_diff = timer.restart();
+            gs.total_frames++;
             gs.time += gs.time_diff;
             // calculate actual frametime by subtracting the waiting time
             //gs.frametime = gs.time_diff - std::max(0.0f, min_frametime - gs.frametime);
