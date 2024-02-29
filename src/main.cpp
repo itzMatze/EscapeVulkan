@@ -76,8 +76,7 @@ public:
                     {
                         Mix_HaltChannel(0);
                         Mix_PlayChannel(1, game_over_sound, 0);
-                        std::cout << "Distance: " << gs.tunnel_distance_travelled << std::endl;
-                        gs.tunnel_distance_travelled = 0.0f;
+                        std::cout << "Distance: " << gs.tunnel_distance_travelled + gs.segment_distance_travelled << std::endl;
                     }
                     else
                     {
@@ -127,6 +126,7 @@ private:
         rotation_speed = glm::vec3(0.0f);
         velocity = 1.0f;
         gs.tunnel_distance_travelled = 0.0f;
+        gs.segment_distance_travelled = 0.0f;
         gs.time = 0.0f;
         gs.player_segment_position = 0;
         gs.first_segment_indices_idx = 0;

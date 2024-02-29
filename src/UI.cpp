@@ -123,6 +123,8 @@ namespace ve
         ImGui::Text("Distances");
         for (const float d : gs.collision_results.distances) ImGui::Text("%.4f", d);
         ImGui::Separator();
+        ImGui::Text("Score: %.2f", gs.tunnel_distance_travelled + gs.segment_distance_travelled);
+        ImGui::Separator();
         time_diff = time_diff * (1 - update_weight) + gs.time_diff * update_weight;
         frametime = frametime * (1 - update_weight) + gs.frametime * update_weight;
         frametime_values.push_back(gs.frametime);

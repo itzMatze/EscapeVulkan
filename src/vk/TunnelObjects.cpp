@@ -1,4 +1,5 @@
 #include "vk/TunnelObjects.hpp"
+#include <glm/geometric.hpp>
 
 namespace ve
 {
@@ -178,11 +179,25 @@ namespace ve
         return tunnel_bezier_points[(segment_id * 2 + bezier_point_idx) % tunnel_bezier_points.size()];
     }
 
+    // project p to the vector and calculate the distance from the start
+    float progress_on_vector(const glm::vec3& start, const glm::vec3& end, const glm::vec3& p)
+    {
+        glm::vec3 line = (end - start);
+        float len = glm::length(line);
+        line = line / len;
+
+        glm::vec3 v = p - start;
+        float d = glm::dot(v, line);
+        d = glm::clamp(d, 0.0f, len);
+        return d;
+    }
+
     void TunnelObjects::advance(GameState& gs, DeviceTimer& timer, PathTracer& path_tracer)
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame]);
         FireflyMovePushConstants fmpc{.time = gs.time, .time_diff = gs.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = gs.first_segment_indices_idx};
         fireflies.move_step(cb, gs, timer, fmpc);
+        gs.segment_distance_travelled = progress_on_vector(get_tunnel_bezier_point(gs.player_segment_position, 0, false), get_tunnel_bezier_point(gs.player_segment_position, 2, false), gs.player_data.pos);
         if (is_pos_past_segment(gs.cam.getPosition(), camera_segment_position + 1, false))
         {
             // camera position determines the start of the tunnel, if it moved one on the player position is reduced by one as it is in local segment id
@@ -191,7 +206,8 @@ namespace ve
             glm::vec3& bp0 = get_tunnel_bezier_point(camera_segment_position, 0, false);
             glm::vec3& bp1 = get_tunnel_bezier_point(camera_segment_position, 1, false);
             glm::vec3& bp2 = get_tunnel_bezier_point(camera_segment_position, 2, false);
-            gs.tunnel_distance_travelled += glm::distance(bp0, bp1) + glm::distance(bp1, bp2);
+            gs.tunnel_distance_travelled += glm::distance(bp0, bp2);
+            gs.segment_distance_travelled = 0.0f;
             // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
             // increment the idx at which the rendering starts by the same amount
             cpc.segment_uid++;

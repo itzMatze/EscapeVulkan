@@ -100,6 +100,7 @@ namespace ve
         float player_reset_blink_timer = 0.0f;
         uint32_t player_reset_blink_counter = 0;
         uint32_t player_lifes = 3;
+        float segment_distance_travelled = 0.0f;
         float tunnel_distance_travelled = 0.0f;
         int32_t current_scene = 0;
         uint32_t current_frame = 0;
