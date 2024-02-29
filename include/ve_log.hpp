@@ -26,13 +26,12 @@ namespace ve
     }
 } // namespace ve
 
-#define VE_THROW(...)                         \
-    {                                         \
-        spdlog::error(__VA_ARGS__);           \
-        std::string s(__FILE__);              \
-        s.append(": ");                       \
-        s.append(std::to_string(__LINE__));   \
-        spdlog::throw_spdlog_ex(s);           \
+#define VE_THROW(...)                                                   \
+    {                                                                   \
+        std::string s = std::format("THROW: {}:{}", __FILE__, __LINE__);\
+        spdlog::error(s);                                               \
+        spdlog::error(__VA_ARGS__);                                     \
+        spdlog::throw_spdlog_ex(s);                                     \
     }
 
 #if defined(VE_CHECKING)
