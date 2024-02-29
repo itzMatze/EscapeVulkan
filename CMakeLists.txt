@@ -30,11 +30,11 @@ find_package(SDL2 REQUIRED)
 find_package(SDL2_mixer REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(spdlog REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost 1.83 COMPONENTS program_options REQUIRED)
 find_package(Torch REQUIRED)
 
 include_directories(EscapeVulkan PUBLIC "${PROJECT_SOURCE_DIR}/include" "${PROJECT_SOURCE_DIR}/dependencies/VulkanMemoryAllocator-3.0.1/include" "${PROJECT_SOURCE_DIR}/dependencies/tinygltf-2.6.3/" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/" "${TORCH_INCLUDE_DIRS}")
-target_link_libraries(EscapeVulkan SDL2::SDL2main SDL2::SDL2 /lib/libSDL2_mixer.so ${Vulkan_LIBRARIES} spdlog::spdlog "${TORCH_LIBRARIES}")
+target_link_libraries(EscapeVulkan SDL2::SDL2main SDL2::SDL2 /lib/libSDL2_mixer.so ${Vulkan_LIBRARIES} spdlog::spdlog "${TORCH_LIBRARIES}" Boost::program_options)
 
 function(add_shader TARGET SHADER)
     find_program(GLSLC glslc)
