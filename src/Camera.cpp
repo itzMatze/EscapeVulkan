@@ -19,7 +19,9 @@ void Camera::reset()
     pitch = 0.0f;
     roll = 0.0f;
     position = glm::vec3(0.0f);
+    interpolated_position = position;
     orientation = glm::quatLookAt(glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f)), glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f)));
+    interpolated_orientation = orientation;
 }
 
 void Camera::updateVP(float time_diff)
