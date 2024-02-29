@@ -252,6 +252,7 @@ namespace ve
         vk::CommandBuffer& compute_cb = vcc.begin(vcc.compute_cb[gs.current_frame + frames_in_flight * 2]);
         scene.update_game_state(compute_cb, gs, timers[gs.current_frame]);
         compute_cb.end();
+
         vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[gs.current_frame]);
         timers[gs.current_frame].reset(cb, {DeviceTimer::RENDERING_ALL, DeviceTimer::RENDERING_APP, DeviceTimer::RENDERING_UI, DeviceTimer::RENDERING_TUNNEL});
         timers[gs.current_frame].start(cb, DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllGraphics);
@@ -286,9 +287,12 @@ namespace ve
         scissor.extent = swapchain.get_extent();
         cb.setScissor(0, scissor);
 
-        timers[gs.current_frame].start(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eTopOfPipe);
-        scene.draw(cb, gs, timers[gs.current_frame]);
-        timers[gs.current_frame].stop(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eBottomOfPipe);
+        if (!gs.disable_rendering)
+        {
+            timers[gs.current_frame].start(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eTopOfPipe);
+            scene.draw(cb, gs, timers[gs.current_frame]);
+            timers[gs.current_frame].stop(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eBottomOfPipe);
+        }
 
         cb.endRenderPass();
         cb.end();
@@ -312,7 +316,10 @@ namespace ve
         lighting_cb_0.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, lighting_pipeline_0.get_layout(), 0, lighting_dsh.get_sets()[gs.current_frame * frames_in_flight], {});
         LightingPassPushConstants lppc{.first_segment_indices_idx = gs.first_segment_indices_idx, .time = gs.time, .normal_view = gs.normal_view, .color_view = gs.color_view, .segment_uid_view = gs.segment_uid_view};
         lighting_cb_0.pushConstants(lighting_pipeline_0.get_layout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(LightingPassPushConstants), &lppc);
-        lighting_cb_0.draw(3, 1, 0, 0);
+        if (!gs.disable_rendering)
+        {
+            lighting_cb_0.draw(3, 1, 0, 0);
+        }
         lighting_cb_0.endRenderPass();
         lighting_cb_0.end();
 
@@ -323,7 +330,10 @@ namespace ve
         lighting_cb_1.bindPipeline(vk::PipelineBindPoint::eGraphics, lighting_pipeline_1.get());
         lighting_cb_1.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, lighting_pipeline_1.get_layout(), 0, lighting_dsh.get_sets()[gs.current_frame * frames_in_flight + 1], {});
         lighting_cb_1.pushConstants(lighting_pipeline_1.get_layout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(LightingPassPushConstants), &lppc);
-        lighting_cb_1.draw(3, 1, 0, 0);
+        if (!gs.disable_rendering)
+        {
+            lighting_cb_1.draw(3, 1, 0, 0);
+        }
         timers[gs.current_frame].start(lighting_cb_1, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eTopOfPipe);
         if (gs.show_ui) ui.draw(lighting_cb_1, gs);
         timers[gs.current_frame].stop(lighting_cb_1, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eBottomOfPipe);

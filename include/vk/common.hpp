@@ -119,6 +119,7 @@ namespace ve
         bool show_player = true;
         bool collision_detection_active = true;
         bool save_screenshot = false;
+        bool disable_rendering = false;
     };
 
     struct Material {

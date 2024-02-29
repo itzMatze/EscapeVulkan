@@ -21,11 +21,12 @@
 class MainContext
 {
 public:
-    MainContext(const std::string& nn_file = "", bool train_mode = false, bool rendering_enabled = true) : extent(2000, 1500), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(60.0f, extent.width, extent.height), gs{.cam = camera}, train_mode(train_mode)
+    MainContext(const std::string& nn_file = "", bool train_mode = false, bool disable_rendering = false) : extent(2000, 1500), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(60.0f, extent.width, extent.height), gs{.cam = camera}, train_mode(train_mode)
     {
         gs.devicetimings.resize(ve::DeviceTimer::TIMER_COUNT, 0.0f);
         extent = wc.swapchain.get_extent();
         camera.updateScreenSize(extent.width, extent.height);
+        gs.disable_rendering = disable_rendering;
         if (nn_file != "")
         {
             use_agent = true;
