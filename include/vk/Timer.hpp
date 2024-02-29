@@ -2,7 +2,6 @@
 
 #include <chrono>
 
-#include "vk/common.hpp"
 #include "ve_log.hpp"
 #include "vk/VulkanMainContext.hpp"
 
@@ -58,18 +57,18 @@ namespace ve
         double inline get_result_by_idx(uint32_t i)
         {
             VE_ASSERT(i < TIMER_COUNT, "Trying to access timer index that does not exist in TimerNames");
-            return get_result<Precision>(i);
+            return fetch_result<Precision>(i);
         }
 
         template<class Precision = std::milli>
         double inline get_result(TimerNames t)
         {
-            return get_result<Precision>(t);
+            return fetch_result<Precision>(t);
         }
 
     private:
         template<class Precision>
-        double inline get_result(uint32_t i)
+        double inline fetch_result(uint32_t i)
         {
             // prevent repeated reading of the same timestamp
             if (result_fetched[i]) return -1.0;
