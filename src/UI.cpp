@@ -116,6 +116,7 @@ namespace ve
         ImGui::Checkbox("SegmentUIDView", &(gs.segment_uid_view));
         ImGui::Separator();
         ImGui::Checkbox("CollisionDetection", &(gs.collision_detection_active));
+        ImGui::SameLine();
         ImGui::Separator();
         ImGui::Text("Player pos: %.4f;%.4f;%.4f", gs.player_data.pos.x, gs.player_data.pos.y, gs.player_data.pos.z);
         ImGui::Text("Player dir: %.4f;%.4f;%.4f", gs.player_data.dir.x, gs.player_data.dir.y, gs.player_data.dir.z);

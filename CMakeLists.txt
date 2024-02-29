@@ -3,6 +3,7 @@ project(EscapeVulkan)
 set(CMAKE_CXX_STANDARD 20)
 
 set(SOURCE_FILES src/main.cpp src/Camera.cpp src/EventHandler.cpp src/Window.cpp src/UI.cpp
+src/Agent.cpp src/NeuralNet.cpp
 src/vk/CommandPool.cpp src/vk/DescriptorSetHandler.cpp src/vk/ExtensionsHandler.cpp
 src/vk/Instance.cpp src/vk/LogicalDevice.cpp src/vk/PhysicalDevice.cpp
 src/vk/Pipeline.cpp src/vk/RenderPass.cpp src/vk/Swapchain.cpp
@@ -31,8 +32,9 @@ find_package(SDL2_mixer REQUIRED)
 find_package(Vulkan REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(Boost REQUIRED)
+find_package(Torch REQUIRED)
 
-target_link_libraries(EscapeVulkan SDL2::SDL2main SDL2::SDL2 /lib/libSDL2_mixer.so ${Vulkan_LIBRARIES} spdlog::spdlog)
+target_link_libraries(EscapeVulkan SDL2::SDL2main SDL2::SDL2 /lib/libSDL2_mixer.so ${Vulkan_LIBRARIES} spdlog::spdlog "${TORCH_LIBRARIES}")
 
 function(add_shader TARGET SHADER)
     find_program(GLSLC glslc)

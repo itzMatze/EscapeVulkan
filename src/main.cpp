@@ -16,15 +16,21 @@
 #include "vk/VulkanCommandContext.hpp"
 #include "Storage.hpp"
 #include "WorkContext.hpp"
+#include "Agent.hpp"
 
 class MainContext
 {
 public:
-    MainContext() : extent(2000, 1500), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(60.0f, extent.width, extent.height), gs{.cam = camera}
+    MainContext(const std::string& nn_file = "", bool train_mode = false, bool rendering_enabled = true) : extent(2000, 1500), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(60.0f, extent.width, extent.height), gs{.cam = camera}, train_mode(train_mode)
     {
         gs.devicetimings.resize(ve::DeviceTimer::TIMER_COUNT, 0.0f);
         extent = wc.swapchain.get_extent();
         camera.updateScreenSize(extent.width, extent.height);
+        if (nn_file != "")
+        {
+            use_agent = true;
+            agent.load_from_file(nn_file);
+        }
     }
 
     ~MainContext()
@@ -45,33 +51,78 @@ public:
     void run()
     {
         wc.load_scene("escapevulkan.json");
-        constexpr float min_frametime = 5.0f;
-        // keep time measurement and frametime separate to be able to use a frame limiter
+        std::vector<float> state;
+        for (uint32_t i = 0; i < gs.collision_results.distances.size(); ++i) state.push_back(gs.collision_results.distances[i]);
+        state.push_back(velocity);
+        state.push_back(rotation_speed.x);
+        state.push_back(rotation_speed.y);
+        Agent::Action action = Agent::NO_MOVE;
+        uint32_t iteration = 0;
+        if (!train_mode)
+        {
+            // initialize mixer
+            Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
+            spaceship_sound = Mix_LoadWAV("../assets/sounds/spaceship_thrust_1.wav");
+            crash_sound = Mix_LoadWAV("../assets/sounds/spaceship_crash.wav");
+            game_over_sound = Mix_LoadWAV("../assets/sounds/game_over.wav");
+
+            Mix_PlayChannel(0, spaceship_sound, -1);
+            Mix_Volume(1, MIX_MAX_VOLUME);
+        }
+
         ve::HostTimer timer;
         bool quit = false;
         SDL_Event e;
-
-        // initialize mixer
-        Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
-        spaceship_sound = Mix_LoadWAV("../assets/sounds/spaceship_thrust_1.wav");
-        crash_sound = Mix_LoadWAV("../assets/sounds/spaceship_crash.wav");
-        game_over_sound = Mix_LoadWAV("../assets/sounds/game_over.wav");
-
-        Mix_PlayChannel(0, spaceship_sound, -1);
-        Mix_Volume(1, MIX_MAX_VOLUME);
         while (!quit)
         {
-            Mix_Volume(0, velocity + 40);
+            if (!train_mode) Mix_Volume(0, velocity + 40);
+            else action = agent.get_action(state);
+            float old_distance = gs.tunnel_distance_travelled + gs.segment_distance_travelled;
             move_amount = gs.time_diff * move_speed;
-            dispatch_pressed_keys();
             gs.cam.updateVP(gs.time_diff);
+            dispatch_pressed_keys(action);
+            uint32_t old_player_lifes = gs.player_lifes;
             try
             {
                 //std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(min_frametime - gs.frametime));
-                uint32_t old_player_lifes = gs.player_lifes;
                 wc.draw_frame(gs);
-                if (gs.player_lifes < old_player_lifes)
+            }
+            catch (const vk::OutOfDateKHRError e)
+            {
+                extent = wc.recreate_swapchain();
+                camera.updateScreenSize(extent.width, extent.height);
+            }
+            while (SDL_PollEvent(&e))
+            {
+                quit = e.window.event == SDL_WINDOWEVENT_CLOSE;
+                eh.dispatch_event(e);
+            }
+            if (train_mode)
+            {
+                float reward = 1.0f;
+                for (uint32_t i = 0; i < gs.collision_results.distances.size(); ++i)
                 {
+                    state[i] = gs.collision_results.distances[i];
+                }
+                float new_distance = gs.tunnel_distance_travelled + gs.segment_distance_travelled;
+                reward += new_distance - old_distance;
+                agent.add_reward_for_last_action(reward);
+                state[gs.collision_results.distances.size()] = velocity;
+                state[gs.collision_results.distances.size() + 1] = rotation_speed.x;
+                state[gs.collision_results.distances.size() + 2] = rotation_speed.y;
+            }
+            if (gs.player_lifes < old_player_lifes || (train_mode && gs.total_frames > 1200))
+            {
+                if (train_mode)
+                {
+                    std::cout << "Distance: " << gs.tunnel_distance_travelled + gs.segment_distance_travelled << std::endl;
+                    std::cout << "Iteration: " << iteration++ << std::endl;
+                    agent.optimize();
+                    restart();
+                }
+                else
+                {
+                    std::cout << "Lifes: " << gs.player_lifes << std::endl;
                     if (gs.player_lifes == 0)
                     {
                         Mix_HaltChannel(0);
@@ -84,22 +135,11 @@ public:
                     }
                 }
             }
-            catch (const vk::OutOfDateKHRError e)
-            {
-                extent = wc.recreate_swapchain();
-                camera.updateScreenSize(extent.width, extent.height);
-            }
-            while (SDL_PollEvent(&e))
-            {
-                quit = e.window.event == SDL_WINDOWEVENT_CLOSE;
-                eh.dispatch_event(e);
-            }
-            gs.time_diff = timer.restart();
             gs.total_frames++;
+            gs.time_diff = train_mode ? 0.016667f : timer.restart();
             gs.time += gs.time_diff;
-            // calculate actual frametime by subtracting the waiting time
-            //gs.frametime = gs.time_diff - std::max(0.0f, min_frametime - gs.frametime);
         }
+        if (train_mode) agent.save_to_file("nn.pt");
     }
 
 private:
@@ -116,8 +156,11 @@ private:
     float move_speed = 20.0f;
     float velocity = 1.0f;
     float min_velocity = 1.0f;
-    glm::vec3 rotation_speed;
+    glm::vec3 rotation_speed = glm::vec3(0.0f);
     ve::GameState gs;
+    Agent agent;
+    bool use_agent = false;
+    bool train_mode = false;
     bool game_mode = true;
 
     void restart()
@@ -137,7 +180,7 @@ private:
         wc.restart();
     }
 
-    void dispatch_pressed_keys()
+    void dispatch_pressed_keys(const Agent::Action action = Agent::NO_MOVE)
     {
         if(game_mode)
         {
@@ -150,12 +193,12 @@ private:
                 velocity -= 40.0f * joystick_pos.first.y * gs.time_diff;
                 camera.rotate(joystick_pos.first.x * move_amount * 5.0f);
             }
-            if (eh.is_key_pressed(Key::Left)) rotation_speed.x -= 800.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Right)) rotation_speed.x += 800.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Up)) rotation_speed.y -= 800.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Down)) rotation_speed.y += 800.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::A)) camera.rotate(-100.0f * gs.time_diff);//rotation_speed.z -= 0.002f;
-            if (eh.is_key_pressed(Key::D)) camera.rotate(100.0f * gs.time_diff);//rotation_speed.z += 0.002f;
+            if (eh.is_key_pressed(Key::Left) || (action & Agent::MOVE_LEFT)) rotation_speed.x -= 800.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::Right) || (action & Agent::MOVE_RIGHT)) rotation_speed.x += 800.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::Up) || (action & Agent::MOVE_UP)) rotation_speed.y -= 800.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::Down) || (action & Agent::MOVE_DOWN)) rotation_speed.y += 800.0f * gs.time_diff;
+            if (eh.is_key_pressed(Key::A) || (action & Agent::ROTATE_LEFT)) camera.rotate(-100.0f * gs.time_diff);//rotation_speed.z -= 0.002f;
+            if (eh.is_key_pressed(Key::D) || (action & Agent::ROTATE_RIGHT)) camera.rotate(100.0f * gs.time_diff);//rotation_speed.z += 0.002f;
             if (eh.is_key_pressed(Key::W)) velocity += 40.0f * gs.time_diff;
             if (eh.is_key_pressed(Key::S)) velocity -= 40.0f * gs.time_diff;
             min_velocity += 10.0f * gs.time_diff;
