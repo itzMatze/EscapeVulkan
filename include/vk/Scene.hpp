@@ -23,7 +23,7 @@ namespace ve
         void scale(const std::string& model, const glm::vec3& scale);
         void rotate(const std::string& model, float degree, const glm::vec3& axis);
         DescriptorSetHandler& get_dsh(ShaderFlavor flavor);
-        void restart(GameState& gs);
+        void restart();
         void draw(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer);
         void update_game_state(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer);
         uint32_t get_light_count();

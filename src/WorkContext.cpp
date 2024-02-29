@@ -139,10 +139,10 @@ namespace ve
         lighting_dsh.construct();
     }
 
-    void WorkContext::restart(GameState& gs)
+    void WorkContext::restart()
     {
         vmc.logical_device.get().waitIdle();
-        scene.restart(gs);
+        scene.restart();
     }
 
     void WorkContext::draw_frame(GameState& gs)

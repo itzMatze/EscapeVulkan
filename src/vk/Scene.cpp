@@ -336,14 +336,8 @@ namespace ve
         return ros.at(flavor).dsh;
     }
 
-    void Scene::restart(GameState& gs)
+    void Scene::restart()
     {
-        gs.player_segment_position = 0;
-        gs.first_segment_indices_idx = 0;
-        gs.tunnel_distance_travelled = 0.0;
-        gs.player_lifes = 3;
-        gs.current_frame = 0;
-        gs.cam.reset();
         for (auto& d : model_render_data)
         {
             d.M = glm::mat4(1.0f);

@@ -120,6 +120,22 @@ private:
     ve::GameState gs;
     bool game_mode = true;
 
+    void restart()
+    {
+        min_velocity = 1.0f;
+        rotation_speed = glm::vec3(0.0f);
+        velocity = 1.0f;
+        gs.tunnel_distance_travelled = 0.0f;
+        gs.time = 0.0f;
+        gs.player_segment_position = 0;
+        gs.first_segment_indices_idx = 0;
+        gs.player_lifes = 3;
+        gs.current_frame = 0;
+        gs.total_frames = 0;
+        gs.cam.reset();
+        wc.restart();
+    }
+
     void dispatch_pressed_keys()
     {
         if(game_mode)
@@ -227,7 +243,7 @@ private:
         }
         if (eh.is_key_released(Key::F2))
         {
-            wc.restart(gs);
+            wc.restart();
             Mix_PlayChannel(0, spaceship_sound, -1);
             eh.set_released_key(Key::F2, false);
         }
