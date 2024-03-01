@@ -22,7 +22,7 @@
 class MainContext
 {
 public:
-    MainContext(const std::string& nn_file = "", bool train_mode = false, bool disable_rendering = false) : extent(2000, 1500), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(60.0f, extent.width, extent.height), gs{.cam = camera}, train_mode(train_mode)
+    MainContext(const std::string& nn_file = "", bool train_mode = false, bool disable_rendering = false) : extent(2000, 1500), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(60.0f, extent.width, extent.height), gs{.cam = camera}, agent(train_mode)
     {
         gs.devicetimings.resize(ve::DeviceTimer::TIMER_COUNT, 0.0f);
         extent = wc.swapchain.get_extent();
@@ -60,7 +60,7 @@ public:
         state.push_back(rotation_speed.y);
         Agent::Action action = Agent::NO_MOVE;
         uint32_t iteration = 0;
-        if (!train_mode)
+        if (!agent.is_training())
         {
             // initialize mixer
             Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
@@ -77,7 +77,7 @@ public:
         SDL_Event e;
         while (!quit)
         {
-            if (!train_mode) Mix_Volume(0, velocity + 40);
+            if (!agent.is_training()) Mix_Volume(0, velocity + 40);
             else action = agent.get_action(state);
             float old_distance = gs.tunnel_distance_travelled + gs.segment_distance_travelled;
             move_amount = gs.time_diff * move_speed;
@@ -99,7 +99,7 @@ public:
                 quit = e.window.event == SDL_WINDOWEVENT_CLOSE;
                 eh.dispatch_event(e);
             }
-            if (train_mode)
+            if (agent.is_training())
             {
                 float reward = 1.0f;
                 for (uint32_t i = 0; i < gs.collision_results.distances.size(); ++i)
@@ -113,9 +113,9 @@ public:
                 state[gs.collision_results.distances.size() + 1] = rotation_speed.x;
                 state[gs.collision_results.distances.size() + 2] = rotation_speed.y;
             }
-            if (gs.player_lifes < old_player_lifes || (train_mode && gs.total_frames > 1200))
+            if (gs.player_lifes < old_player_lifes || (agent.is_training() && gs.total_frames > 1200))
             {
-                if (train_mode)
+                if (agent.is_training())
                 {
                     std::cout << "Distance: " << gs.tunnel_distance_travelled + gs.segment_distance_travelled << std::endl;
                     std::cout << "Iteration: " << iteration++ << std::endl;
@@ -138,10 +138,10 @@ public:
                 }
             }
             gs.total_frames++;
-            gs.time_diff = train_mode ? 0.016667f : timer.restart();
+            gs.time_diff = agent.is_training() ? 0.016667f : timer.restart();
             gs.time += gs.time_diff;
         }
-        if (train_mode) agent.save_to_file("nn.pt");
+        if (agent.is_training()) agent.save_to_file("nn.pt");
     }
 
 private:
@@ -162,7 +162,6 @@ private:
     ve::GameState gs;
     Agent agent;
     bool use_agent = false;
-    bool train_mode = false;
     bool game_mode = true;
 
     void restart()

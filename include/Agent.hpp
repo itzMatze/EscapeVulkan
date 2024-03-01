@@ -22,10 +22,11 @@ public:
         ACTION_COUNT = 11
     };
 
-    Agent();
+    Agent(bool train_mode);
     Action get_action(const std::vector<float>& state);
     void add_reward_for_last_action(float reward);
     void optimize();
+    bool is_training();
     void save_to_file(const std::string& filename);
     void load_from_file(const std::string& filename);
 private:
@@ -36,6 +37,7 @@ private:
     std::vector<torch::Tensor> action_log_probs;
     std::vector<torch::Tensor> action_tensors;
     std::vector<float> rewards;
+    bool train_mode;
 
     Action index_to_action_mask(uint32_t idx)
     {

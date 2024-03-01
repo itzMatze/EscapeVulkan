@@ -8,9 +8,9 @@
 
 #define GAMMA 0.999
 
-Agent::Agent() : nn(std::make_shared<NeuralNet>())
+Agent::Agent(bool train_mode) : nn(std::make_shared<NeuralNet>()), train_mode(train_mode)
 {
-    nn->train(true);
+    nn->train(train_mode);
     optimizer = std::make_unique<torch::optim::Adam>(nn->parameters(), 0.001);
 }
 
@@ -65,6 +65,11 @@ void Agent::optimize()
     loss.backward();
     optimizer->step();
     clear_buffers();
+}
+
+bool Agent::is_training()
+{
+    return train_mode;
 }
 
 void Agent::save_to_file(const std::string& filename)
