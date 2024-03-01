@@ -171,5 +171,6 @@ void main()
         v.pos = old_pos;
         v.vel = reflect(v.vel, normalize(p2 - p1));
     }
+    v.vel = min(vec3(50.0), v.vel);
     out_vertices[firefly_idx] = pack_firefly_vertex(v);
 }
