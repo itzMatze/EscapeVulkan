@@ -10,7 +10,7 @@ src/vk/Pipeline.cpp src/vk/RenderPass.cpp src/vk/Swapchain.cpp
 src/vk/Shader.cpp src/vk/Synchronization.cpp src/vk/Image.cpp
 src/vk/RenderObject.cpp src/vk/TunnelObjects.cpp src/vk/Tunnel.cpp src/vk/Fireflies.cpp src/vk/JetParticles.cpp src/vk/CollisionHandler.cpp src/vk/PathTracer.cpp
 src/vk/Scene.cpp src/vk/Model.cpp src/vk/Mesh.cpp src/vk/Timer.cpp
-src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/WorkContext.cpp src/Storage.cpp
+src/vk/VulkanCommandContext.cpp src/vk/VulkanMainContext.cpp src/MainContext.cpp src/WorkContext.cpp src/Storage.cpp
 "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_draw.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_widgets.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/imgui_tables.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/backends/imgui_impl_vulkan.cpp" "${PROJECT_SOURCE_DIR}/dependencies/imgui-1.89.2/backends/imgui_impl_sdl.cpp" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/implot.cpp" "${PROJECT_SOURCE_DIR}/dependencies/implot-0.14/implot_items.cpp")
 
 set(SHADER_FILES lighting.vert lighting.frag

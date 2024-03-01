@@ -1,7 +1,7 @@
 #include "Camera.hpp"
 
-#include <glm/ext/matrix_clip_space.hpp>
-#include <glm/ext/matrix_transform.hpp>
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/gtc/matrix_transform.hpp>
 
 inline constexpr glm::vec3 front(0.0f, 0.0f, -1.0f);
 inline constexpr glm::vec3 right(1.0f, 0.0f, 0.0f);
