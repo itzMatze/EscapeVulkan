@@ -4,7 +4,7 @@
             "name": "Player",
             "ShaderFlavor": "Default",
             "file": "sith_fury_without_gear.glb",
-            "translation": [0.0, -0.5, 0.0],
+            "translation": [0.0, -1.0, 0.0],
             "rotation": [180, 0.0, 1.0, 0.0]
         }
     ]
