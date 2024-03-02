@@ -1,10 +1,9 @@
-#include <SDL2/SDL_mixer.h>
-
 #include "EventHandler.hpp"
 #include "vk/common.hpp"
 #include "vk/VulkanMainContext.hpp"
 #include "vk/VulkanCommandContext.hpp"
 #include "WorkContext.hpp"
+#include "SoundPlayer.hpp"
 #include "Agent.hpp"
 
 class MainContext
@@ -15,9 +14,6 @@ public:
     void run();
 
 private:
-    Mix_Chunk* spaceship_sound = nullptr;
-    Mix_Chunk* crash_sound = nullptr;
-    Mix_Chunk* game_over_sound = nullptr;
     vk::Extent2D extent;
     ve::VulkanMainContext vmc;
     ve::VulkanCommandContext vcc;
@@ -29,6 +25,7 @@ private:
     float min_velocity = 1.0f;
     glm::vec3 rotation_speed = glm::vec3(0.0f);
     ve::GameState gs;
+    SoundPlayer sound_player;
     Agent agent;
     bool use_agent = false;
     bool game_mode = true;

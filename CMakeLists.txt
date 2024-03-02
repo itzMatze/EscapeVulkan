@@ -3,7 +3,7 @@ project(EscapeVulkan)
 set(CMAKE_CXX_STANDARD 20)
 
 set(SOURCE_FILES src/main.cpp src/Camera.cpp src/EventHandler.cpp src/Window.cpp src/UI.cpp
-src/Agent.cpp src/NeuralNet.cpp
+src/Agent.cpp src/NeuralNet.cpp src/SoundPlayer.cpp
 src/vk/CommandPool.cpp src/vk/DescriptorSetHandler.cpp src/vk/ExtensionsHandler.cpp
 src/vk/Instance.cpp src/vk/LogicalDevice.cpp src/vk/PhysicalDevice.cpp
 src/vk/Pipeline.cpp src/vk/RenderPass.cpp src/vk/Swapchain.cpp

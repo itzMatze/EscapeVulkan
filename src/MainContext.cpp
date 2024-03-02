@@ -15,13 +15,6 @@ MainContext::MainContext(const std::string& nn_file, bool train_mode, bool disab
 
 MainContext::~MainContext()
 {
-    Mix_FreeChunk(spaceship_sound);
-    Mix_FreeChunk(crash_sound);
-    Mix_FreeChunk(game_over_sound);
-    spaceship_sound = nullptr;
-    crash_sound = nullptr;
-    game_over_sound = nullptr;
-    Mix_CloseAudio();
     wc.self_destruct();
     vcc.self_destruct();
     vmc.self_destruct();
@@ -31,9 +24,6 @@ MainContext::~MainContext()
 void MainContext::run()
 {
     EventHandler eh;
-    Mix_Chunk* spaceship_sound = nullptr;
-    Mix_Chunk* crash_sound = nullptr;
-    Mix_Chunk* game_over_sound = nullptr;
     wc.load_scene("escapevulkan.json");
     std::vector<float> state;
     for (uint32_t i = 0; i < gs.collision_results.distances.size(); ++i) state.push_back(gs.collision_results.distances[i]);
@@ -44,14 +34,9 @@ void MainContext::run()
     uint32_t iteration = 0;
     if (!agent.is_training())
     {
-        // initialize mixer
-        Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
-        spaceship_sound = Mix_LoadWAV("../assets/sounds/spaceship_thrust_1.wav");
-        crash_sound = Mix_LoadWAV("../assets/sounds/spaceship_crash.wav");
-        game_over_sound = Mix_LoadWAV("../assets/sounds/game_over.wav");
-
-        Mix_PlayChannel(0, spaceship_sound, -1);
-        Mix_Volume(1, MIX_MAX_VOLUME);
+        sound_player.init();
+        sound_player.set_volume(0, 0);
+        sound_player.play(SoundPlayer::SPACESHIP_THRUST, 0, -1);
     }
 
     ve::HostTimer timer;
@@ -59,7 +44,7 @@ void MainContext::run()
     SDL_Event e;
     while (!quit)
     {
-        if (!agent.is_training()) Mix_Volume(0, velocity + 40);
+        if (!agent.is_training()) sound_player.set_volume(0, velocity + 40);
         else action = agent.get_action(state);
         float old_distance = gs.tunnel_distance_travelled + gs.segment_distance_travelled;
         move_amount = gs.time_diff * move_speed;
@@ -109,13 +94,14 @@ void MainContext::run()
                 std::cout << "Lifes: " << gs.player_lifes << std::endl;
                 if (gs.player_lifes == 0)
                 {
-                    Mix_HaltChannel(0);
-                    Mix_PlayChannel(1, game_over_sound, 0);
+                    gs.disable_rendering = true;
+                    sound_player.stop(0);
+                    sound_player.play(SoundPlayer::GAME_OVER, 1, 0);
                     std::cout << "Distance: " << gs.tunnel_distance_travelled + gs.segment_distance_travelled << std::endl;
                 }
                 else
                 {
-                    Mix_PlayChannel(1, crash_sound, 0);
+                    sound_player.play(SoundPlayer::SPACESHIP_CRASH, 1, 0);
                 }
             }
         }
@@ -268,9 +254,9 @@ void MainContext::dispatch_pressed_keys(EventHandler& eh, const Agent::Action ac
     }
     if (eh.is_key_released(Key::F2))
     {
-        Mix_PlayChannel(0, spaceship_sound, -1);
         restart();
         gs.disable_rendering = false;
+        sound_player.play(SoundPlayer::SPACESHIP_THRUST, 0, -1);
         eh.set_released_key(Key::F2, false);
     }
     if (eh.is_key_released(Key::X))
