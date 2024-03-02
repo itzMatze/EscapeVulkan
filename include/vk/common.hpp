@@ -89,7 +89,6 @@ namespace ve
     };
 
     struct GameState {
-        std::vector<const char*> scene_names;
         std::vector<float> devicetimings;
         PlayerData player_data;
         Camera& cam;

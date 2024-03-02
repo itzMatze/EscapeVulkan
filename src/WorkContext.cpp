@@ -162,16 +162,8 @@ namespace ve
             swapchain.save_screenshot(vcc, image_idx.value, gs.current_frame);
             gs.save_screenshot = false;
         }
-        if (gs.player_lifes == 0)
-        {
-            display_dead_screen(image_idx.value, gs);
-            std::this_thread::sleep_for(std::chrono::duration<float, std::milli>(5.0f));
-        }
-        else
-        {
-            record_graphics_command_buffer(image_idx.value, gs);
-            submit(image_idx.value, gs);
-        }
+        record_graphics_command_buffer(image_idx.value, gs);
+        submit(image_idx.value, gs);
         gs.current_frame = (gs.current_frame + 1) % frames_in_flight;
     }
 
