@@ -164,6 +164,11 @@ void EventHandler::dispatch_event(SDL_Event e)
     }
 }
 
+float get_corrected_axis_pos(float pos)
+{
+    return std::abs(pos) < 0.2f ? 0.0f : (pos - std::copysignf(0.2f, pos)) / 0.8f;
+}
+
 std::pair<glm::vec2, glm::vec2> EventHandler::get_controller_joystick_pos()
 {
     if (controller == nullptr) return std::make_pair(glm::vec2(0.0f, 0.0f), glm::vec2(0.0f, 0.0f));
@@ -171,8 +176,8 @@ std::pair<glm::vec2, glm::vec2> EventHandler::get_controller_joystick_pos()
     const float l_y = float(SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY) / float(std::numeric_limits<int16_t>::max()));
     const float r_x = float(SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTX) / float(std::numeric_limits<int16_t>::max()));
     const float r_y = float(SDL_GameControllerGetAxis(controller, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_RIGHTY) / float(std::numeric_limits<int16_t>::max()));
-    glm::vec2 left(std::abs(l_x) < 0.2f ? 0.0f : (l_x - std::copysignf(0.2f, l_x)) / 0.8f, std::abs(l_y) < 0.2f ? 0.0f : (l_y - std::copysignf(0.2f, l_y)) / 0.8f);
-    glm::vec2 right(std::abs(r_x) < 0.2f ? 0.0f : (r_x - std::copysignf(0.2f, r_x)) / 0.8f, std::abs(r_y) < 0.2f ? 0.0f : (r_y - std::copysignf(0.2f, r_y)) / 0.8f);
+    glm::vec2 left(get_corrected_axis_pos(l_x), get_corrected_axis_pos(l_y));
+    glm::vec2 right(get_corrected_axis_pos(r_x), get_corrected_axis_pos(r_y));
     return std::make_pair(left, right);
 }
 
