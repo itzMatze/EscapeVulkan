@@ -1,12 +1,13 @@
 #pragma once
 
-#include <SDL.h>
+#include <SDL_events.h>
+#include <SDL_gamecontroller.h>
 #include <vector>
 #include <glm/vec2.hpp>
 
 #include "imgui.h"
 
-enum class Key
+enum class Key : uint32_t
 {
     A = 0,
     B = 1,
