@@ -97,7 +97,7 @@ void Camera::moveRight(float amount)
 
 void Camera::moveDown(float amount)
 {
-    translate(up * amount);
+    translate(v * amount);
 }
 
 void Camera::rotate(float amount) 
