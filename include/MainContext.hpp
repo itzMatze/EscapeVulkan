@@ -1,10 +1,14 @@
+#include <optional>
+
 #include "EventHandler.hpp"
 #include "vk/common.hpp"
 #include "vk/VulkanMainContext.hpp"
 #include "vk/VulkanCommandContext.hpp"
 #include "WorkContext.hpp"
+#include "Steering.hpp"
 #include "SoundPlayer.hpp"
 #include "Agent.hpp"
+#include "MoveActions.hpp"
 
 class MainContext
 {
@@ -19,17 +23,14 @@ private:
     ve::VulkanCommandContext vcc;
     ve::WorkContext wc;
     Camera camera;
-    float move_amount;
-    float move_speed = 20.0f;
-    float velocity = 0.0f;
-    float min_velocity = 1.0f;
-    glm::vec3 rotation_speed = glm::vec3(0.0f);
     ve::GameState gs;
+    Steering::Simulation simulation_steering;
+    std::optional<Steering::FreeFlight> free_flight_steering;
     SoundPlayer sound_player;
     Agent agent;
     bool use_agent = false;
     bool game_mode = true;
 
     void restart();
-    void dispatch_pressed_keys(EventHandler& eh, const Agent::Action action = Agent::NO_MOVE);
+    void dispatch_pressed_keys(EventHandler& eh, const MoveActionFlags::type action = MoveActionFlags::NoMove);
 };

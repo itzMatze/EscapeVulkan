@@ -14,7 +14,7 @@ Agent::Agent(bool train_mode) : nn(std::make_shared<NeuralNet>()), train_mode(tr
     optimizer = std::make_unique<torch::optim::Adam>(nn->parameters(), 0.001);
 }
 
-Agent::Action Agent::get_action(const std::vector<float>& state)
+MoveActionFlags::type Agent::get_action(const std::vector<float>& state)
 {
     torch::Tensor t = torch::tensor(state);
     torch::Tensor actions_t = nn->forward(t);
@@ -80,6 +80,23 @@ void Agent::save_to_file(const std::string& filename)
 void Agent::load_from_file(const std::string& filename)
 {
     torch::load(nn, filename);
+}
+
+MoveActionFlags::type Agent::index_to_action_mask(uint32_t idx)
+{
+    switch (idx) {
+        case 0: return MoveActionFlags::RotateUp;
+        case 1: return MoveActionFlags::RotateRight;
+        case 2: return MoveActionFlags::RotateDown;
+        case 3: return MoveActionFlags::RotateLeft;
+        case 4: return MoveActionFlags::RotateUp | MoveActionFlags::RotateRight;
+        case 5: return MoveActionFlags::RotateUp | MoveActionFlags::RotateLeft;
+        case 6: return MoveActionFlags::RotateDown | MoveActionFlags::RotateRight;
+        case 7: return MoveActionFlags::RotateDown | MoveActionFlags::RotateLeft;
+        case 8: return MoveActionFlags::RollLeft;
+        case 9: return MoveActionFlags::RollRight;
+        default: return MoveActionFlags::NoMove;
+    }
 }
 
 void Agent::clear_buffers()

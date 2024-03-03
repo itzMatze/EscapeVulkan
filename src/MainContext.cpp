@@ -1,4 +1,5 @@
 #include "MainContext.hpp"
+#include "MoveActions.hpp"
 
 MainContext::MainContext(const std::string& nn_file, bool train_mode, bool disable_rendering) : extent(2000, 1500), vmc(extent.width, extent.height), vcc(vmc), wc(vmc, vcc), camera(60.0f, extent.width, extent.height), gs{.cam = camera}, agent(train_mode)
 {
@@ -27,10 +28,10 @@ void MainContext::run()
     wc.load_scene("escapevulkan.json");
     std::vector<float> state;
     for (uint32_t i = 0; i < gs.collision_results.distances.size(); ++i) state.push_back(gs.collision_results.distances[i]);
-    state.push_back(velocity);
-    state.push_back(rotation_speed.x);
-    state.push_back(rotation_speed.y);
-    Agent::Action action = Agent::NO_MOVE;
+    state.push_back(simulation_steering.get_velocity());
+    state.push_back(simulation_steering.get_rotation_speed().x);
+    state.push_back(simulation_steering.get_rotation_speed().y);
+    MoveActionFlags::type action = MoveActionFlags::NoMove;
     uint32_t iteration = 0;
     if (!agent.is_training())
     {
@@ -44,10 +45,9 @@ void MainContext::run()
     SDL_Event e;
     while (!quit)
     {
-        if (!agent.is_training()) sound_player.set_volume(0, velocity + 40);
+        if (!agent.is_training()) sound_player.set_volume(0, simulation_steering.get_velocity() + 40);
         else action = agent.get_action(state);
         float old_distance = gs.tunnel_distance_travelled + gs.segment_distance_travelled;
-        move_amount = gs.time_diff * move_speed;
         gs.cam.updateVP(gs.time_diff);
         dispatch_pressed_keys(eh, action);
         uint32_t old_player_lifes = gs.player_lifes;
@@ -76,9 +76,9 @@ void MainContext::run()
             float new_distance = gs.tunnel_distance_travelled + gs.segment_distance_travelled;
             reward += new_distance - old_distance;
             agent.add_reward_for_last_action(reward);
-            state[gs.collision_results.distances.size()] = velocity;
-            state[gs.collision_results.distances.size() + 1] = rotation_speed.x;
-            state[gs.collision_results.distances.size() + 2] = rotation_speed.y;
+            state[gs.collision_results.distances.size()] = simulation_steering.get_velocity();
+            state[gs.collision_results.distances.size() + 1] = simulation_steering.get_rotation_speed().x;
+            state[gs.collision_results.distances.size() + 2] = simulation_steering.get_rotation_speed().y;
         }
         if (gs.player_lifes < old_player_lifes || (agent.is_training() && gs.total_frames > 1200))
         {
@@ -114,9 +114,6 @@ void MainContext::run()
 
 void MainContext::restart()
 {
-    min_velocity = 1.0f;
-    rotation_speed = glm::vec3(0.0f);
-    velocity = 1.0f;
     gs.tunnel_distance_travelled = 0.0f;
     gs.segment_distance_travelled = 0.0f;
     gs.time = 0.0f;
@@ -129,69 +126,64 @@ void MainContext::restart()
     gs.current_frame = 0;
     gs.total_frames = 0;
     gs.cam.reset();
+    simulation_steering.reset();
     wc.restart();
 }
 
-void MainContext::dispatch_pressed_keys(EventHandler& eh, const Agent::Action action)
+void MainContext::dispatch_pressed_keys(EventHandler& eh, const MoveActionFlags::type action)
 {
     if (gs.player_lifes > 0)
     {
+        MoveActionFlags::type move_actions = action;
+        Steering::Move move;
+        if (eh.is_key_pressed(Key::W)) move_actions |= MoveActionFlags::MoveForward;
+        if (eh.is_key_pressed(Key::S)) move_actions |= MoveActionFlags::MoveBackward;
+        if (eh.is_key_pressed(Key::Left)) move_actions |= MoveActionFlags::RotateLeft;
+        if (eh.is_key_pressed(Key::Right)) move_actions |= MoveActionFlags::RotateRight;
+        if (eh.is_key_pressed(Key::Up)) move_actions |= MoveActionFlags::RotateUp;
+        if (eh.is_key_pressed(Key::Down)) move_actions |= MoveActionFlags::RotateDown;
         if(game_mode)
         {
+            if (gs.player_reset_blink_counter > 0)
+            {
+                simulation_steering.reset();
+                move_actions = MoveActionFlags::NoMove;
+            }
             // enable controller if found, always permit keyboard steering
             if (eh.is_controller_available())
             {
                 std::pair<glm::vec2, glm::vec2> joystick_pos = eh.get_controller_joystick_pos();
-                rotation_speed.x += 800.0f * joystick_pos.second.x * gs.time_diff;
-                rotation_speed.y += 800.0f * joystick_pos.second.y * gs.time_diff;
-                velocity -= 40.0f * joystick_pos.first.y * gs.time_diff;
-                camera.rotate(joystick_pos.first.x * move_amount * 5.0f);
+                simulation_steering.controller_input(joystick_pos, gs.time_diff, move);
             }
-            if (eh.is_key_pressed(Key::Left) || (action & Agent::MOVE_LEFT)) rotation_speed.x -= 800.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Right) || (action & Agent::MOVE_RIGHT)) rotation_speed.x += 800.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Up) || (action & Agent::MOVE_UP)) rotation_speed.y -= 800.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::Down) || (action & Agent::MOVE_DOWN)) rotation_speed.y += 800.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::A) || (action & Agent::ROTATE_LEFT)) camera.rotate(-100.0f * gs.time_diff);//rotation_speed.z -= 0.002f;
-            if (eh.is_key_pressed(Key::D) || (action & Agent::ROTATE_RIGHT)) camera.rotate(100.0f * gs.time_diff);//rotation_speed.z += 0.002f;
-            if (eh.is_key_pressed(Key::W)) velocity += 40.0f * gs.time_diff;
-            if (eh.is_key_pressed(Key::S)) velocity -= 40.0f * gs.time_diff;
-            min_velocity += 10.0f * gs.time_diff;
-            min_velocity = std::min(20.0f, min_velocity);
-            if (gs.player_reset_blink_counter > 0) min_velocity = 1.0f;
-            velocity = std::max(min_velocity, velocity);
-            if (gs.player_reset_blink_counter > 0)
-            {
-                velocity = 0.0f;
-                rotation_speed = glm::vec3(0.0f);
-            }
-            camera.moveFront(gs.time_diff * velocity);
-            camera.onMouseMove(rotation_speed.x * gs.time_diff, 0.0f);
-            camera.onMouseMove(0.0f, rotation_speed.y * gs.time_diff);
+            if (eh.is_key_pressed(Key::A)) move_actions |= MoveActionFlags::RollLeft;
+            if (eh.is_key_pressed(Key::D)) move_actions |= MoveActionFlags::RollRight;
+            simulation_steering.keyboard_input(move_actions, gs.time_diff, move);
+            simulation_steering.step(gs.time_diff, move);
         }
         else
         {
-            if (eh.is_key_pressed(Key::W)) camera.moveFront(move_amount);
-            if (eh.is_key_pressed(Key::A)) camera.moveRight(-move_amount);
-            if (eh.is_key_pressed(Key::S)) camera.moveFront(-move_amount);
-            if (eh.is_key_pressed(Key::D)) camera.moveRight(move_amount);
-            if (eh.is_key_pressed(Key::Q)) camera.moveDown(move_amount);
-            if (eh.is_key_pressed(Key::E)) camera.moveDown(-move_amount);
-            float panning_speed = eh.is_key_pressed(Key::Shift) ? 200.0f : 600.0f;
-            if (eh.is_key_pressed(Key::Left)) camera.onMouseMove(-panning_speed * gs.time_diff, 0.0f);
-            if (eh.is_key_pressed(Key::Right)) camera.onMouseMove(panning_speed * gs.time_diff, 0.0f);
-            if (eh.is_key_pressed(Key::Up)) camera.onMouseMove(0.0f, -panning_speed * gs.time_diff);
-            if (eh.is_key_pressed(Key::Down)) camera.onMouseMove(0.0f, panning_speed * gs.time_diff);
+            if (!free_flight_steering.has_value()) free_flight_steering = std::make_optional(Steering::FreeFlight());
+            if (eh.is_key_pressed(Key::A)) move_actions |= MoveActionFlags::MoveLeft;
+            if (eh.is_key_pressed(Key::D)) move_actions |= MoveActionFlags::MoveRight;
+            if (eh.is_key_pressed(Key::Q)) move_actions |= MoveActionFlags::MoveUp;
+            if (eh.is_key_pressed(Key::E)) move_actions |= MoveActionFlags::MoveDown;
+            free_flight_steering->keyboard_input(move_actions, gs.time_diff, move);
         }
+        camera.moveRight(move.position_delta.x);
+        camera.moveDown(move.position_delta.y);
+        camera.moveFront(move.position_delta.z);
+        camera.onMouseMove(move.rotation_delta.x, move.rotation_delta.y);
+        camera.rotate(move.rotation_delta.z);
 
         // reset state of keys that are used to execute a one time action
         if (eh.is_key_released(Key::Plus))
         {
-            move_speed *= 2.0f;
+            if (free_flight_steering.has_value()) free_flight_steering->increase_speed();
             eh.set_released_key(Key::Plus, false);
         }
         if (eh.is_key_released(Key::Minus))
         {
-            move_speed /= 2.0f;
+            if (free_flight_steering.has_value()) free_flight_steering->reduce_speed();
             eh.set_released_key(Key::Minus, false);
         }
         if (eh.is_key_pressed(Key::MouseLeft))
