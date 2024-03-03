@@ -24,9 +24,10 @@ namespace ve
         tunnel_bezier_points_queue = std::queue<glm::vec3>();
         cpc.segment_uid = 0;
         cpc.indices_start_idx = 0;
-        cpc.p0 = glm::vec3(0.0f, 0.0f, 1.0f);
-        cpc.p1 = glm::vec3(0.0f, 0.0f, 1.0f - segment_scale / 2.0f);
-        cpc.p2 = glm::vec3(0.0f, 0.0f, 1.0f - segment_scale);
+        cpc.p0 = glm::vec3(0.0f, 0.0f, segment_scale * player_local_segment_position + 1.0f);
+        cpc.p1 = cpc.p0 - glm::vec3(0.0f, 0.0f, segment_scale / 2.0f);
+        cpc.p2 = cpc.p0 - glm::vec3(0.0f, 0.0f, segment_scale);
+        for (uint32_t i = 1; i < player_local_segment_position; ++i) tunnel_bezier_points_queue.push(glm::vec3(cpc.p0 - glm::vec3(0.0f, 0.0f, segment_scale * (i + 1))));
         tunnel_bezier_points[0] = cpc.p0;
         tunnel_bezier_points[1] = cpc.p1;
         tunnel_bezier_points[2] = cpc.p2;
@@ -197,15 +198,13 @@ namespace ve
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame]);
         FireflyMovePushConstants fmpc{.time = gs.time, .time_diff = gs.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = gs.first_segment_indices_idx};
         fireflies.move_step(cb, gs, timer, fmpc);
-        gs.segment_distance_travelled = progress_on_vector(get_tunnel_bezier_point(gs.player_segment_position, 0, false), get_tunnel_bezier_point(gs.player_segment_position, 2, false), gs.player_data.pos);
-        if (is_pos_past_segment(gs.cam.getPosition(), camera_segment_position + 1, false))
+        gs.segment_distance_travelled = progress_on_vector(get_tunnel_bezier_point(gs.player_segment_position, 0, true), get_tunnel_bezier_point(gs.player_segment_position, 2, true), gs.player_data.pos);
+        if (cpc.segment_uid - segment_count + 1 + player_local_segment_position < gs.player_segment_position)
         {
-            // camera position determines the start of the tunnel, if it moved one on the player position is reduced by one as it is in local segment id
-            gs.player_segment_position--;
             // player passed a segment, add distance of passed segment
-            glm::vec3& bp0 = get_tunnel_bezier_point(camera_segment_position, 0, false);
-            glm::vec3& bp1 = get_tunnel_bezier_point(camera_segment_position, 1, false);
-            glm::vec3& bp2 = get_tunnel_bezier_point(camera_segment_position, 2, false);
+            glm::vec3& bp0 = get_tunnel_bezier_point(gs.player_segment_position - 1, 0, true);
+            glm::vec3& bp1 = get_tunnel_bezier_point(gs.player_segment_position - 1, 1, true);
+            glm::vec3& bp2 = get_tunnel_bezier_point(gs.player_segment_position - 1, 2, true);
             gs.tunnel_distance_travelled += glm::distance(bp0, bp2);
             gs.segment_distance_travelled = 0.0f;
             // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
@@ -259,15 +258,15 @@ namespace ve
 
     glm::vec3 TunnelObjects::get_player_reset_position()
     {
-        return get_tunnel_bezier_point(camera_segment_position, 0, false);
+        return get_tunnel_bezier_point(player_local_segment_position, 0, false);
     }
     
     glm::vec3 TunnelObjects::get_player_reset_normal()
     {
         // use direction that points somewhat in the direction of the bezier curve
-        glm::vec3& b0 = get_tunnel_bezier_point(camera_segment_position, 0, false);
-        glm::vec3& b1 = get_tunnel_bezier_point(camera_segment_position, 1, false);
-        glm::vec3& b2 = get_tunnel_bezier_point(camera_segment_position, 2, false);
+        glm::vec3& b0 = get_tunnel_bezier_point(player_local_segment_position, 0, false);
+        glm::vec3& b1 = get_tunnel_bezier_point(player_local_segment_position, 1, false);
+        glm::vec3& b2 = get_tunnel_bezier_point(player_local_segment_position, 2, false);
         return glm::normalize(b1 - b0 + b2 - b0);
     }
 }

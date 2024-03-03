@@ -343,6 +343,7 @@ namespace ve
             d.M = glm::mat4(1.0f);
             d.segment_uid = 0;
         }
+        collision_handler.reset_all_shader_return_values();
         tunnel_objects.restart(path_tracer);
     }
 
@@ -410,7 +411,7 @@ namespace ve
         // handle collision: reset ship and let it blink for 3s
         gs.collision_results = collision_handler.get_collision_results(gs.current_frame);
         // check if player tries to move in the wrong direction
-        if (!tunnel_objects.is_pos_past_segment(gs.player_data.pos, std::max(gs.player_segment_position - 1, 0), false)) gs.collision_results.collision_detected = 1;
+        if (!tunnel_objects.is_pos_past_segment(gs.player_data.pos, std::max(gs.player_segment_position - 1, 0), true)) gs.collision_results.collision_detected = 1;
         if (gs.player_reset_blink_counter == 0 && gs.collision_results.collision_detected != 0 && gs.collision_detection_active)
         {
             gs.cam.position = tunnel_objects.get_player_reset_position();

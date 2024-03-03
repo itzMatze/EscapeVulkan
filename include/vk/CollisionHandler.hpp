@@ -20,6 +20,7 @@ namespace ve
         void compute(GameState& gs, DeviceTimer& timer);
         CollisionResults get_collision_results(uint32_t frame_idx);
         void reset_shader_return_values(uint32_t frame_idx);
+        void reset_all_shader_return_values();
     private:
         struct BoundingBox
         {

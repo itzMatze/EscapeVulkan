@@ -125,7 +125,7 @@ namespace ve
         compute_entries[5] = vk::SpecializationMapEntry(5, sizeof(uint32_t) * 5, sizeof(uint32_t));
         compute_entries[6] = vk::SpecializationMapEntry(6, sizeof(uint32_t) * 6, sizeof(uint32_t));
         compute_entries[7] = vk::SpecializationMapEntry(7, sizeof(uint32_t) * 7, sizeof(uint32_t));
-        std::array<uint32_t, 8> compute_entries_data{segment_count, samples_per_segment, vertices_per_sample, indices_per_segment, player_start_idx, player_idx_count, camera_segment_position, distance_directions_count};
+        std::array<uint32_t, 8> compute_entries_data{segment_count, samples_per_segment, vertices_per_sample, indices_per_segment, player_start_idx, player_idx_count, player_local_segment_position, distance_directions_count};
         vk::SpecializationInfo compute_spec_info(compute_entries.size(), compute_entries.data(), compute_entries_data.size() * sizeof(uint32_t), compute_entries_data.data());
         compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"player_tunnel_collision.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(PushConstants));
     }
@@ -162,7 +162,7 @@ namespace ve
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
         pc.first_segment_indices_idx = gs.first_segment_indices_idx;
-        pc.player_segment_position = gs.player_segment_position;
+        pc.player_segment_position = player_local_segment_position;
         cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(PushConstants), &pc);
         cb.dispatch(((indices_per_segment * 3) / 3 + 31 + distance_directions_count) / 32, 1, 1);
         timer.stop(cb, DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION, vk::PipelineStageFlagBits::eComputeShader);
@@ -177,5 +177,10 @@ namespace ve
     void CollisionHandler::reset_shader_return_values(uint32_t frame_idx)
     {
         storage.get_buffer(return_buffers[frame_idx]).erase_bytes(sizeof(CollisionResults::collision_detected));
+    }
+
+    void CollisionHandler::reset_all_shader_return_values()
+    {
+        for (auto b : return_buffers) storage.get_buffer(b).erase_bytes(sizeof(CollisionResults::collision_detected));
     }
 } // namespace ve

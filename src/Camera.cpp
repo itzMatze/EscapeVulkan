@@ -20,7 +20,7 @@ void Camera::reset()
     roll = 0.0f;
     position = glm::vec3(0.0f);
     interpolated_position = position;
-    orientation = glm::quatLookAt(glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f)), glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f)));
+    orientation = glm::quatLookAt(front, up);
     interpolated_orientation = orientation;
     updateVP(0.0f);
 }

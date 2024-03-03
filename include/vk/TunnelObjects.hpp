@@ -24,8 +24,7 @@ namespace ve
     constexpr uint32_t firefly_count = fireflies_per_segment * segment_count;
     constexpr uint32_t jet_particle_count = 20000;
     constexpr uint32_t reservoir_count = 4;
-    // player is always in the same segment as the tunnel moves with the player
-    constexpr uint32_t camera_segment_position = 1;
+    constexpr uint32_t player_local_segment_position = 2;
 
     class TunnelObjects
     {
