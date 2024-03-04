@@ -1,5 +1,7 @@
 #include "vk/TunnelObjects.hpp"
 #include <glm/geometric.hpp>
+#include "vk/gpu_data/TunnelGpuData.hpp"
+#include "vk/TunnelConstants.hpp"
 
 namespace ve
 {
@@ -196,8 +198,7 @@ namespace ve
     void TunnelObjects::advance(GameState& gs, DeviceTimer& timer, PathTracer& path_tracer)
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.game_data.current_frame]);
-        FireflyMovePushConstants fmpc{.time = gs.game_data.time, .time_diff = gs.game_data.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = gs.game_data.first_segment_indices_idx};
-        fireflies.move_step(cb, gs, timer, fmpc);
+        fireflies.move_step(cb, gs, timer, cpc.segment_uid);
         gs.game_data.segment_distance_travelled = progress_on_vector(get_tunnel_bezier_point(gs.game_data.player_segment_position, 0, true), get_tunnel_bezier_point(gs.game_data.player_segment_position, 2, true), gs.game_data.player_data.pos);
         if (cpc.segment_uid - segment_count + 1 + player_local_segment_position < gs.game_data.player_segment_position)
         {

@@ -1,4 +1,5 @@
 #include "WorkContext.hpp"
+#include "vk/TunnelConstants.hpp"
 
 namespace ve
 {

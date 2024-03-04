@@ -1,6 +1,8 @@
+#include <vk/VulkanWithDefines.hpp>
 #include "vk/Fireflies.hpp"
-#include "vk/TunnelObjects.hpp"
 #include "Camera.hpp"
+#include "vk/gpu_data/FireflyGpuData.hpp"
+#include "vk/TunnelConstants.hpp"
 
 namespace ve
 {
@@ -75,7 +77,7 @@ namespace ve
         std::vector<ShaderInfo> shader_infos(2);
         shader_infos[0] = ShaderInfo{"fireflies.vert", vk::ShaderStageFlagBits::eVertex, vertex_spec_info};
         shader_infos[1] = ShaderInfo{"fireflies.frag", vk::ShaderStageFlagBits::eFragment};
-        render_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::ePoint, FireflyVertex::get_binding_descriptions(), FireflyVertex::get_attribute_descriptions(), vk::PrimitiveTopology::ePointList);
+        render_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::ePoint, FireflyVertex::get_binding_descriptions(), FireflyVertex::get_attribute_descriptions(), vk::PrimitiveTopology::ePointList, {});
 
         std::array<vk::SpecializationMapEntry, 6> compute_entries;
         compute_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
@@ -106,13 +108,12 @@ namespace ve
         storage.get_buffer(model_render_data_buffers[gs.game_data.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, render_pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, render_pipeline.get_layout(), 0, render_dsh.get_sets()[gs.game_data.current_frame], {});
-        PushConstants pc{.mesh_render_data_idx = 0, .time = gs.game_data.time, .tex_view = gs.settings.tex_view};
-        cb.pushConstants(render_pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants), &pc);
         cb.draw(firefly_count, 1, 0, 0);
     }
 
-    void Fireflies::move_step(vk::CommandBuffer& cb, const GameState& gs, DeviceTimer& timer, FireflyMovePushConstants& fmpc)
+    void Fireflies::move_step(vk::CommandBuffer& cb, const GameState& gs, DeviceTimer& timer, uint32_t segment_uid)
     {
+        FireflyMovePushConstants fmpc{.time = gs.game_data.time, .time_diff = gs.game_data.time_diff, .segment_uid = segment_uid, .first_segment_indices_idx = gs.game_data.first_segment_indices_idx};
         timer.reset(cb, {DeviceTimer::FIREFLY_MOVE_STEP});
         timer.start(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllCommands);
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get());

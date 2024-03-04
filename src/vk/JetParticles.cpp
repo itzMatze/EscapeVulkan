@@ -1,9 +1,11 @@
 #include "vk/JetParticles.hpp"
-#include "vk/TunnelObjects.hpp"
 #include "Camera.hpp"
+#include "vk/gpu_data/JetParticlesGpuData.hpp"
 
 namespace ve
 {
+    constexpr uint32_t jet_particle_count = 20000;
+
     JetParticles::JetParticles(const VulkanMainContext& vmc, VulkanCommandContext& vcc, Storage& storage) : render_dsh(vmc), compute_dsh(vmc), vmc(vmc), vcc(vcc), storage(storage), render_pipeline(vmc), move_compute_pipeline(vmc)
     {}
 

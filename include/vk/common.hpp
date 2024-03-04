@@ -49,27 +49,6 @@ namespace ve
         uint32_t segment_uid_view;
     };
 
-    struct NewSegmentPushConstants {
-        alignas(16) glm::vec3 p0;
-        alignas(16) glm::vec3 p1;
-        alignas(16) glm::vec3 p2;
-        uint32_t indices_start_idx;
-        uint32_t segment_uid;
-    };
-
-    struct FireflyMovePushConstants {
-        float time;
-        float time_diff;
-        uint32_t segment_uid;
-        uint32_t first_segment_indices_idx;
-    };
-
-    struct JetParticleMovePushConstants {
-        alignas(16) glm::vec3 move_dir;
-        float time;
-        float time_diff;
-    };
-
     struct DebugPushConstants {
         glm::mat4 mvp;
     };
@@ -210,133 +189,6 @@ namespace ve
         }
     };
 
-    struct FireflyVertex {
-        glm::vec3 pos;
-        glm::vec3 col;
-        glm::vec3 vel;
-        glm::vec3 acc;
-
-        static std::vector<vk::VertexInputBindingDescription> get_binding_descriptions()
-        {
-            vk::VertexInputBindingDescription binding_description{};
-            binding_description.binding = 0;
-            binding_description.stride = sizeof(FireflyVertex);
-            binding_description.inputRate = vk::VertexInputRate::eVertex;
-            return {binding_description};
-        }
-
-        static std::vector<vk::VertexInputAttributeDescription> get_attribute_descriptions()
-        {
-            std::vector<vk::VertexInputAttributeDescription> attribute_descriptions(2);
-            attribute_descriptions[0].binding = 0;
-            attribute_descriptions[0].location = 0;
-            attribute_descriptions[0].format = vk::Format::eR32G32B32Sfloat;
-            attribute_descriptions[0].offset = offsetof(FireflyVertex, pos);
-
-            attribute_descriptions[1].binding = 0;
-            attribute_descriptions[1].location = 1;
-            attribute_descriptions[1].format = vk::Format::eR32G32B32Sfloat;
-            attribute_descriptions[1].offset = offsetof(FireflyVertex, col);
-
-            //attribute_descriptions[2].binding = 0;
-            //attribute_descriptions[2].location = 2;
-            //attribute_descriptions[2].format = vk::Format::eR32G32B32Sfloat;
-            //attribute_descriptions[2].offset = offsetof(FireflyVertex, vel);
-
-            //attribute_descriptions[3].binding = 0;
-            //attribute_descriptions[3].location = 3;
-            //attribute_descriptions[3].format = vk::Format::eR32G32B32Sfloat;
-            //attribute_descriptions[3].offset = offsetof(FireflyVertex, acc);
-
-            return attribute_descriptions;
-        }
-    };
-
-    struct JetParticleVertex {
-        glm::vec3 pos;
-        glm::vec3 col;
-        glm::vec3 vel;
-        float lifetime;
-        uint64_t pad;
-
-        static std::vector<vk::VertexInputBindingDescription> get_binding_descriptions()
-        {
-            vk::VertexInputBindingDescription binding_description{};
-            binding_description.binding = 0;
-            binding_description.stride = sizeof(JetParticleVertex);
-            binding_description.inputRate = vk::VertexInputRate::eVertex;
-            return {binding_description};
-        }
-
-        static std::vector<vk::VertexInputAttributeDescription> get_attribute_descriptions()
-        {
-            std::vector<vk::VertexInputAttributeDescription> attribute_descriptions(3);
-            attribute_descriptions[0].binding = 0;
-            attribute_descriptions[0].location = 0;
-            attribute_descriptions[0].format = vk::Format::eR32G32B32Sfloat;
-            attribute_descriptions[0].offset = offsetof(JetParticleVertex, pos);
-
-            attribute_descriptions[1].binding = 0;
-            attribute_descriptions[1].location = 1;
-            attribute_descriptions[1].format = vk::Format::eR32G32B32Sfloat;
-            attribute_descriptions[1].offset = offsetof(JetParticleVertex, col);
-
-            // attribute_descriptions[2].binding = 0;
-            // attribute_descriptions[2].location = 2;
-            // attribute_descriptions[2].format = vk::Format::eR32G32B32Sfloat;
-            // attribute_descriptions[2].offset = offsetof(JetParticleVertex, vel);
-
-            attribute_descriptions[2].binding = 0;
-            attribute_descriptions[2].location = 3;
-            attribute_descriptions[2].format = vk::Format::eR32Sfloat;
-            attribute_descriptions[2].offset = offsetof(JetParticleVertex, lifetime);
-
-            return attribute_descriptions;
-        }
-    };
-
-    struct TunnelVertex {
-        glm::vec3 pos;
-        glm::vec2 normal;
-        glm::vec2 tex;
-        uint32_t segment_uid;
-
-        static std::vector<vk::VertexInputBindingDescription> get_binding_descriptions()
-        {
-            vk::VertexInputBindingDescription binding_description{};
-            binding_description.binding = 0;
-            binding_description.stride = sizeof(TunnelVertex);
-            binding_description.inputRate = vk::VertexInputRate::eVertex;
-            return {binding_description};
-        }
-
-        static std::vector<vk::VertexInputAttributeDescription> get_attribute_descriptions()
-        {
-            std::vector<vk::VertexInputAttributeDescription> attribute_descriptions(4);
-            attribute_descriptions[0].binding = 0;
-            attribute_descriptions[0].location = 0;
-            attribute_descriptions[0].format = vk::Format::eR32G32B32Sfloat;
-            attribute_descriptions[0].offset = offsetof(TunnelVertex, pos);
-
-            attribute_descriptions[1].binding = 0;
-            attribute_descriptions[1].location = 1;
-            attribute_descriptions[1].format = vk::Format::eR32G32Sfloat;
-            attribute_descriptions[1].offset = offsetof(TunnelVertex, normal);
-
-            attribute_descriptions[2].binding = 0;
-            attribute_descriptions[2].location = 2;
-            attribute_descriptions[2].format = vk::Format::eR32G32Sfloat;
-            attribute_descriptions[2].offset = offsetof(TunnelVertex, tex);
-
-            attribute_descriptions[3].binding = 0;
-            attribute_descriptions[3].location = 3;
-            attribute_descriptions[3].format = vk::Format::eR32Sfloat;
-            attribute_descriptions[3].offset = offsetof(TunnelVertex, segment_uid);
-
-            return attribute_descriptions;
-        }
-    };
-
     struct DebugVertex {
         glm::vec3 pos;
         glm::vec4 color;
@@ -366,34 +218,5 @@ namespace ve
             return attribute_descriptions;
         }
     };
-
-    struct TunnelSkyboxVertex {
-        glm::vec3 pos;
-        glm::vec2 tex;
-
-        static std::vector<vk::VertexInputBindingDescription> get_binding_descriptions()
-        {
-            vk::VertexInputBindingDescription binding_description{};
-            binding_description.binding = 0;
-            binding_description.stride = sizeof(TunnelSkyboxVertex);
-            binding_description.inputRate = vk::VertexInputRate::eVertex;
-            return {binding_description};
-        }
-
-        static std::vector<vk::VertexInputAttributeDescription> get_attribute_descriptions()
-        {
-            std::vector<vk::VertexInputAttributeDescription> attribute_descriptions(2);
-            attribute_descriptions[0].binding = 0;
-            attribute_descriptions[0].location = 0;
-            attribute_descriptions[0].format = vk::Format::eR32G32B32Sfloat;
-            attribute_descriptions[0].offset = offsetof(TunnelSkyboxVertex, pos);
-
-            attribute_descriptions[1].binding = 0;
-            attribute_descriptions[1].location = 1;
-            attribute_descriptions[1].format = vk::Format::eR32G32Sfloat;
-            attribute_descriptions[1].offset = offsetof(TunnelSkyboxVertex, tex);
-
-            return attribute_descriptions;
-        }
-    };
 } // namespace ve
+

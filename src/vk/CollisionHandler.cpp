@@ -1,7 +1,7 @@
 #include "vk/CollisionHandler.hpp"
 
-#include "vk/TunnelObjects.hpp"
 #include "vk/common.hpp"
+#include "vk/TunnelConstants.hpp"
 
 namespace ve
 {

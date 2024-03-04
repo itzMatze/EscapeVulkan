@@ -23,6 +23,11 @@ struct NewSegmentPushConstants {
     uint segment_uid;
 };
 
+struct TunnelPushConstants
+{
+    bool tex_view;
+};
+
 struct FireflyMovePushConstants {
     float time;
     float time_diff;

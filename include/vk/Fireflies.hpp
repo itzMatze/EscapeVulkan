@@ -4,6 +4,7 @@
 #include "vk/Pipeline.hpp"
 #include "Storage.hpp"
 #include "vk/common.hpp"
+#include "vk/DescriptorSetHandler.hpp"
 
 namespace ve
 {
@@ -16,7 +17,7 @@ namespace ve
         void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, GameState& gs);
-        void move_step(vk::CommandBuffer& cb, const GameState& gs, DeviceTimer& timer, FireflyMovePushConstants& fmpc);
+        void move_step(vk::CommandBuffer& cb, const GameState& gs, DeviceTimer& timer, uint32_t segment_uid);
 
         std::vector<uint32_t> vertex_buffers;
 

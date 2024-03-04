@@ -1,6 +1,5 @@
 #pragma once
 
-#include "vk/Timer.hpp"
 #include "vk/Pipeline.hpp"
 #include "Storage.hpp"
 #include "vk/Mesh.hpp"
@@ -39,3 +38,4 @@ namespace ve
         void construct_pipelines(const RenderPass& render_pass);
     };
 } // namespace ve
+

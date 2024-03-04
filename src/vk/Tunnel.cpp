@@ -1,6 +1,9 @@
 #include "vk/Tunnel.hpp"
-#include "vk/TunnelObjects.hpp"
+#include "vk/VulkanWithDefines.hpp"
 #include "Camera.hpp"
+#include "vk/gpu_data/TunnelGpuData.hpp"
+#include "Storage.hpp"
+#include "vk/TunnelConstants.hpp"
 
 namespace ve
 {
@@ -132,12 +135,12 @@ namespace ve
         vk::SpecializationInfo fragment_spec_info(fragment_entries.size(), fragment_entries.data(), sizeof(uint32_t) * fragment_entries_data.size(), fragment_entries_data.data());
         shader_infos[1] = ShaderInfo{"tunnel.frag", vk::ShaderStageFlagBits::eFragment, fragment_spec_info};
 
-        pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions());
-        mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions());
+        pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, 0, sizeof(TunnelPushConstants))});
+        mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, 0, sizeof(TunnelPushConstants))});
 
         shader_infos[0] = ShaderInfo{"tunnel_skybox.vert", vk::ShaderStageFlagBits::eVertex};
         shader_infos[1] = ShaderInfo{"tunnel_skybox.frag", vk::ShaderStageFlagBits::eFragment};
-        skybox_render_pipeline.construct(render_pass, skybox_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, TunnelSkyboxVertex::get_binding_descriptions(), TunnelSkyboxVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(DebugPushConstants))});
+        skybox_render_pipeline.construct(render_pass, skybox_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, TunnelSkyboxVertex::get_binding_descriptions(), TunnelSkyboxVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(TunnelSkyboxPushConstants))});
     }
 
     void Tunnel::reload_shaders(const RenderPass& render_pass)
@@ -168,8 +171,8 @@ namespace ve
         const vk::PipelineLayout& pipeline_layout = gs.settings.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, gs.settings.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[gs.game_data.current_frame], {});
-        PushConstants pc{.mesh_render_data_idx = 0, .first_segment_indices_idx = gs.game_data.first_segment_indices_idx, .time = gs.game_data.time, .tex_view = gs.settings.tex_view};
-        cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants), &pc);
+        TunnelPushConstants pc{.tex_view = gs.settings.tex_view};
+        cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(TunnelPushConstants), &pc);
         cb.drawIndexed(index_count, 1, gs.game_data.first_segment_indices_idx, 0, 0);
 
         cb.bindVertexBuffers(0, storage.get_buffer(skybox_vertex_buffer).get(), {0});
@@ -177,8 +180,8 @@ namespace ve
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox_render_pipeline.get_layout(), 0, skybox_dsh.get_sets()[gs.game_data.current_frame], {});
         glm::mat4 m = rotate_align(glm::normalize(p2 - p1), glm::vec3(0.0, 0.0, 1.0));
         m = glm::translate(glm::mat4(1.0), p2) * m;
-        DebugPushConstants dpc{.mvp = gs.cam.getVP() * m};
-        cb.pushConstants(skybox_render_pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(DebugPushConstants), &dpc);
+        TunnelSkyboxPushConstants dpc{.mvp = gs.cam.getVP() * m};
+        cb.pushConstants(skybox_render_pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(TunnelSkyboxPushConstants), &dpc);
         cb.draw(6, 1, 0, 0);
     }
 

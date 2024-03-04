@@ -5,6 +5,7 @@
 #include "common.hpp"
 #include "vk/Pipeline.hpp"
 #include "vk/Timer.hpp"
+#include "vk/DescriptorSetHandler.hpp"
 
 namespace ve
 {

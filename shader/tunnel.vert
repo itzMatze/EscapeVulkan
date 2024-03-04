@@ -21,10 +21,6 @@ layout(binding = 0) uniform ModelRenderDataBuffer {
     ModelRenderData mrd;
 };
 
-layout(push_constant) uniform PushConstant {
-    RenderPushConstants pc;
-};
-
 void main() {
     prev_cs_frag_pos = mrd.prev_mvp * vec4(pos, 1.0);
     cs_frag_pos = mrd.mvp * vec4(pos, 1.0);

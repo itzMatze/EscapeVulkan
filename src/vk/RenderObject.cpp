@@ -1,4 +1,6 @@
 #include "vk/RenderObject.hpp"
+#include "vk/common.hpp"
+#include <vulkan/vulkan_enums.hpp>
 
 namespace ve
 {
@@ -38,8 +40,8 @@ namespace ve
 
     void RenderObject::construct_pipelines(const RenderPass& render_pass, const std::vector<ShaderInfo>& shader_infos)
     {
-        pipeline.construct(render_pass, dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill);
-        mesh_view_pipeline.construct(render_pass, dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine);
+        pipeline.construct(render_pass, dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, Vertex::get_binding_descriptions(), Vertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants))});
+        mesh_view_pipeline.construct(render_pass, dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine, Vertex::get_binding_descriptions(), Vertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants))});
     }
 
     void RenderObject::draw(vk::CommandBuffer& cb, GameState& gs)
@@ -67,3 +69,4 @@ namespace ve
         return false;
     }
 } // namespace ve
+

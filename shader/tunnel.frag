@@ -21,7 +21,7 @@ layout(location = 3) out int out_segment_uid;
 layout(location = 4) out vec2 out_motion;
 
 layout(push_constant) uniform PushConstant {
-    RenderPushConstants pc;
+    TunnelPushConstants pc;
 };
 
 layout(binding = 1) buffer MeshRenderDataBuffer {

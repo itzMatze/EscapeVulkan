@@ -5,9 +5,9 @@
 #include <glm/ext/quaternion_transform.hpp>
 
 #include "json.hpp"
-#include "vk/TunnelObjects.hpp"
 #include "vk/Model.hpp"
 #include "Camera.hpp"
+#include "vk/TunnelConstants.hpp"
 
 namespace ve
 {
