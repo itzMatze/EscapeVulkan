@@ -5,7 +5,7 @@ namespace ve
     constexpr float segment_scale = 20.0f;
     constexpr uint32_t segment_count = 16; // how many segments are in the tunnel (must be power of two)
     static_assert((segment_count & (segment_count - 1)) == 0);
-    constexpr uint32_t samples_per_segment = 32; // how many sample rings one segment is made of
+    constexpr uint32_t samples_per_segment = 64; // how many sample rings one segment is made of
     constexpr uint32_t vertices_per_sample = 360; // how many vertices are sampled in one sample ring
     constexpr uint32_t vertex_count = segment_count * samples_per_segment * vertices_per_sample;
     // two triangles per vertex on a sample (3 indices per triangle); every sample of a segment except the last one has triangles
