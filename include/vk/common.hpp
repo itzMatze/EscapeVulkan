@@ -1,13 +1,12 @@
 #pragma once
 
-#include <optional>
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
-#include <vulkan/vulkan.hpp>
 
-#include "Camera.hpp"
+#include "VulkanWithDefines.hpp"
+
+class Camera;
 
 namespace ve
 {
@@ -75,10 +74,10 @@ namespace ve
         glm::mat4 mvp;
     };
 
-    struct CollisionResults
+    struct SessionData
     {
-        int32_t collision_detected = 0;
-        std::array<float, distance_directions_count> distances;
+        std::vector<float> devicetimings;
+        int32_t current_scene = 0;
     };
 
     struct PlayerData
@@ -88,10 +87,15 @@ namespace ve
         glm::vec4 up;
     };
 
-    struct GameState {
-        std::vector<float> devicetimings;
+    struct CollisionResults
+    {
+        int32_t collision_detected = 0;
+        std::array<float, distance_directions_count> distances;
+    };
+
+    struct GameData
+    {
         PlayerData player_data;
-        Camera& cam;
         CollisionResults collision_results;
         float time_diff = 0.000001f;
         float time = 0.0f;
@@ -101,13 +105,16 @@ namespace ve
         uint32_t player_lifes = 3;
         float segment_distance_travelled = 0.0f;
         float tunnel_distance_travelled = 0.0f;
-        int32_t current_scene = 0;
         uint32_t current_frame = 0;
         uint32_t total_frames = 0;
         uint32_t first_segment_indices_idx = 0;
         // local index of segment in which player currently is
         int32_t player_segment_position = 0;
-        bool load_scene = false;
+        bool show_player = true;
+    };
+
+    struct Settings
+    {
         bool show_ui = true;
         bool mesh_view = false;
         bool normal_view = false;
@@ -115,10 +122,17 @@ namespace ve
         bool segment_uid_view = false;
         bool tex_view = false;
         bool show_player_bb = false;
-        bool show_player = true;
         bool collision_detection_active = true;
         bool save_screenshot = false;
         bool disable_rendering = false;
+    };
+
+    struct GameState
+    {
+        SessionData session_data;
+        GameData game_data;
+        Settings settings;
+        Camera& cam;
     };
 
     struct Material {

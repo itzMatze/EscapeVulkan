@@ -106,36 +106,36 @@ namespace ve
             ImGui::Text("'F2': Restart game");
         }
         ImGui::Separator();
-        ImGui::Checkbox("Meshview", &(gs.mesh_view));
+        ImGui::Checkbox("Meshview", &(gs.settings.mesh_view));
         ImGui::SameLine();
-        ImGui::Checkbox("NormalView", &(gs.normal_view));
+        ImGui::Checkbox("NormalView", &(gs.settings.normal_view));
         ImGui::SameLine();
-        ImGui::Checkbox("TexelView", &(gs.tex_view));
-        ImGui::Checkbox("ColorView", &(gs.color_view));
+        ImGui::Checkbox("TexelView", &(gs.settings.tex_view));
+        ImGui::Checkbox("ColorView", &(gs.settings.color_view));
         ImGui::SameLine();
-        ImGui::Checkbox("SegmentUIDView", &(gs.segment_uid_view));
+        ImGui::Checkbox("SegmentUIDView", &(gs.settings.segment_uid_view));
         ImGui::Separator();
-        ImGui::Checkbox("CollisionDetection", &(gs.collision_detection_active));
+        ImGui::Checkbox("CollisionDetection", &(gs.settings.collision_detection_active));
         ImGui::SameLine();
-        ImGui::Checkbox("RenderingDisabled", &(gs.disable_rendering));
+        ImGui::Checkbox("RenderingDisabled", &(gs.settings.disable_rendering));
         ImGui::Separator();
-        ImGui::Text("Player pos: %.4f;%.4f;%.4f", gs.player_data.pos.x, gs.player_data.pos.y, gs.player_data.pos.z);
-        ImGui::Text("Player dir: %.4f;%.4f;%.4f", gs.player_data.dir.x, gs.player_data.dir.y, gs.player_data.dir.z);
-        ImGui::Text("Player up: %.4f;%.4f;%.4f", gs.player_data.up.x, gs.player_data.up.y, gs.player_data.up.z);
+        ImGui::Text("Player pos: %.4f;%.4f;%.4f", gs.game_data.player_data.pos.x, gs.game_data.player_data.pos.y, gs.game_data.player_data.pos.z);
+        ImGui::Text("Player dir: %.4f;%.4f;%.4f", gs.game_data.player_data.dir.x, gs.game_data.player_data.dir.y, gs.game_data.player_data.dir.z);
+        ImGui::Text("Player up: %.4f;%.4f;%.4f", gs.game_data.player_data.up.x, gs.game_data.player_data.up.y, gs.game_data.player_data.up.z);
         ImGui::Text("Distances");
-        for (const float d : gs.collision_results.distances) ImGui::Text("%.4f", d);
+        for (const float d : gs.game_data.collision_results.distances) ImGui::Text("%.4f", d);
         ImGui::Separator();
-        ImGui::Text("Score: %.2f", gs.tunnel_distance_travelled + gs.segment_distance_travelled);
+        ImGui::Text("Score: %.2f", gs.game_data.tunnel_distance_travelled + gs.game_data.segment_distance_travelled);
         ImGui::Separator();
-        time_diff = time_diff * (1 - update_weight) + gs.time_diff * update_weight;
-        frametime = frametime * (1 - update_weight) + gs.frametime * update_weight;
-        frametime_values.push_back(gs.frametime);
+        time_diff = time_diff * (1 - update_weight) + gs.game_data.time_diff * update_weight;
+        frametime = frametime * (1 - update_weight) + gs.game_data.frametime * update_weight;
+        frametime_values.push_back(gs.game_data.frametime);
         for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT; ++i)
         {
-            if (!std::signbit(gs.devicetimings[i])) 
+            if (!std::signbit(gs.session_data.devicetimings[i])) 
             {
-                devicetimings[i] = devicetimings[i] * (1 - update_weight) + gs.devicetimings[i] * update_weight;
-                devicetiming_values[i].push_back(gs.devicetimings[i]);
+                devicetimings[i] = devicetimings[i] * (1 - update_weight) + gs.session_data.devicetimings[i] * update_weight;
+                devicetiming_values[i].push_back(gs.session_data.devicetimings[i]);
             }
         }
         if (ImGui::CollapsingHeader("Timings"))

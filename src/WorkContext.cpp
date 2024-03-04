@@ -1,7 +1,5 @@
 #include "WorkContext.hpp"
 
-#include <thread>
-
 namespace ve
 {
     WorkContext::WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc) : vmc(vmc), vcc(vcc), storage(vmc, vcc), swapchain(vmc, vcc, storage), scene(vmc, vcc, storage), ui(vmc, swapchain.get_render_pass(), frames_in_flight), lighting_pipeline_0(vmc), lighting_pipeline_1(vmc), lighting_dsh(vmc)
@@ -148,23 +146,23 @@ namespace ve
     {
         //scene.rotate("Player", gs.time_diff * 90.f, glm::vec3(0.0f, 1.0f, 0.0f));
 
-        syncs[gs.current_frame].wait_for_fence(Synchronization::F_RENDER_FINISHED);
-        syncs[gs.current_frame].reset_fence(Synchronization::F_RENDER_FINISHED);
-        vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), syncs[gs.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
+        syncs[gs.game_data.current_frame].wait_for_fence(Synchronization::F_RENDER_FINISHED);
+        syncs[gs.game_data.current_frame].reset_fence(Synchronization::F_RENDER_FINISHED);
+        vk::ResultValue<uint32_t> image_idx = vmc.logical_device.get().acquireNextImageKHR(swapchain.get(), uint64_t(-1), syncs[gs.game_data.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
         VE_CHECK(image_idx.result, "Failed to acquire next image!");
-        for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT && gs.total_frames >= timers.size(); ++i)
+        for (uint32_t i = 0; i < DeviceTimer::TIMER_COUNT && gs.game_data.total_frames >= timers.size(); ++i)
         {
-            double timing = timers[gs.current_frame].get_result_by_idx(i);
-            gs.devicetimings[i] = timing;
+            double timing = timers[gs.game_data.current_frame].get_result_by_idx(i);
+            gs.session_data.devicetimings[i] = timing;
         }
-        if (gs.save_screenshot)
+        if (gs.settings.save_screenshot)
         {
-            swapchain.save_screenshot(vcc, image_idx.value, gs.current_frame);
-            gs.save_screenshot = false;
+            swapchain.save_screenshot(vcc, image_idx.value, gs.game_data.current_frame);
+            gs.settings.save_screenshot = false;
         }
         record_graphics_command_buffer(image_idx.value, gs);
         submit(image_idx.value, gs);
-        gs.current_frame = (gs.current_frame + 1) % frames_in_flight;
+        gs.game_data.current_frame = (gs.game_data.current_frame + 1) % frames_in_flight;
     }
 
     vk::Extent2D WorkContext::recreate_swapchain()
@@ -181,72 +179,15 @@ namespace ve
         return swapchain.get_extent();
     }
 
-    void WorkContext::display_dead_screen(uint32_t image_idx, GameState& gs)
-    {
-        vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[gs.current_frame + frames_in_flight * 2]);
-        vk::Viewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = swapchain.get_extent().width;
-        viewport.height = swapchain.get_extent().height;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vk::Rect2D scissor{};
-        scissor.offset = vk::Offset2D(0, 0);
-        scissor.extent = swapchain.get_extent();
-        vk::RenderPassBeginInfo lighting_rpbi{};
-        lighting_rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
-        lighting_rpbi.renderPass = swapchain.get_render_pass().get();
-        lighting_rpbi.framebuffer = swapchain.get_framebuffer(image_idx);
-        lighting_rpbi.renderArea.offset = vk::Offset2D(0, 0);
-        lighting_rpbi.renderArea.extent = swapchain.get_extent();
-        std::vector<vk::ClearValue> lighting_clear_values(2);
-        lighting_clear_values[0].color = std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};
-        lighting_clear_values[1].depthStencil.depth = 1.0f;
-        lighting_clear_values[1].depthStencil.stencil = 0;
-        lighting_rpbi.clearValueCount = lighting_clear_values.size();
-        lighting_rpbi.pClearValues = lighting_clear_values.data();
-        cb.beginRenderPass(lighting_rpbi, vk::SubpassContents::eInline);
-        cb.setViewport(0, viewport);
-        cb.setScissor(0, scissor);
-        if (gs.show_ui) ui.draw(cb, gs);
-        cb.endRenderPass();
-        cb.end();
-        std::vector<vk::PipelineStageFlags> wait_stages;
-        std::vector<vk::Semaphore> wait_semaphores;
-        wait_stages.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-        wait_semaphores.push_back(syncs[gs.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
-        vk::SubmitInfo submit_info;
-        submit_info.sType = vk::StructureType::eSubmitInfo;
-        submit_info.waitSemaphoreCount = wait_semaphores.size();
-        submit_info.pWaitSemaphores = wait_semaphores.data();
-        submit_info.pWaitDstStageMask = wait_stages.data();
-        submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &vcc.graphics_cb[gs.current_frame + frames_in_flight * 2];
-        submit_info.signalSemaphoreCount = 1;
-        submit_info.pSignalSemaphores = &syncs[gs.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_1_FINISHED);
-        vmc.get_graphics_queue().submit(submit_info, syncs[gs.current_frame].get_fence(Synchronization::F_RENDER_FINISHED));
-
-        vk::PresentInfoKHR present_info{};
-        present_info.sType = vk::StructureType::ePresentInfoKHR;
-        present_info.waitSemaphoreCount = 1;
-        present_info.pWaitSemaphores = &syncs[gs.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_1_FINISHED);
-        present_info.swapchainCount = 1;
-        present_info.pSwapchains = &swapchain.get();
-        present_info.pImageIndices = &image_idx;
-        present_info.pResults = nullptr;
-        VE_CHECK(vmc.get_present_queue().presentKHR(present_info), "Failed to present image!");
-    }
-
     void WorkContext::record_graphics_command_buffer(uint32_t image_idx, GameState& gs)
     {
-        vk::CommandBuffer& compute_cb = vcc.begin(vcc.compute_cb[gs.current_frame + frames_in_flight * 2]);
-        scene.update_game_state(compute_cb, gs, timers[gs.current_frame]);
+        vk::CommandBuffer& compute_cb = vcc.begin(vcc.compute_cb[gs.game_data.current_frame + frames_in_flight * 2]);
+        scene.update_game_state(compute_cb, gs, timers[gs.game_data.current_frame]);
         compute_cb.end();
 
-        vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[gs.current_frame]);
-        timers[gs.current_frame].reset(cb, {DeviceTimer::RENDERING_ALL, DeviceTimer::RENDERING_APP, DeviceTimer::RENDERING_UI, DeviceTimer::RENDERING_TUNNEL});
-        timers[gs.current_frame].start(cb, DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllGraphics);
+        vk::CommandBuffer& cb = vcc.begin(vcc.graphics_cb[gs.game_data.current_frame]);
+        timers[gs.game_data.current_frame].reset(cb, {DeviceTimer::RENDERING_ALL, DeviceTimer::RENDERING_APP, DeviceTimer::RENDERING_UI, DeviceTimer::RENDERING_TUNNEL});
+        timers[gs.game_data.current_frame].start(cb, DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllGraphics);
         vk::RenderPassBeginInfo rpbi{};
         rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
         rpbi.renderPass = swapchain.get_deferred_render_pass().get();
@@ -278,16 +219,16 @@ namespace ve
         scissor.extent = swapchain.get_extent();
         cb.setScissor(0, scissor);
 
-        if (!gs.disable_rendering)
+        if (!gs.settings.disable_rendering)
         {
-            timers[gs.current_frame].start(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eTopOfPipe);
-            scene.draw(cb, gs, timers[gs.current_frame]);
-            timers[gs.current_frame].stop(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eBottomOfPipe);
+            timers[gs.game_data.current_frame].start(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eTopOfPipe);
+            scene.draw(cb, gs, timers[gs.game_data.current_frame]);
+            timers[gs.game_data.current_frame].stop(cb, DeviceTimer::RENDERING_APP, vk::PipelineStageFlagBits::eBottomOfPipe);
         }
 
         cb.endRenderPass();
         cb.end();
-        vk::CommandBuffer& lighting_cb_0 = vcc.begin(vcc.graphics_cb[gs.current_frame + frames_in_flight]);
+        vk::CommandBuffer& lighting_cb_0 = vcc.begin(vcc.graphics_cb[gs.game_data.current_frame + frames_in_flight]);
         vk::RenderPassBeginInfo lighting_rpbi{};
         lighting_rpbi.sType = vk::StructureType::eRenderPassBeginInfo;
         lighting_rpbi.renderPass = swapchain.get_render_pass().get();
@@ -304,94 +245,94 @@ namespace ve
         lighting_cb_0.setViewport(0, viewport);
         lighting_cb_0.setScissor(0, scissor);
         lighting_cb_0.bindPipeline(vk::PipelineBindPoint::eGraphics, lighting_pipeline_0.get());
-        lighting_cb_0.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, lighting_pipeline_0.get_layout(), 0, lighting_dsh.get_sets()[gs.current_frame * frames_in_flight], {});
-        LightingPassPushConstants lppc{.first_segment_indices_idx = gs.first_segment_indices_idx, .time = gs.time, .normal_view = gs.normal_view, .color_view = gs.color_view, .segment_uid_view = gs.segment_uid_view};
+        lighting_cb_0.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, lighting_pipeline_0.get_layout(), 0, lighting_dsh.get_sets()[gs.game_data.current_frame * frames_in_flight], {});
+        LightingPassPushConstants lppc{.first_segment_indices_idx = gs.game_data.first_segment_indices_idx, .time = gs.game_data.time, .normal_view = gs.settings.normal_view, .color_view = gs.settings.color_view, .segment_uid_view = gs.settings.segment_uid_view};
         lighting_cb_0.pushConstants(lighting_pipeline_0.get_layout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(LightingPassPushConstants), &lppc);
-        if (!gs.disable_rendering)
+        if (!gs.settings.disable_rendering)
         {
             lighting_cb_0.draw(3, 1, 0, 0);
         }
         lighting_cb_0.endRenderPass();
         lighting_cb_0.end();
 
-        vk::CommandBuffer& lighting_cb_1 = vcc.begin(vcc.graphics_cb[gs.current_frame + frames_in_flight * 2]);
+        vk::CommandBuffer& lighting_cb_1 = vcc.begin(vcc.graphics_cb[gs.game_data.current_frame + frames_in_flight * 2]);
         lighting_cb_1.beginRenderPass(lighting_rpbi, vk::SubpassContents::eInline);
         lighting_cb_1.setViewport(0, viewport);
         lighting_cb_1.setScissor(0, scissor);
         lighting_cb_1.bindPipeline(vk::PipelineBindPoint::eGraphics, lighting_pipeline_1.get());
-        lighting_cb_1.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, lighting_pipeline_1.get_layout(), 0, lighting_dsh.get_sets()[gs.current_frame * frames_in_flight + 1], {});
+        lighting_cb_1.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, lighting_pipeline_1.get_layout(), 0, lighting_dsh.get_sets()[gs.game_data.current_frame * frames_in_flight + 1], {});
         lighting_cb_1.pushConstants(lighting_pipeline_1.get_layout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(LightingPassPushConstants), &lppc);
-        if (!gs.disable_rendering)
+        if (!gs.settings.disable_rendering)
         {
             lighting_cb_1.draw(3, 1, 0, 0);
         }
-        timers[gs.current_frame].start(lighting_cb_1, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eTopOfPipe);
-        if (gs.show_ui) ui.draw(lighting_cb_1, gs);
-        timers[gs.current_frame].stop(lighting_cb_1, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eBottomOfPipe);
+        timers[gs.game_data.current_frame].start(lighting_cb_1, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eTopOfPipe);
+        if (gs.settings.show_ui) ui.draw(lighting_cb_1, gs);
+        timers[gs.game_data.current_frame].stop(lighting_cb_1, DeviceTimer::RENDERING_UI, vk::PipelineStageFlagBits::eBottomOfPipe);
         lighting_cb_1.endRenderPass();
-        timers[gs.current_frame].stop(lighting_cb_1 , DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllGraphics);
+        timers[gs.game_data.current_frame].stop(lighting_cb_1 , DeviceTimer::RENDERING_ALL, vk::PipelineStageFlagBits::eAllGraphics);
         lighting_cb_1.end();
     }
 
     void WorkContext::submit(uint32_t image_idx, GameState& gs)
     {
-        std::array<vk::CommandBuffer, 3> compute_cbs{vcc.compute_cb[gs.current_frame], vcc.compute_cb[gs.current_frame + frames_in_flight], vcc.compute_cb[gs.current_frame + frames_in_flight * 2]};
+        std::array<vk::CommandBuffer, 3> compute_cbs{vcc.compute_cb[gs.game_data.current_frame], vcc.compute_cb[gs.game_data.current_frame + frames_in_flight], vcc.compute_cb[gs.game_data.current_frame + frames_in_flight * 2]};
         vk::SubmitInfo compute_si{};
         compute_si.sType = vk::StructureType::eSubmitInfo;
         compute_si.waitSemaphoreCount = 0;
         compute_si.commandBufferCount = compute_cbs.size();
         compute_si.pCommandBuffers = compute_cbs.data();
         compute_si.signalSemaphoreCount = 1;
-        compute_si.pSignalSemaphores = &syncs[gs.current_frame].get_semaphore(Synchronization::S_COMPUTE_FINISHED);
+        compute_si.pSignalSemaphores = &syncs[gs.game_data.current_frame].get_semaphore(Synchronization::S_COMPUTE_FINISHED);
         vmc.get_compute_queue().submit(compute_si);
 
         std::vector<vk::SubmitInfo> render_si(3);
         std::vector<vk::PipelineStageFlags> geometry_pass_wait_stages;
         std::vector<vk::Semaphore> geometry_pass_wait_semaphores;
         geometry_pass_wait_stages.push_back(vk::PipelineStageFlagBits::eVertexInput);
-        geometry_pass_wait_semaphores.push_back(syncs[gs.current_frame].get_semaphore(Synchronization::S_COMPUTE_FINISHED));
+        geometry_pass_wait_semaphores.push_back(syncs[gs.game_data.current_frame].get_semaphore(Synchronization::S_COMPUTE_FINISHED));
         render_si[0].sType = vk::StructureType::eSubmitInfo;
         render_si[0].waitSemaphoreCount = geometry_pass_wait_semaphores.size();
         render_si[0].pWaitSemaphores = geometry_pass_wait_semaphores.data();
         render_si[0].pWaitDstStageMask = geometry_pass_wait_stages.data();
         render_si[0].commandBufferCount = 1;
-        render_si[0].pCommandBuffers = &vcc.graphics_cb[gs.current_frame];
+        render_si[0].pCommandBuffers = &vcc.graphics_cb[gs.game_data.current_frame];
         render_si[0].signalSemaphoreCount = 1;
-        render_si[0].pSignalSemaphores = &syncs[gs.current_frame].get_semaphore(Synchronization::S_GEOMETRY_PASS_FINISHED);
+        render_si[0].pSignalSemaphores = &syncs[gs.game_data.current_frame].get_semaphore(Synchronization::S_GEOMETRY_PASS_FINISHED);
 
         std::vector<vk::PipelineStageFlags> lighting_pass_0_wait_stages;
         std::vector<vk::Semaphore> lighting_pass_0_wait_semaphores;
         lighting_pass_0_wait_stages.push_back(vk::PipelineStageFlagBits::eFragmentShader);
-        lighting_pass_0_wait_semaphores.push_back(syncs[gs.current_frame].get_semaphore(Synchronization::S_GEOMETRY_PASS_FINISHED));
+        lighting_pass_0_wait_semaphores.push_back(syncs[gs.game_data.current_frame].get_semaphore(Synchronization::S_GEOMETRY_PASS_FINISHED));
         lighting_pass_0_wait_stages.push_back(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-        lighting_pass_0_wait_semaphores.push_back(syncs[gs.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
+        lighting_pass_0_wait_semaphores.push_back(syncs[gs.game_data.current_frame].get_semaphore(Synchronization::S_IMAGE_AVAILABLE));
         render_si[1].sType = vk::StructureType::eSubmitInfo;
         render_si[1].waitSemaphoreCount = lighting_pass_0_wait_semaphores.size();
         render_si[1].pWaitSemaphores = lighting_pass_0_wait_semaphores.data();
         render_si[1].pWaitDstStageMask = lighting_pass_0_wait_stages.data();
         render_si[1].commandBufferCount = 1;
-        render_si[1].pCommandBuffers = &vcc.graphics_cb[gs.current_frame + frames_in_flight];
+        render_si[1].pCommandBuffers = &vcc.graphics_cb[gs.game_data.current_frame + frames_in_flight];
         render_si[1].signalSemaphoreCount = 1;
-        render_si[1].pSignalSemaphores = &syncs[gs.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_0_FINISHED);
+        render_si[1].pSignalSemaphores = &syncs[gs.game_data.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_0_FINISHED);
 
         std::vector<vk::PipelineStageFlags> lighting_pass_1_wait_stages;
         std::vector<vk::Semaphore> lighting_pass_1_wait_semaphores;
         lighting_pass_1_wait_stages.push_back(vk::PipelineStageFlagBits::eFragmentShader);
-        lighting_pass_1_wait_semaphores.push_back(syncs[gs.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_0_FINISHED));
+        lighting_pass_1_wait_semaphores.push_back(syncs[gs.game_data.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_0_FINISHED));
         render_si[2].sType = vk::StructureType::eSubmitInfo;
         render_si[2].waitSemaphoreCount = lighting_pass_1_wait_semaphores.size();
         render_si[2].pWaitSemaphores = lighting_pass_1_wait_semaphores.data();
         render_si[2].pWaitDstStageMask = lighting_pass_1_wait_stages.data();
         render_si[2].commandBufferCount = 1;
-        render_si[2].pCommandBuffers = &vcc.graphics_cb[gs.current_frame + frames_in_flight * 2];
+        render_si[2].pCommandBuffers = &vcc.graphics_cb[gs.game_data.current_frame + frames_in_flight * 2];
         render_si[2].signalSemaphoreCount = 1;
-        render_si[2].pSignalSemaphores = &syncs[gs.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_1_FINISHED);
-        vmc.get_graphics_queue().submit(render_si, syncs[gs.current_frame].get_fence(Synchronization::F_RENDER_FINISHED));
+        render_si[2].pSignalSemaphores = &syncs[gs.game_data.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_1_FINISHED);
+        vmc.get_graphics_queue().submit(render_si, syncs[gs.game_data.current_frame].get_fence(Synchronization::F_RENDER_FINISHED));
 
         vk::PresentInfoKHR present_info{};
         present_info.sType = vk::StructureType::ePresentInfoKHR;
         present_info.waitSemaphoreCount = 1;
-        present_info.pWaitSemaphores = &syncs[gs.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_1_FINISHED);
+        present_info.pWaitSemaphores = &syncs[gs.game_data.current_frame].get_semaphore(Synchronization::S_LIGHTING_PASS_1_FINISHED);
         present_info.swapchainCount = 1;
         present_info.pSwapchains = &swapchain.get();
         present_info.pImageIndices = &image_idx;

@@ -1,5 +1,6 @@
 #include "vk/JetParticles.hpp"
 #include "vk/TunnelObjects.hpp"
+#include "Camera.hpp"
 
 namespace ve
 {
@@ -96,20 +97,20 @@ namespace ve
 
     void JetParticles::draw(vk::CommandBuffer& cb, GameState& gs)
     {
-        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffers[gs.current_frame]).get(), {0});
+        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffers[gs.game_data.current_frame]).get(), {0});
         mrd.prev_MVP = mrd.MVP;
         mrd.MVP = gs.cam.getVP();
-        storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
+        storage.get_buffer(model_render_data_buffers[gs.game_data.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, render_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, render_pipeline.get_layout(), 0, render_dsh.get_sets()[gs.current_frame], {});
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, render_pipeline.get_layout(), 0, render_dsh.get_sets()[gs.game_data.current_frame], {});
         cb.draw(jet_particle_count, 1, 0, 0);
     }
 
     void JetParticles::move_step(vk::CommandBuffer& cb, const GameState& gs)
     {
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
-        JetParticleMovePushConstants jpmpc{.move_dir = gs.cam.getFront(), .time = gs.time, .time_diff = gs.time_diff};
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.game_data.current_frame], {});
+        JetParticleMovePushConstants jpmpc{.move_dir = gs.cam.getFront(), .time = gs.game_data.time, .time_diff = gs.game_data.time_diff};
         cb.pushConstants(move_compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(JetParticleMovePushConstants), &jpmpc);
         cb.dispatch((jet_particle_count + 31) / 32, 1, 1);
     }

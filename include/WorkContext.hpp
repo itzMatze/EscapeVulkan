@@ -1,12 +1,10 @@
 #pragma once
 
 #include <glm/mat4x4.hpp>
-#include <unordered_map>
 #include <vector>
 
 #include "UI.hpp"
 #include "vk/common.hpp"
-#include "vk/Buffer.hpp"
 #include "vk/Scene.hpp"
 #include "vk/Swapchain.hpp"
 #include "vk/VulkanCommandContext.hpp"
@@ -45,7 +43,6 @@ namespace ve
     private:
         void create_lighting_pipeline();
         void create_lighting_descriptor_sets();
-        void display_dead_screen(uint32_t image_idx, GameState& gs);
         void record_graphics_command_buffer(uint32_t image_idx, GameState& gs);
         void submit(uint32_t image_idx, GameState& gs);
     };

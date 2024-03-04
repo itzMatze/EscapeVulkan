@@ -1,5 +1,6 @@
 #include "vk/Tunnel.hpp"
 #include "vk/TunnelObjects.hpp"
+#include "Camera.hpp"
 
 namespace ve
 {
@@ -163,17 +164,17 @@ namespace ve
         cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
         mrd.prev_MVP = mrd.MVP;
         mrd.MVP = gs.cam.getVP();
-        storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
-        const vk::PipelineLayout& pipeline_layout = gs.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
-        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, gs.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[gs.current_frame], {});
-        PushConstants pc{.mesh_render_data_idx = 0, .first_segment_indices_idx = gs.first_segment_indices_idx, .time = gs.time, .tex_view = gs.tex_view};
+        storage.get_buffer(model_render_data_buffers[gs.game_data.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
+        const vk::PipelineLayout& pipeline_layout = gs.settings.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
+        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, gs.settings.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[gs.game_data.current_frame], {});
+        PushConstants pc{.mesh_render_data_idx = 0, .first_segment_indices_idx = gs.game_data.first_segment_indices_idx, .time = gs.game_data.time, .tex_view = gs.settings.tex_view};
         cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants), &pc);
-        cb.drawIndexed(index_count, 1, gs.first_segment_indices_idx, 0, 0);
+        cb.drawIndexed(index_count, 1, gs.game_data.first_segment_indices_idx, 0, 0);
 
         cb.bindVertexBuffers(0, storage.get_buffer(skybox_vertex_buffer).get(), {0});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, skybox_render_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox_render_pipeline.get_layout(), 0, skybox_dsh.get_sets()[gs.current_frame], {});
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, skybox_render_pipeline.get_layout(), 0, skybox_dsh.get_sets()[gs.game_data.current_frame], {});
         glm::mat4 m = rotate_align(glm::normalize(p2 - p1), glm::vec3(0.0, 0.0, 1.0));
         m = glm::translate(glm::mat4(1.0), p2) * m;
         DebugPushConstants dpc{.mvp = gs.cam.getVP() * m};

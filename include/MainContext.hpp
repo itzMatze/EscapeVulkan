@@ -9,6 +9,7 @@
 #include "SoundPlayer.hpp"
 #include "Agent.hpp"
 #include "MoveActions.hpp"
+#include "Camera.hpp"
 
 class MainContext
 {

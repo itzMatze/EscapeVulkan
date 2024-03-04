@@ -7,6 +7,7 @@
 #include "json.hpp"
 #include "vk/TunnelObjects.hpp"
 #include "vk/Model.hpp"
+#include "Camera.hpp"
 
 namespace ve
 {
@@ -354,13 +355,13 @@ namespace ve
         cb.bindIndexBuffer(storage.get_buffer(index_buffer).get(), 0, vk::IndexType::eUint32);
         for (auto& ro : ros)
         {
-            if (gs.show_player) ro.second.draw(cb, gs);
+            if (gs.game_data.show_player) ro.second.draw(cb, gs);
         }
         timer.start(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
         tunnel_objects.draw(cb, gs);
         timer.stop(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
-        if (gs.show_player_bb) collision_handler.draw(cb, gs, model_render_data[player_idx].MVP);
-        if (gs.show_player) jp.draw(cb, gs);
+        if (gs.settings.show_player_bb) collision_handler.draw(cb, gs, model_render_data[player_idx].MVP);
+        if (gs.game_data.show_player) jp.draw(cb, gs);
     }
 
     void Scene::update_game_state(vk::CommandBuffer& cb, GameState& gs, DeviceTimer& timer)
@@ -374,13 +375,13 @@ namespace ve
             model_render_data[player_idx].M = glm::rotate(glm::inverse(gs.cam.view), glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         }
         // get id of segment player is currently in
-        gs.player_data.pos = model_render_data[player_idx].M[3];
-        gs.player_data.dir = model_render_data[player_idx].M * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
-        gs.player_data.up = model_render_data[player_idx].M * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
-        for (uint32_t j = 0; j < segment_count && tunnel_objects.is_pos_past_segment(gs.player_data.pos, model_render_data[player_idx].segment_uid + 1, true); ++j)
+        gs.game_data.player_data.pos = model_render_data[player_idx].M[3];
+        gs.game_data.player_data.dir = model_render_data[player_idx].M * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f);
+        gs.game_data.player_data.up = model_render_data[player_idx].M * glm::vec4(0.0f, 1.0f, 0.0f, 0.0f);
+        for (uint32_t j = 0; j < segment_count && tunnel_objects.is_pos_past_segment(gs.game_data.player_data.pos, model_render_data[player_idx].segment_uid + 1, true); ++j)
         {
             model_render_data[player_idx].segment_uid++;
-            gs.player_segment_position++;
+            gs.game_data.player_segment_position++;
         }
         for (uint32_t i = 0; i < model_render_data.size(); ++i)
         {
@@ -401,29 +402,29 @@ namespace ve
         path_tracer.update_instance(0, model_render_data[player_idx].M);
 
         ModelMatrices bb_mm{.m = model_render_data[player_idx].M, .inv_m = glm::inverse(model_render_data[player_idx].M)};
-        storage.get_buffer(bb_mm_buffers[gs.current_frame]).update_data(bb_mm);
-        storage.get_buffer(player_data_buffers[gs.current_frame]).update_data(gs.player_data);
+        storage.get_buffer(bb_mm_buffers[gs.game_data.current_frame]).update_data(bb_mm);
+        storage.get_buffer(player_data_buffers[gs.game_data.current_frame]).update_data(gs.game_data.player_data);
         tunnel_objects.advance(gs, timer, path_tracer);
         collision_handler.compute(gs, timer);
 
-        if (!lights.empty()) storage.get_buffer(light_buffers[gs.current_frame]).update_data(lights);
-        storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(model_render_data);
+        if (!lights.empty()) storage.get_buffer(light_buffers[gs.game_data.current_frame]).update_data(lights);
+        storage.get_buffer(model_render_data_buffers[gs.game_data.current_frame]).update_data(model_render_data);
         // handle collision: reset ship and let it blink for 3s
-        gs.collision_results = collision_handler.get_collision_results(gs.current_frame);
+        gs.game_data.collision_results = collision_handler.get_collision_results(gs.game_data.current_frame);
         // check if player tries to move in the wrong direction
-        if (!tunnel_objects.is_pos_past_segment(gs.player_data.pos, std::max(gs.player_segment_position - 1, 0), true)) gs.collision_results.collision_detected = 1;
-        if (gs.player_reset_blink_counter == 0 && gs.collision_results.collision_detected != 0 && gs.collision_detection_active)
+        if (!tunnel_objects.is_pos_past_segment(gs.game_data.player_data.pos, std::max(gs.game_data.player_segment_position - 1, 0), true)) gs.game_data.collision_results.collision_detected = 1;
+        if (gs.game_data.player_reset_blink_counter == 0 && gs.game_data.collision_results.collision_detected != 0 && gs.settings.collision_detection_active)
         {
             gs.cam.position = tunnel_objects.get_player_reset_position();
-            gs.player_lifes--;
+            gs.game_data.player_lifes--;
 
-            gs.player_reset_blink_counter = 6;
-            gs.player_reset_blink_timer = 0.5f;
+            gs.game_data.player_reset_blink_counter = 6;
+            gs.game_data.player_reset_blink_timer = 0.5f;
         }
-        if (gs.player_reset_blink_counter > 0)
+        if (gs.game_data.player_reset_blink_counter > 0)
         {
-            collision_handler.reset_shader_return_values(gs.current_frame);
-            gs.player_reset_blink_timer -= gs.time_diff;
+            collision_handler.reset_shader_return_values(gs.game_data.current_frame);
+            gs.game_data.player_reset_blink_timer -= gs.game_data.time_diff;
             gs.cam.position = tunnel_objects.get_player_reset_position();
             glm::vec3 normal = tunnel_objects.get_player_reset_normal();
             if (std::abs(glm::dot(normal, glm::vec3(1.0f, 0.0f, 0.0f))) > 0.999f)
@@ -434,11 +435,11 @@ namespace ve
             {
                 gs.cam.orientation = glm::quatLookAt(normal, glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f)));
             }
-            if (gs.player_reset_blink_timer < 0.0f)
+            if (gs.game_data.player_reset_blink_timer < 0.0f)
             {
-                gs.player_reset_blink_counter--;
-                gs.player_reset_blink_timer = 0.5f;
-                gs.show_player = !gs.show_player;
+                gs.game_data.player_reset_blink_counter--;
+                gs.game_data.player_reset_blink_timer = 0.5f;
+                gs.game_data.show_player = !gs.game_data.show_player;
             }
         }
         jp.move_step(cb, gs);

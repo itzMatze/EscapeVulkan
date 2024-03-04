@@ -45,9 +45,9 @@ namespace ve
     void RenderObject::draw(vk::CommandBuffer& cb, GameState& gs)
     {
         if (meshes.empty()) return;
-        const vk::PipelineLayout& pipeline_layout = gs.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
-        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, gs.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, dsh.get_sets()[gs.current_frame], {});
+        const vk::PipelineLayout& pipeline_layout = gs.settings.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
+        cb.bindPipeline(vk::PipelineBindPoint::eGraphics, gs.settings.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, dsh.get_sets()[gs.game_data.current_frame], {});
         for (uint32_t i = 0; i < model_indices.size() - 1; ++i)
         {
             for (uint32_t j = model_indices[i]; j < model_indices[i + 1]; ++j) meshes[j].draw(cb, pipeline_layout, dsh.get_sets(), gs);

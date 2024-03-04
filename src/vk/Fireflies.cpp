@@ -1,5 +1,6 @@
 #include "vk/Fireflies.hpp"
 #include "vk/TunnelObjects.hpp"
+#include "Camera.hpp"
 
 namespace ve
 {
@@ -98,14 +99,14 @@ namespace ve
 
     void Fireflies::draw(vk::CommandBuffer& cb, GameState& gs)
     {
-        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffers[gs.current_frame]).get(), {0});
+        cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffers[gs.game_data.current_frame]).get(), {0});
         mrd.prev_MVP = mrd.MVP;
         mrd.MVP = gs.cam.getVP();
         mrd.M = gs.cam.getV();
-        storage.get_buffer(model_render_data_buffers[gs.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
+        storage.get_buffer(model_render_data_buffers[gs.game_data.current_frame]).update_data(std::vector<ModelRenderData>{mrd});
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, render_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, render_pipeline.get_layout(), 0, render_dsh.get_sets()[gs.current_frame], {});
-        PushConstants pc{.mesh_render_data_idx = 0, .time = gs.time, .tex_view = gs.tex_view};
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, render_pipeline.get_layout(), 0, render_dsh.get_sets()[gs.game_data.current_frame], {});
+        PushConstants pc{.mesh_render_data_idx = 0, .time = gs.game_data.time, .tex_view = gs.settings.tex_view};
         cb.pushConstants(render_pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants), &pc);
         cb.draw(firefly_count, 1, 0, 0);
     }
@@ -115,14 +116,14 @@ namespace ve
         timer.reset(cb, {DeviceTimer::FIREFLY_MOVE_STEP});
         timer.start(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eAllCommands);
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.game_data.current_frame], {});
         cb.pushConstants(move_compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(FireflyMovePushConstants), &fmpc);
         cb.dispatch((firefly_count + 31) / 32, 1, 1);
-        Buffer& buffer = storage.get_buffer(vertex_buffers[gs.current_frame]);
+        Buffer& buffer = storage.get_buffer(vertex_buffers[gs.game_data.current_frame]);
         vk::BufferMemoryBarrier buffer_memory_barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
         cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {buffer_memory_barrier}, {});
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, tunnel_collision_compute_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, tunnel_collision_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, tunnel_collision_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.game_data.current_frame], {});
         cb.pushConstants(tunnel_collision_compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(FireflyMovePushConstants), &fmpc);
         cb.dispatch((firefly_count + 31) / 32, ((indices_per_segment / 3) + 31) / 32, 1);
         timer.stop(cb, DeviceTimer::FIREFLY_MOVE_STEP, vk::PipelineStageFlagBits::eComputeShader);

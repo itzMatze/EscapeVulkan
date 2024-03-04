@@ -156,12 +156,12 @@ namespace ve
 
     void CollisionHandler::compute(GameState& gs, DeviceTimer& timer)
     {
-        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame + frames_in_flight]);
+        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.game_data.current_frame + frames_in_flight]);
         timer.reset(cb, {DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION});
         timer.start(cb, DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION, vk::PipelineStageFlagBits::eAllCommands);
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.current_frame], {});
-        pc.first_segment_indices_idx = gs.first_segment_indices_idx;
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.game_data.current_frame], {});
+        pc.first_segment_indices_idx = gs.game_data.first_segment_indices_idx;
         pc.player_segment_position = player_local_segment_position;
         cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(PushConstants), &pc);
         cb.dispatch(((indices_per_segment * 3) / 3 + 31 + distance_directions_count) / 32, 1, 1);

@@ -195,23 +195,23 @@ namespace ve
 
     void TunnelObjects::advance(GameState& gs, DeviceTimer& timer, PathTracer& path_tracer)
     {
-        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.current_frame]);
-        FireflyMovePushConstants fmpc{.time = gs.time, .time_diff = gs.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = gs.first_segment_indices_idx};
+        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.game_data.current_frame]);
+        FireflyMovePushConstants fmpc{.time = gs.game_data.time, .time_diff = gs.game_data.time_diff, .segment_uid = cpc.segment_uid, .first_segment_indices_idx = gs.game_data.first_segment_indices_idx};
         fireflies.move_step(cb, gs, timer, fmpc);
-        gs.segment_distance_travelled = progress_on_vector(get_tunnel_bezier_point(gs.player_segment_position, 0, true), get_tunnel_bezier_point(gs.player_segment_position, 2, true), gs.player_data.pos);
-        if (cpc.segment_uid - segment_count + 1 + player_local_segment_position < gs.player_segment_position)
+        gs.game_data.segment_distance_travelled = progress_on_vector(get_tunnel_bezier_point(gs.game_data.player_segment_position, 0, true), get_tunnel_bezier_point(gs.game_data.player_segment_position, 2, true), gs.game_data.player_data.pos);
+        if (cpc.segment_uid - segment_count + 1 + player_local_segment_position < gs.game_data.player_segment_position)
         {
             // player passed a segment, add distance of passed segment
-            glm::vec3& bp0 = get_tunnel_bezier_point(gs.player_segment_position - 1, 0, true);
-            glm::vec3& bp1 = get_tunnel_bezier_point(gs.player_segment_position - 1, 1, true);
-            glm::vec3& bp2 = get_tunnel_bezier_point(gs.player_segment_position - 1, 2, true);
-            gs.tunnel_distance_travelled += glm::distance(bp0, bp2);
-            gs.segment_distance_travelled = 0.0f;
+            glm::vec3& bp0 = get_tunnel_bezier_point(gs.game_data.player_segment_position - 1, 0, true);
+            glm::vec3& bp1 = get_tunnel_bezier_point(gs.game_data.player_segment_position - 1, 1, true);
+            glm::vec3& bp2 = get_tunnel_bezier_point(gs.game_data.player_segment_position - 1, 2, true);
+            gs.game_data.tunnel_distance_travelled += glm::distance(bp0, bp2);
+            gs.game_data.segment_distance_travelled = 0.0f;
             // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment
             // increment the idx at which the rendering starts by the same amount
             cpc.segment_uid++;
             cpc.indices_start_idx += indices_per_segment;
-            gs.first_segment_indices_idx += indices_per_segment;
+            gs.game_data.first_segment_indices_idx += indices_per_segment;
 
             // add new segment points
             const glm::vec3 normal = glm::normalize(cpc.p2 - cpc.p1);
@@ -226,28 +226,28 @@ namespace ve
             if (cpc.indices_start_idx >= index_count * 2)
             {
                 cpc.indices_start_idx = index_count - indices_per_segment;
-                gs.first_segment_indices_idx = 0;
+                gs.game_data.first_segment_indices_idx = 0;
             }
 
             timer.reset(cb, {DeviceTimer::COMPUTE_TUNNEL_ADVANCE});
             timer.start(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
-            Buffer& buffer = storage.get_buffer_by_name("firefly_vertices_" + std::to_string(gs.current_frame));
+            Buffer& buffer = storage.get_buffer_by_name("firefly_vertices_" + std::to_string(gs.game_data.current_frame));
             vk::BufferMemoryBarrier firefly_buffer_memory_barrier(vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eMemoryWrite, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, buffer.get(), 0, buffer.get_byte_size());
             cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eComputeShader, vk::DependencyFlagBits::eDeviceGroup, {}, {firefly_buffer_memory_barrier}, {});
-            compute_new_segment(cb, gs.current_frame);
+            compute_new_segment(cb, gs.game_data.current_frame);
             // write copy of data to the first half of the buffer if idx is in the past half of the data
             if (cpc.indices_start_idx > index_count)
             {
                 cpc.indices_start_idx -= (index_count + indices_per_segment);
-                compute_new_segment(cb, gs.current_frame);
+                compute_new_segment(cb, gs.game_data.current_frame);
                 cpc.indices_start_idx += (index_count + indices_per_segment);
             }
             timer.stop(cb, DeviceTimer::COMPUTE_TUNNEL_ADVANCE, vk::PipelineStageFlagBits::eAllCommands);
             vk::BufferMemoryBarrier tunnel_buffer_memory_barrier(vk::AccessFlagBits::eShaderWrite, vk::AccessFlagBits::eMemoryRead, vmc.queue_family_indices.compute, vmc.queue_family_indices.compute, storage.get_buffer(tunnel.vertex_buffer).get(), 0, storage.get_buffer(tunnel.vertex_buffer).get_byte_size());
             cb.pipelineBarrier(vk::PipelineStageFlagBits::eComputeShader, vk::PipelineStageFlagBits::eAccelerationStructureBuildKHR, vk::DependencyFlagBits::eDeviceGroup, {}, {tunnel_buffer_memory_barrier}, {});
-            path_tracer.update_blas(tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{gs.first_segment_indices_idx}, std::vector<uint32_t>{index_count}, blas_indices[0], sizeof(TunnelVertex));
+            path_tracer.update_blas(tunnel.vertex_buffer, tunnel.index_buffer, std::vector<uint32_t>{gs.game_data.first_segment_indices_idx}, std::vector<uint32_t>{index_count}, blas_indices[0], sizeof(TunnelVertex));
         }
-        path_tracer.create_tlas(cb, gs.current_frame);
+        path_tracer.create_tlas(cb, gs.game_data.current_frame);
         cb.end();
     }
 
