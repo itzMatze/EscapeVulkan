@@ -11,39 +11,35 @@
 #include "vk/VulkanMainContext.hpp"
 #include "Storage.hpp"
 #include "vk/Timer.hpp"
+#include "vk/Lighting.hpp"
 
 namespace ve
 {
-    class WorkContext
-    {
-    public:
-        WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc);
-        void self_destruct();
-        void reload_shaders();
-        void load_scene(const std::string& filename);
-        void restart();
+class WorkContext
+{
+public:
+    WorkContext(const VulkanMainContext& vmc, VulkanCommandContext& vcc);
+    void self_destruct();
+    void reload_shaders();
+    void load_scene(const std::string& filename);
+    void restart();
 
-    public:
-        const VulkanMainContext& vmc;
-        VulkanCommandContext& vcc;
-        Storage storage;
-        Swapchain swapchain;
-        Scene scene;
-        UI ui;
-        std::vector<Synchronization> syncs;
-        std::vector<DeviceTimer> timers;
-        std::vector<uint32_t> restir_reservoir_buffers;
-        Pipeline lighting_pipeline_0;
-        Pipeline lighting_pipeline_1;
-        DescriptorSetHandler lighting_dsh;
+public:
+    const VulkanMainContext& vmc;
+    VulkanCommandContext& vcc;
+    Storage storage;
+    Swapchain swapchain;
+    Scene scene;
+    UI ui;
+    Lighting lighting;
+    std::vector<Synchronization> syncs;
+    std::vector<DeviceTimer> timers;
 
-        void draw_frame(GameState& gs);
-        vk::Extent2D recreate_swapchain();
+    void draw_frame(GameState& gs);
+    vk::Extent2D recreate_swapchain();
 
-    private:
-        void create_lighting_pipeline();
-        void create_lighting_descriptor_sets();
-        void record_graphics_command_buffer(uint32_t image_idx, GameState& gs);
-        void submit(uint32_t image_idx, GameState& gs);
-    };
+private:
+    void record_graphics_command_buffer(uint32_t image_idx, GameState& gs);
+    void submit(uint32_t image_idx, GameState& gs);
+};
 } // namespace ve
