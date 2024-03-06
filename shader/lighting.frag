@@ -466,6 +466,11 @@ void main()
         local_reservoirs[i].M = 0;
         local_reservoirs[i].W = 0.0;
     }
+    if (frag_segment_uid < 0)
+    {
+        out_color = frag_color;
+        return;
+    }
     if (frame_data.normal_view)
     {
         out_color = vec4((frag_normal + 1.0) / 2.0, 1.0);
@@ -476,35 +481,28 @@ void main()
         out_color = frag_color;
         return;
     }
-    if (frag_segment_uid < 0)
+    if (length(frag_normal) < 0.5)
     {
-        out_color = frag_color;
+        Reservoir r;
+        r.y = 0;
+        r.w = 0.0;
+        r.M = 0;
+        r.W = 0.0;
+        for (uint i = 0; i < RESERVOIR_COUNT; ++i) write_reservoir(r, gl_FragCoord.xy, i);
+        out_color = vec4(0.0, 0.0, 0.0, 0.0);
+        return;
+    }
+    if (FIRST_PASS == 1)
+    {
+        fill_reservoirs(frag_pos, frag_normal, frag_color, frag_segment_uid);
+        add_temporal_reservoirs(frag_pos, frag_normal, frag_color);
     }
     else
     {
-        if (length(frag_normal) < 0.5)
-        {
-            Reservoir r;
-            r.y = 0;
-            r.w = 0.0;
-            r.M = 0;
-            r.W = 0.0;
-            for (uint i = 0; i < RESERVOIR_COUNT; ++i) write_reservoir(r, gl_FragCoord.xy, i);
-            out_color = vec4(0.0, 0.0, 0.0, 0.0);
-            return;
-        }
-        if (FIRST_PASS == 1)
-        {
-            fill_reservoirs(frag_pos, frag_normal, frag_color, frag_segment_uid);
-            add_temporal_reservoirs(frag_pos, frag_normal, frag_color);
-        }
-        else
-        {
-            for (uint i = 0; i < RESERVOIR_COUNT; ++i) local_reservoirs[i] = get_reservoir(gl_FragCoord.xy, i);
-            add_spatial_reservoirs(frag_pos, frag_normal, frag_color);
-            out_color = calculate_color(frag_pos, frag_normal, frag_color, frag_segment_uid);
-        }
-        for (uint i = 0; i < RESERVOIR_COUNT; ++i) write_reservoir(local_reservoirs[i], gl_FragCoord.xy, i);
+        for (uint i = 0; i < RESERVOIR_COUNT; ++i) local_reservoirs[i] = get_reservoir(gl_FragCoord.xy, i);
+        add_spatial_reservoirs(frag_pos, frag_normal, frag_color);
+        out_color = calculate_color(frag_pos, frag_normal, frag_color, frag_segment_uid);
     }
+    for (uint i = 0; i < RESERVOIR_COUNT; ++i) write_reservoir(local_reservoirs[i], gl_FragCoord.xy, i);
 }
 
