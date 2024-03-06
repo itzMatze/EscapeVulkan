@@ -16,7 +16,7 @@ namespace ve
         void construct(const RenderPass& render_pass, const Mesh& spawn_mesh, const std::vector<uint32_t>& spawn_mesh_model_render_data_buffer, uint32_t spawn_mesh_model_render_data_idx);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, GameState& gs);
-        void move_step(vk::CommandBuffer& cb, const GameState& gs);
+        void move_step(vk::CommandBuffer& cb, uint32_t current_frame);
 
         std::vector<uint32_t> vertex_buffers;
 

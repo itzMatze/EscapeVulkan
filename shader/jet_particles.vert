@@ -14,10 +14,6 @@ layout(binding = 0) uniform ModelRenderDataBuffer {
     ModelRenderData mrd;
 };
 
-layout(push_constant) uniform PushConstant {
-    RenderPushConstants pc;
-};
-
 layout(location = 0) out vec3 frag_color;
 
 void main() {

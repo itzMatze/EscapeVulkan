@@ -7,8 +7,8 @@ namespace ve
 
     void Mesh::draw(vk::CommandBuffer& cb, const vk::PipelineLayout layout, const std::vector<vk::DescriptorSet>& sets, GameState& gs)
     {
-        PushConstants pc{.mesh_render_data_idx = mesh_render_data_idx, .first_segment_indices_idx = gs.game_data.first_segment_indices_idx, .time = gs.game_data.time, .tex_view = gs.settings.tex_view};
-        cb.pushConstants(layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(PushConstants), &pc);
+        RenderPushConstants pc{.mesh_render_data_idx = mesh_render_data_idx};
+        cb.pushConstants(layout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(RenderPushConstants), &pc);
         cb.drawIndexed(index_count, 1, index_offset, 0, 0);
     }
 } // namespace ve

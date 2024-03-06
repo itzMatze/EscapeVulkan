@@ -2,6 +2,7 @@
 
 #include "vk/common.hpp"
 #include "vk/TunnelConstants.hpp"
+#include <vulkan/vulkan_enums.hpp>
 
 namespace ve
 {
@@ -94,7 +95,7 @@ namespace ve
             compute_dsh.add_descriptor(4, storage.get_buffer_by_name("indices"));
             compute_dsh.add_descriptor(5, storage.get_buffer_by_name("vertices"));
             compute_dsh.add_descriptor(6, storage.get_buffer_by_name("bb_mm_" + std::to_string(i)));
-            compute_dsh.add_descriptor(90, storage.get_buffer_by_name("player_data_" + std::to_string(i)));
+            compute_dsh.add_descriptor(90, storage.get_buffer_by_name("frame_data_" + std::to_string(i)));
             compute_dsh.add_descriptor(99, storage.get_buffer_by_name("tlas_" + std::to_string(i)));
         }
         compute_dsh.construct();
@@ -112,9 +113,7 @@ namespace ve
         std::vector<ShaderInfo> shader_infos(2);
         shader_infos[0] = ShaderInfo{"debug.vert", vk::ShaderStageFlagBits::eVertex};
         shader_infos[1] = ShaderInfo{"debug.frag", vk::ShaderStageFlagBits::eFragment};
-        std::vector<vk::PushConstantRange> pcrs;
-        pcrs.push_back(vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(DebugPushConstants)));
-        render_pipeline.construct(render_pass, std::nullopt, shader_infos, vk::PolygonMode::eLine, DebugVertex::get_binding_descriptions(), DebugVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, pcrs);
+        render_pipeline.construct(render_pass, std::nullopt, shader_infos, vk::PolygonMode::eLine, DebugVertex::get_binding_descriptions(), DebugVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(DebugPushConstants))});
 
         std::array<vk::SpecializationMapEntry, 8> compute_entries;
         compute_entries[0] = vk::SpecializationMapEntry(0, 0, sizeof(uint32_t));
@@ -127,7 +126,7 @@ namespace ve
         compute_entries[7] = vk::SpecializationMapEntry(7, sizeof(uint32_t) * 7, sizeof(uint32_t));
         std::array<uint32_t, 8> compute_entries_data{segment_count, samples_per_segment, vertices_per_sample, indices_per_segment, player_start_idx, player_idx_count, player_local_segment_position, distance_directions_count};
         vk::SpecializationInfo compute_spec_info(compute_entries.size(), compute_entries.data(), compute_entries_data.size() * sizeof(uint32_t), compute_entries_data.data());
-        compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"player_tunnel_collision.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(PushConstants));
+        compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"player_tunnel_collision.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, 0);
     }
 
     void CollisionHandler::self_destruct(bool full)
@@ -144,7 +143,7 @@ namespace ve
         }
     }
 
-    void CollisionHandler::draw(vk::CommandBuffer& cb, GameState& gs, const glm::mat4& mvp)
+    void CollisionHandler::draw(vk::CommandBuffer& cb, const glm::mat4& mvp)
     {
         // draw bounding box for debugging
         cb.bindVertexBuffers(0, storage.get_buffer(vertex_buffer).get(), {0});
@@ -154,16 +153,13 @@ namespace ve
         cb.draw(36, 1, 0, 0);
     }
 
-    void CollisionHandler::compute(GameState& gs, DeviceTimer& timer)
+    void CollisionHandler::compute(uint32_t current_frame, DeviceTimer& timer)
     {
-        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.game_data.current_frame + frames_in_flight]);
+        vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[current_frame + frames_in_flight]);
         timer.reset(cb, {DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION});
         timer.start(cb, DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION, vk::PipelineStageFlagBits::eAllCommands);
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, compute_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.game_data.current_frame], {});
-        pc.first_segment_indices_idx = gs.game_data.first_segment_indices_idx;
-        pc.player_segment_position = player_local_segment_position;
-        cb.pushConstants(compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(PushConstants), &pc);
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[current_frame], {});
         cb.dispatch(((indices_per_segment * 3) / 3 + 31 + distance_directions_count) / 32, 1, 1);
         timer.stop(cb, DeviceTimer::COMPUTE_PLAYER_TUNNEL_COLLISION, vk::PipelineStageFlagBits::eComputeShader);
         cb.end();

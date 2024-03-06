@@ -34,19 +34,8 @@ namespace ve
         alignas(16) int32_t segment_uid;
     };
 
-    struct PushConstants {
+    struct RenderPushConstants {
         uint32_t mesh_render_data_idx;
-        uint32_t first_segment_indices_idx;
-        float time;
-        uint32_t tex_view;
-    };
-
-    struct LightingPassPushConstants {
-        uint32_t first_segment_indices_idx;
-        float time;
-        uint32_t normal_view;
-        uint32_t color_view;
-        uint32_t segment_uid_view;
     };
 
     struct DebugPushConstants {
@@ -59,17 +48,33 @@ namespace ve
         int32_t current_scene = 0;
     };
 
-    struct PlayerData
-    {
-        glm::vec4 pos;
-        glm::vec4 dir;
-        glm::vec4 up;
-    };
-
     struct CollisionResults
     {
         int32_t collision_detected = 0;
         std::array<float, distance_directions_count> distances;
+    };
+
+    struct PlayerData
+    {
+        glm::vec4 pos = glm::vec4(0.0f);
+        glm::vec4 dir = glm::vec4(0.0f);
+        glm::vec4 up = glm::vec4(0.0f);
+        uint32_t segment_id = 0;
+    };
+
+    struct FrameData
+    {
+        glm::vec4 player_pos = glm::vec4(0.0f);
+        glm::vec4 player_dir = glm::vec4(0.0f);
+        glm::vec4 player_up = glm::vec4(0.0f);
+        uint32_t player_segment_id = 0;
+        float time_diff = 0.000001f;
+        float time = 0.0f;
+        uint32_t tunnel_first_segment_indices_idx = 0;
+        uint32_t color_view = false;
+        uint32_t normal_view = false;
+        uint32_t tex_view = false;
+        uint32_t segment_uid_view = false;
     };
 
     struct GameData
@@ -87,8 +92,6 @@ namespace ve
         uint32_t current_frame = 0;
         uint32_t total_frames = 0;
         uint32_t first_segment_indices_idx = 0;
-        // local index of segment in which player currently is
-        int32_t player_segment_position = 0;
         bool show_player = true;
     };
 

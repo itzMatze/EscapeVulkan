@@ -9,10 +9,7 @@ namespace ve
 {
     struct FireflyMovePushConstants
     {
-        float time;
-        float time_diff;
         uint32_t segment_uid;
-        uint32_t first_segment_indices_idx;
     };
 
     struct FireflyVertex

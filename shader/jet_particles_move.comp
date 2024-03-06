@@ -32,8 +32,8 @@ layout(binding = 4) uniform ModelRenderDataBuffer {
     ModelRenderData mrd[NUM_MVPS];
 };
 
-layout(push_constant) uniform PushConstant {
-    JetParticleMovePushConstants pc;
+layout(binding = 90) uniform FrameDataBuffer {
+    FrameData frame_data;
 };
 
 uint rng_state;
@@ -77,15 +77,15 @@ void main()
 {
     if (gl_GlobalInvocationID.x >= JET_PARTICLE_COUNT) return;
 
-    rng_state = floatBitsToUint((gl_GlobalInvocationID.x + 1) * 432.5 * pc.time * pc.time_diff);
+    rng_state = floatBitsToUint((gl_GlobalInvocationID.x + 1) * 432.5 * frame_data.time * frame_data.time_diff);
 
     JetParticleVertex v = unpack_jet_particle_vertex(in_vertices[gl_GlobalInvocationID.x]);
-    v.lifetime -= pc.time_diff;
+    v.lifetime -= frame_data.time_diff;
     if (v.lifetime < 0.0f)
     {
         v.lifetime = MAX_LIFETIME * pcg_random_state();
         v.pos = (mrd[SPAWN_MESH_MODEL_RENDER_DATA_IDX].m * vec4(get_vertex_pos(scene_vertices[scene_indices[SPAWN_MESH_INDEX_OFFSET + uint(pcg_random_state() * SPAWN_MESH_INDEX_COUNT)]]), 1.0)).xyz;
-        v.vel = -pcg_random_state() * pc.move_dir * 10.0f * (max(vec3(pcg_random_state(), pcg_random_state(), pcg_random_state()), vec3(0.3)));
+        v.vel = -pcg_random_state() * frame_data.player_dir.xyz * 10.0f * (max(vec3(pcg_random_state(), pcg_random_state(), pcg_random_state()), vec3(0.3)));
     }
     if (v.lifetime > MAX_LIFETIME / 2.0f)
     {
@@ -96,7 +96,7 @@ void main()
         v.col = vec3(0.0, 0.0, pcg_random_state());
     }
     //v.col *= (v.lifetime / MAX_LIFETIME);
-    v.pos += pcg_random_state() * v.vel * pc.time_diff;
+    v.pos += pcg_random_state() * v.vel * frame_data.time_diff;
     v.vel *= 0.999;
 
     out_vertices[gl_GlobalInvocationID.x] = pack_jet_particle_vertex(v);

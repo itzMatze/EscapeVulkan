@@ -32,6 +32,10 @@ layout(binding = 5) buffer TunnelVertexBuffer {
     AlignedTunnelVertex tunnel_vertices[];
 };
 
+layout(binding = 90) uniform FrameDataBuffer {
+    FrameData frame_data;
+};
+
 layout(push_constant) uniform PushConstant {
     FireflyMovePushConstants pc;
 };
@@ -66,9 +70,9 @@ bool intersect_tunnel(in vec3 old_pos, in vec3 new_pos, in uint segment_idx, out
     float t = 0.0;
     vec2 bary = vec2(0.0, 0.0);
     // one thread for every triangle that needs to be tested
-    const uint p0_idx = tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3];
-    const uint p1_idx = tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3 + 1];
-    const uint p2_idx = tunnel_indices[pc.first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3 + 2];
+    const uint p0_idx = tunnel_indices[frame_data.tunnel_first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3];
+    const uint p1_idx = tunnel_indices[frame_data.tunnel_first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3 + 1];
+    const uint p2_idx = tunnel_indices[frame_data.tunnel_first_segment_indices_idx + INDICES_PER_SEGMENT * segment_idx + gl_GlobalInvocationID.y * 3 + 2];
     vec3 p0 = get_tunnel_vertex_pos(tunnel_vertices[p0_idx]);
     vec3 p1 = get_tunnel_vertex_pos(tunnel_vertices[p1_idx]);
     vec3 p2 = get_tunnel_vertex_pos(tunnel_vertices[p2_idx]);

@@ -97,6 +97,7 @@ namespace ve
         render_dsh.add_binding(11, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         render_dsh.add_binding(12, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         render_dsh.add_binding(13, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        render_dsh.add_binding(90, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
 
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
@@ -117,6 +118,7 @@ namespace ve
             render_dsh.add_descriptor(11, storage.get_buffer_by_name("tunnel_vertices"));
             render_dsh.add_descriptor(12, storage.get_buffer_by_name("indices"));
             render_dsh.add_descriptor(13, storage.get_buffer_by_name("vertices"));
+            render_dsh.add_descriptor(90, storage.get_buffer_by_name("frame_data_" + std::to_string(i)));
         }
         skybox_dsh.construct();
         render_dsh.construct();
@@ -135,8 +137,8 @@ namespace ve
         vk::SpecializationInfo fragment_spec_info(fragment_entries.size(), fragment_entries.data(), sizeof(uint32_t) * fragment_entries_data.size(), fragment_entries_data.data());
         shader_infos[1] = ShaderInfo{"tunnel.frag", vk::ShaderStageFlagBits::eFragment, fragment_spec_info};
 
-        pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, 0, sizeof(TunnelPushConstants))});
-        mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, 0, sizeof(TunnelPushConstants))});
+        pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {});
+        mesh_view_pipeline.construct(render_pass, render_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eLine, TunnelVertex::get_binding_descriptions(), TunnelVertex::get_attribute_descriptions(), vk::PrimitiveTopology::eTriangleList, {});
 
         shader_infos[0] = ShaderInfo{"tunnel_skybox.vert", vk::ShaderStageFlagBits::eVertex};
         shader_infos[1] = ShaderInfo{"tunnel_skybox.frag", vk::ShaderStageFlagBits::eFragment};
@@ -171,8 +173,6 @@ namespace ve
         const vk::PipelineLayout& pipeline_layout = gs.settings.mesh_view ? mesh_view_pipeline.get_layout() : pipeline.get_layout();
         cb.bindPipeline(vk::PipelineBindPoint::eGraphics, gs.settings.mesh_view ? mesh_view_pipeline.get() : pipeline.get());
         cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, render_dsh.get_sets()[gs.game_data.current_frame], {});
-        TunnelPushConstants pc{.tex_view = gs.settings.tex_view};
-        cb.pushConstants(pipeline_layout, vk::ShaderStageFlagBits::eFragment, 0, sizeof(TunnelPushConstants), &pc);
         cb.drawIndexed(index_count, 1, gs.game_data.first_segment_indices_idx, 0, 0);
 
         cb.bindVertexBuffers(0, storage.get_buffer(skybox_vertex_buffer).get(), {0});

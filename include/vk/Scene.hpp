@@ -51,7 +51,7 @@ namespace ve
         std::vector<ModelRenderData> model_render_data;
         std::unordered_map<std::string, uint32_t> model_handles;
         std::vector<uint32_t> bb_mm_buffers;
-        std::vector<uint32_t> player_data_buffers;
+        std::vector<uint32_t> frame_data_buffers;
         uint32_t vertex_buffer;
         uint32_t index_buffer;
         // use -1 to encode missing material buffer and/or textures as they are not required

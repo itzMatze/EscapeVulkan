@@ -20,10 +20,6 @@ layout(location = 0) in vec2 frag_tex;
 
 layout(location = 0) out vec4 out_color;
 
-layout(push_constant) uniform PushConstant {
-    LightingPassPushConstants pc;
-};
-
 layout(binding = 1) buffer MeshRenderDataBuffer {
     MeshRenderData mesh_rd[];
 };
@@ -58,6 +54,10 @@ layout(binding = 12) buffer SceneIndicesBuffer {
 
 layout(binding = 13) buffer SceneVerticesBuffer {
     AlignedVertex scene_vertices[];
+};
+
+layout(binding = 90) uniform FrameDataBuffer {
+    FrameData frame_data;
 };
 
 layout(binding = 99, set = 0) uniform accelerationStructureEXT topLevelAS;
@@ -418,9 +418,9 @@ vec4 calculate_color(vec3 position, vec3 normal, vec4 color, int segment_uid)
             pos = pos + t * dir;
             if (instance_id == 666)
             {
-                TunnelVertex v0 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + primitive_idx * 3]]);
-                TunnelVertex v1 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + primitive_idx * 3 + 1]]);
-                TunnelVertex v2 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[pc.first_segment_indices_idx + primitive_idx * 3 + 2]]);
+                TunnelVertex v0 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[frame_data.first_segment_indices_idx + primitive_idx * 3]]);
+                TunnelVertex v1 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[frame_data.first_segment_indices_idx + primitive_idx * 3 + 1]]);
+                TunnelVertex v2 = unpack_tunnel_vertex(tunnel_vertices[tunnel_indices[frame_data.first_segment_indices_idx + primitive_idx * 3 + 2]]);
                 color = vec4(0.63, 0.32, 0.18, 1.0) * texture(noise_tex_sampler, vec3(v0.tex, 1));
                 normal = normalize(v0.normal + texture(noise_tex_sampler, vec3(v0.tex, 0)).rgb - 0.5);
             }
@@ -457,7 +457,7 @@ void main()
     vec4 frag_color = texture(deferred_color_sampler, frag_tex);
     int frag_segment_uid = texture(deferred_segment_uid_sampler, frag_tex).x;
 
-    rng_state = floatBitsToUint(frag_pos.x * frag_normal.z * frag_tex.t * pc.time + float(FIRST_PASS) * 3.54);
+    rng_state = floatBitsToUint(frag_pos.x * frag_normal.z * frag_tex.t * frame_data.time + float(FIRST_PASS) * 3.54);
 
     for (uint i = 0; i < RESERVOIR_COUNT; ++i)
     {
@@ -466,12 +466,12 @@ void main()
         local_reservoirs[i].M = 0;
         local_reservoirs[i].W = 0.0;
     }
-    if (pc.normal_view)
+    if (frame_data.normal_view)
     {
         out_color = vec4((frag_normal + 1.0) / 2.0, 1.0);
         return;
     }
-    if (pc.color_view)
+    if (frame_data.color_view)
     {
         out_color = frag_color;
         return;

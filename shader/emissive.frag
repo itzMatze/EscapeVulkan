@@ -25,9 +25,13 @@ layout(binding = 3) buffer material_buffer {
     Material materials[];
 };
 
+layout(binding = 90) uniform FrameDataBuffer {
+    FrameData frame_data;
+};
+
 void main()
 {
-    if (pc.tex_view)
+    if (frame_data.tex_view)
     {
         out_color = vec4(frag_tex, 1.0f, 1.0f);
         return;

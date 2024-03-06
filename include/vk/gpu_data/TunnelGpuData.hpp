@@ -9,11 +9,6 @@
 
 namespace ve
 {
-    struct TunnelPushConstants
-    {
-        uint32_t tex_view;
-    };
-
     struct TunnelSkyboxPushConstants
     {
         glm::mat4 mvp;

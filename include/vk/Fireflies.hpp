@@ -17,7 +17,7 @@ namespace ve
         void construct(const RenderPass& render_pass);
         void reload_shaders(const RenderPass& render_pass);
         void draw(vk::CommandBuffer& cb, GameState& gs);
-        void move_step(vk::CommandBuffer& cb, const GameState& gs, DeviceTimer& timer, uint32_t segment_uid);
+        void move_step(vk::CommandBuffer& cb, uint32_t current_frame, DeviceTimer& timer, uint32_t segment_uid);
 
         std::vector<uint32_t> vertex_buffers;
 

@@ -198,14 +198,14 @@ namespace ve
     void TunnelObjects::advance(GameState& gs, DeviceTimer& timer, PathTracer& path_tracer)
     {
         vk::CommandBuffer& cb = vcc.begin(vcc.compute_cb[gs.game_data.current_frame]);
-        fireflies.move_step(cb, gs, timer, cpc.segment_uid);
-        gs.game_data.segment_distance_travelled = progress_on_vector(get_tunnel_bezier_point(gs.game_data.player_segment_position, 0, true), get_tunnel_bezier_point(gs.game_data.player_segment_position, 2, true), gs.game_data.player_data.pos);
-        if (cpc.segment_uid - segment_count + 1 + player_local_segment_position < gs.game_data.player_segment_position)
+        fireflies.move_step(cb, gs.game_data.current_frame, timer, cpc.segment_uid);
+        gs.game_data.segment_distance_travelled = progress_on_vector(get_tunnel_bezier_point(gs.game_data.player_data.segment_id, 0, true), get_tunnel_bezier_point(gs.game_data.player_data.segment_id, 2, true), gs.game_data.player_data.pos);
+        if (cpc.segment_uid - segment_count + 1 + player_local_segment_position < gs.game_data.player_data.segment_id)
         {
             // player passed a segment, add distance of passed segment
-            glm::vec3& bp0 = get_tunnel_bezier_point(gs.game_data.player_segment_position - 1, 0, true);
-            glm::vec3& bp1 = get_tunnel_bezier_point(gs.game_data.player_segment_position - 1, 1, true);
-            glm::vec3& bp2 = get_tunnel_bezier_point(gs.game_data.player_segment_position - 1, 2, true);
+            glm::vec3& bp0 = get_tunnel_bezier_point(gs.game_data.player_data.segment_id - 1, 0, true);
+            glm::vec3& bp1 = get_tunnel_bezier_point(gs.game_data.player_data.segment_id - 1, 1, true);
+            glm::vec3& bp2 = get_tunnel_bezier_point(gs.game_data.player_data.segment_id - 1, 2, true);
             gs.game_data.tunnel_distance_travelled += glm::distance(bp0, bp2);
             gs.game_data.segment_distance_travelled = 0.0f;
             // increment the idx at which the compute shader starts to compute new vertices for the corresponding indices by the number of indices in one segment

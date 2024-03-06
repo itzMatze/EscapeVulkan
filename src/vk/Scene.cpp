@@ -44,6 +44,7 @@ namespace ve
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(11, storage.get_buffer_by_name("tunnel_vertices"));
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(12, storage.get_buffer_by_name("indices"));
             ros.at(ShaderFlavor::Default).dsh.add_descriptor(13, storage.get_buffer_by_name("vertices"));
+            ros.at(ShaderFlavor::Default).dsh.add_descriptor(90, storage.get_buffer_by_name("frame_data_" + std::to_string(i)));
  
             ros.at(ShaderFlavor::Basic).dsh.new_set();
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
@@ -57,11 +58,13 @@ namespace ve
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(11, storage.get_buffer_by_name("tunnel_vertices"));
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(12, storage.get_buffer_by_name("indices"));
             ros.at(ShaderFlavor::Basic).dsh.add_descriptor(13, storage.get_buffer_by_name("vertices"));
+            ros.at(ShaderFlavor::Basic).dsh.add_descriptor(90, storage.get_buffer_by_name("frame_data_" + std::to_string(i)));
 
             ros.at(ShaderFlavor::Emissive).dsh.new_set();
             ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(0, storage.get_buffer(model_render_data_buffers.back()));
             ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(1, storage.get_buffer(mesh_render_data_buffer));
             if (material_buffer > -1) ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(3, storage.get_buffer(material_buffer));
+            ros.at(ShaderFlavor::Emissive).dsh.add_descriptor(90, storage.get_buffer_by_name("frame_data_" + std::to_string(i)));
         }
         Mesh spawn_mesh;
         if (!ros.at(ShaderFlavor::Emissive).get_mesh("Engine_Lights", spawn_mesh)) VE_THROW("Failed to find desired spawn mesh for particles!");
@@ -86,7 +89,7 @@ namespace ve
         lights.clear();
         initial_light_values.clear();
         for (auto& b : bb_mm_buffers) storage.get_buffer(b).self_destruct();
-        for (auto& b : player_data_buffers) storage.get_buffer(b).self_destruct();
+        for (auto& b : frame_data_buffers) storage.get_buffer(b).self_destruct();
         bb_mm_buffers.clear();
         for (auto& buffer : model_render_data_buffers) storage.destroy_buffer(buffer);
         model_render_data_buffers.clear();
@@ -189,6 +192,7 @@ namespace ve
         ros.at(ShaderFlavor::Default).dsh.add_binding(11, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(12, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Default).dsh.add_binding(13, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Default).dsh.add_binding(90, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Basic).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
@@ -201,10 +205,12 @@ namespace ve
         ros.at(ShaderFlavor::Basic).dsh.add_binding(11, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(12, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Basic).dsh.add_binding(13, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Basic).dsh.add_binding(90, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
 
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(0, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eVertex);
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(1, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment);
         ros.at(ShaderFlavor::Emissive).dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+        ros.at(ShaderFlavor::Emissive).dsh.add_binding(90, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
         // load scene from custom json file
         using json = nlohmann::json;
         std::ifstream file(path);
@@ -286,8 +292,10 @@ namespace ve
 
         bb_mm_buffers.push_back(storage.add_named_buffer(std::string("bb_mm_0"), sizeof(ModelMatrices), vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.compute));
         bb_mm_buffers.push_back(storage.add_named_buffer(std::string("bb_mm_1"), sizeof(ModelMatrices), vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.compute));
-        player_data_buffers.push_back(storage.add_named_buffer(std::string("player_data_0"), sizeof(PlayerData), vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.compute));
-        player_data_buffers.push_back(storage.add_named_buffer(std::string("player_data_1"), sizeof(PlayerData), vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.compute));
+        frame_data_buffers.push_back(storage.add_named_buffer(std::string("frame_data_0"), sizeof(FrameData), vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.compute));
+        frame_data_buffers.push_back(storage.add_named_buffer(std::string("frame_data_1"), sizeof(FrameData), vk::BufferUsageFlagBits::eUniformBuffer, false, vmc.queue_family_indices.compute));
+        FrameData frame_data;
+        for (auto b : frame_data_buffers) storage.get_buffer(b).update_data(frame_data);
 
         loaded = true;
     }
@@ -360,7 +368,7 @@ namespace ve
         timer.start(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
         tunnel_objects.draw(cb, gs);
         timer.stop(cb, DeviceTimer::RENDERING_TUNNEL, vk::PipelineStageFlagBits::eAllCommands);
-        if (gs.settings.show_player_bb) collision_handler.draw(cb, gs, model_render_data[player_idx].MVP);
+        if (gs.settings.show_player_bb) collision_handler.draw(cb, model_render_data[player_idx].MVP);
         if (gs.game_data.show_player) jp.draw(cb, gs);
     }
 
@@ -381,7 +389,7 @@ namespace ve
         for (uint32_t j = 0; j < segment_count && tunnel_objects.is_pos_past_segment(gs.game_data.player_data.pos, model_render_data[player_idx].segment_uid + 1, true); ++j)
         {
             model_render_data[player_idx].segment_uid++;
-            gs.game_data.player_segment_position++;
+            gs.game_data.player_data.segment_id++;
         }
         for (uint32_t i = 0; i < model_render_data.size(); ++i)
         {
@@ -403,16 +411,17 @@ namespace ve
 
         ModelMatrices bb_mm{.m = model_render_data[player_idx].M, .inv_m = glm::inverse(model_render_data[player_idx].M)};
         storage.get_buffer(bb_mm_buffers[gs.game_data.current_frame]).update_data(bb_mm);
-        storage.get_buffer(player_data_buffers[gs.game_data.current_frame]).update_data(gs.game_data.player_data);
         tunnel_objects.advance(gs, timer, path_tracer);
-        collision_handler.compute(gs, timer);
+        FrameData frame_data{gs.game_data.player_data.pos, gs.game_data.player_data.dir, gs.game_data.player_data.up, gs.game_data.player_data.segment_id, gs.game_data.time_diff, gs.game_data.time, gs.game_data.first_segment_indices_idx, gs.settings.color_view, gs.settings.normal_view, gs.settings.tex_view, gs.settings.segment_uid_view};
+        storage.get_buffer(frame_data_buffers[gs.game_data.current_frame]).update_data(frame_data);
+        collision_handler.compute(gs.game_data.current_frame, timer);
 
         if (!lights.empty()) storage.get_buffer(light_buffers[gs.game_data.current_frame]).update_data(lights);
         storage.get_buffer(model_render_data_buffers[gs.game_data.current_frame]).update_data(model_render_data);
         // handle collision: reset ship and let it blink for 3s
         gs.game_data.collision_results = collision_handler.get_collision_results(gs.game_data.current_frame);
         // check if player tries to move in the wrong direction
-        if (!tunnel_objects.is_pos_past_segment(gs.game_data.player_data.pos, std::max(gs.game_data.player_segment_position - 1, 0), true)) gs.game_data.collision_results.collision_detected = 1;
+        if (!tunnel_objects.is_pos_past_segment(gs.game_data.player_data.pos, std::max(gs.game_data.player_data.segment_id - 1, 0u), true)) gs.game_data.collision_results.collision_detected = 1;
         if (gs.game_data.player_reset_blink_counter == 0 && gs.game_data.collision_results.collision_detected != 0 && gs.settings.collision_detection_active)
         {
             gs.cam.position = tunnel_objects.get_player_reset_position();
@@ -442,7 +451,7 @@ namespace ve
                 gs.game_data.show_player = !gs.game_data.show_player;
             }
         }
-        jp.move_step(cb, gs);
+        jp.move_step(cb, gs.game_data.current_frame);
     }
 
     uint32_t Scene::get_light_count()

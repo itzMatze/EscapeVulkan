@@ -10,7 +10,7 @@ layout(location = 0) out vec3 frag_pos;
 layout(location = 1) out vec2 frag_tex;
 
 layout(push_constant) uniform PushConstant {
-    DebugPushConstants pc;
+    TunnelSkyboxPushConstants pc;
 };
 
 void main() {

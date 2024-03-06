@@ -1,18 +1,22 @@
 #define PI 3.1415926535897932384626433832
 
-struct RenderPushConstants {
-    uint mesh_render_data_idx;
-    uint first_segment_indices_idx;
+struct FrameData
+{
+    vec4 player_pos;
+    vec4 player_dir;
+    vec4 player_up;
+    uint player_segment_id;
+    float time_diff;
     float time;
+    uint tunnel_first_segment_indices_idx;
+    bool color_view;
+    bool normal_view;
     bool tex_view;
+    bool segment_uid_view;
 };
 
-struct LightingPassPushConstants {
-    uint first_segment_indices_idx;
-    float time;
-    bool normal_view;
-    bool color_view;
-    bool segment_uid_view;
+struct RenderPushConstants {
+    uint mesh_render_data_idx;
 };
 
 struct NewSegmentPushConstants {
@@ -23,22 +27,12 @@ struct NewSegmentPushConstants {
     uint segment_uid;
 };
 
-struct TunnelPushConstants
-{
-    bool tex_view;
-};
-
 struct FireflyMovePushConstants {
-    float time;
-    float time_diff;
     uint segment_uid;
-    uint first_segment_indices_idx;
 };
 
-struct JetParticleMovePushConstants {
-    vec3 move_dir;
-    float time;
-    float time_diff;
+struct TunnelSkyboxPushConstants {
+    mat4 mvp;
 };
 
 struct DebugPushConstants {
@@ -86,13 +80,6 @@ struct ModelMatrices
 {
     mat4 m;
     mat4 inv_m;
-};
-
-struct PlayerData
-{
-    vec4 pos;
-    vec4 dir;
-    vec4 up;
 };
 
 struct AlignedVertex {

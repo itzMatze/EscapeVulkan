@@ -44,6 +44,10 @@ layout(push_constant) uniform PushConstant {
     FireflyMovePushConstants pc;
 };
 
+layout(binding = 90) uniform FrameDataBuffer {
+    FrameData frame_data;
+};
+
 uint rng_state;
 
 uint PCGHashState()
@@ -132,9 +136,9 @@ void main()
     uint firefly_idx = (segment_uid * FIREFLIES_PER_SEGMENT) % FIREFLIES_COUNT + gl_GlobalInvocationID.x % FIREFLIES_PER_SEGMENT;
 
     // different state every 2 seconds and for every firefly
-    rng_state = uint(pc.time / 2.0 + firefly_idx);
+    rng_state = uint(frame_data.time / 2.0 + firefly_idx);
     // seed is used to have different random number in every frame
-    uint seed = uint(gl_GlobalInvocationID.x + FIREFLIES_COUNT * pc.time * pc.time_diff);
+    uint seed = uint(gl_GlobalInvocationID.x + FIREFLIES_COUNT * frame_data.time * frame_data.time_diff);
 
     // bezier points of segment
     vec3 p0 = tunnel_bezier_points[(segment_uid * 2) % (SEGMENT_COUNT * 2 + 3)];
@@ -146,9 +150,9 @@ void main()
 
     // set random acceleration every 2 seconds
     vec3 acc = vec3(pcg_random_state_clipped() * pcg_random_state(), pcg_random_state_clipped() * pcg_random_state(), pcg_random_state_clipped() * pcg_random_state());
-    v.vel += acc * pc.time_diff;
+    v.vel += acc * frame_data.time_diff;
     // reduce applied velocity by random value to simulate insect like behavior
-    v.pos += pcg_random_clipped(seed) * v.vel * pc.time_diff;
+    v.pos += pcg_random_clipped(seed) * v.vel * frame_data.time_diff;
     v.col = vec3(pcg_random_state() + 1.0, pcg_random_state() + 1.0, pcg_random_state() + 1.0);
 
     // check if firefly is inside the aabb of the ship and move it out of it if necessary
@@ -156,7 +160,7 @@ void main()
     if (dodge_aabb(bb, (bb_mm.inv_m * vec4(v.pos, 1.0)).xyz, aabb_dodge_pos))
     {
         aabb_dodge_pos = (bb_mm.m * vec4(aabb_dodge_pos, 1.0)).xyz;
-        v.vel += (aabb_dodge_pos - v.pos) / pc.time_diff;
+        v.vel += (aabb_dodge_pos - v.pos) / frame_data.time_diff;
         v.pos = aabb_dodge_pos;
     }
 

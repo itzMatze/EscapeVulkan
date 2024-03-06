@@ -8,13 +8,6 @@
 
 namespace ve
 {
-    struct JetParticleMovePushConstants
-    {
-        alignas(16) glm::vec3 move_dir;
-        float time;
-        float time_diff;
-    };
-
     struct JetParticleVertex
     {
         glm::vec3 pos;

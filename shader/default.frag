@@ -61,9 +61,13 @@ layout(binding = 13) buffer SceneVerticesBuffer {
     AlignedVertex scene_vertices[];
 };
 
+layout(binding = 90) uniform FrameDataBuffer {
+    FrameData frame_data;
+};
+
 void main()
 {
-    if (pc.tex_view)
+    if (frame_data.tex_view)
     {
         out_color = vec4(frag_tex, 1.0f, 1.0f);
         out_segment_uid = -1;

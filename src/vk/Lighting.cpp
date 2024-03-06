@@ -28,8 +28,6 @@ void Lighting::pre_pass(vk::CommandBuffer& cb, GameState& gs)
 {
     cb.bindPipeline(vk::PipelineBindPoint::eGraphics, lighting_pipeline_0.get());
     cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, lighting_pipeline_0.get_layout(), 0, lighting_dsh.get_sets()[gs.game_data.current_frame * frames_in_flight], {});
-    LightingPassPushConstants lppc{.first_segment_indices_idx = gs.game_data.first_segment_indices_idx, .time = gs.game_data.time, .normal_view = gs.settings.normal_view, .color_view = gs.settings.color_view, .segment_uid_view = gs.settings.segment_uid_view};
-    cb.pushConstants(lighting_pipeline_0.get_layout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(LightingPassPushConstants), &lppc);
     if (!gs.settings.disable_rendering)
     {
         cb.draw(3, 1, 0, 0);
@@ -40,8 +38,6 @@ void Lighting::main_pass(vk::CommandBuffer& cb, GameState& gs)
 {
     cb.bindPipeline(vk::PipelineBindPoint::eGraphics, lighting_pipeline_1.get());
     cb.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, lighting_pipeline_1.get_layout(), 0, lighting_dsh.get_sets()[gs.game_data.current_frame * frames_in_flight + 1], {});
-    LightingPassPushConstants lppc{.first_segment_indices_idx = gs.game_data.first_segment_indices_idx, .time = gs.game_data.time, .normal_view = gs.settings.normal_view, .color_view = gs.settings.color_view, .segment_uid_view = gs.settings.segment_uid_view};
-    cb.pushConstants(lighting_pipeline_1.get_layout(), vk::ShaderStageFlagBits::eFragment, 0, sizeof(LightingPassPushConstants), &lppc);
     if (!gs.settings.disable_rendering)
     {
         cb.draw(3, 1, 0, 0);
@@ -65,11 +61,11 @@ void Lighting::create_lighting_pipeline(uint32_t light_count, const Swapchain& s
 
     shader_infos[0] = ShaderInfo{"lighting.vert", vk::ShaderStageFlagBits::eVertex};
     shader_infos[1] = ShaderInfo{"lighting.frag", vk::ShaderStageFlagBits::eFragment, fragment_spec_info};
-    lighting_pipeline_0.construct(swapchain.get_render_pass(), lighting_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, std::vector<vk::VertexInputBindingDescription>(), std::vector<vk::VertexInputAttributeDescription>(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, 0, sizeof(LightingPassPushConstants))});
+    lighting_pipeline_0.construct(swapchain.get_render_pass(), lighting_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, std::vector<vk::VertexInputBindingDescription>(), std::vector<vk::VertexInputAttributeDescription>(), vk::PrimitiveTopology::eTriangleList, {});
 
     fragment_entries_data[6] = 0;
     shader_infos[1] = ShaderInfo{"lighting.frag", vk::ShaderStageFlagBits::eFragment, fragment_spec_info};
-    lighting_pipeline_1.construct(swapchain.get_render_pass(), lighting_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, std::vector<vk::VertexInputBindingDescription>(), std::vector<vk::VertexInputAttributeDescription>(), vk::PrimitiveTopology::eTriangleList, {vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, 0, sizeof(LightingPassPushConstants))});
+    lighting_pipeline_1.construct(swapchain.get_render_pass(), lighting_dsh.get_layouts()[0], shader_infos, vk::PolygonMode::eFill, std::vector<vk::VertexInputBindingDescription>(), std::vector<vk::VertexInputAttributeDescription>(), vk::PrimitiveTopology::eTriangleList, {});
 }
 
 void Lighting::create_lighting_descriptor_sets(vk::Extent2D swapchain_extent)
@@ -89,6 +85,7 @@ void Lighting::create_lighting_descriptor_sets(vk::Extent2D swapchain_extent)
     lighting_dsh.add_binding(11, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
     lighting_dsh.add_binding(12, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
     lighting_dsh.add_binding(13, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eFragment);
+    lighting_dsh.add_binding(90, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eFragment);
     lighting_dsh.add_binding(99, vk::DescriptorType::eAccelerationStructureKHR, vk::ShaderStageFlagBits::eFragment);
     lighting_dsh.add_binding(100, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
     lighting_dsh.add_binding(101, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment);
@@ -113,6 +110,7 @@ void Lighting::create_lighting_descriptor_sets(vk::Extent2D swapchain_extent)
             lighting_dsh.add_descriptor(11, storage.get_buffer_by_name("tunnel_vertices"));
             lighting_dsh.add_descriptor(12, storage.get_buffer_by_name("indices"));
             lighting_dsh.add_descriptor(13, storage.get_buffer_by_name("vertices"));
+            lighting_dsh.add_descriptor(90, storage.get_buffer_by_name("frame_data_" + std::to_string(j)));
             lighting_dsh.add_descriptor(99, storage.get_buffer_by_name("tlas_" + std::to_string(j)));
             lighting_dsh.add_descriptor(100, storage.get_image_by_name("deferred_position"));
             lighting_dsh.add_descriptor(101, storage.get_image_by_name("deferred_normal"));

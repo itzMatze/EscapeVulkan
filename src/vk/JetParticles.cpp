@@ -42,6 +42,7 @@ namespace ve
         compute_dsh.add_binding(2, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(3, vk::DescriptorType::eStorageBuffer, vk::ShaderStageFlagBits::eCompute);
         compute_dsh.add_binding(4, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eCompute);
+        compute_dsh.add_binding(90, vk::DescriptorType::eUniformBuffer, vk::ShaderStageFlagBits::eCompute);
 
         // add one uniform buffer and descriptor set for each frame as the uniform buffer is changed in every frame
         for (uint32_t i = 0; i < frames_in_flight; ++i)
@@ -57,6 +58,7 @@ namespace ve
             compute_dsh.add_descriptor(2, storage.get_buffer_by_name("indices"));
             compute_dsh.add_descriptor(3, storage.get_buffer_by_name("vertices"));
             compute_dsh.add_descriptor(4, storage.get_buffer(spawn_mesh_model_render_data_buffer[i]));
+            compute_dsh.add_descriptor(90, storage.get_buffer_by_name("frame_data_" + std::to_string(i)));
         }
         render_dsh.construct();
         compute_dsh.construct();
@@ -88,7 +90,7 @@ namespace ve
         std::array<uint32_t, 6> compute_entries_data{jet_particle_count, mesh.index_offset, mesh.index_count, spawn_mesh_model_render_data_buffer_count, spawn_mesh_model_render_data_buffer_idx, *reinterpret_cast<uint32_t*>(&lifetime)};
         vk::SpecializationInfo compute_spec_info(compute_entries.size(), compute_entries.data(), compute_entries_data.size() * sizeof(uint32_t), compute_entries_data.data());
 
-        move_compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"jet_particles_move.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, sizeof(JetParticleMovePushConstants));
+        move_compute_pipeline.construct(compute_dsh.get_layouts()[0], ShaderInfo{"jet_particles_move.comp", vk::ShaderStageFlagBits::eCompute, compute_spec_info}, 0);
     }
 
     void JetParticles::reload_shaders(const RenderPass& render_pass)
@@ -108,12 +110,10 @@ namespace ve
         cb.draw(jet_particle_count, 1, 0, 0);
     }
 
-    void JetParticles::move_step(vk::CommandBuffer& cb, const GameState& gs)
+    void JetParticles::move_step(vk::CommandBuffer& cb, uint32_t current_frame)
     {
         cb.bindPipeline(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get());
-        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[gs.game_data.current_frame], {});
-        JetParticleMovePushConstants jpmpc{.move_dir = gs.cam.getFront(), .time = gs.game_data.time, .time_diff = gs.game_data.time_diff};
-        cb.pushConstants(move_compute_pipeline.get_layout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(JetParticleMovePushConstants), &jpmpc);
+        cb.bindDescriptorSets(vk::PipelineBindPoint::eCompute, move_compute_pipeline.get_layout(), 0, compute_dsh.get_sets()[current_frame], {});
         cb.dispatch((jet_particle_count + 31) / 32, 1, 1);
     }
 } // namespace ve

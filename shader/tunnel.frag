@@ -20,10 +20,6 @@ layout(location = 2) out vec4 out_color;
 layout(location = 3) out int out_segment_uid;
 layout(location = 4) out vec2 out_motion;
 
-layout(push_constant) uniform PushConstant {
-    TunnelPushConstants pc;
-};
-
 layout(binding = 1) buffer MeshRenderDataBuffer {
     MeshRenderData mesh_rd[];
 };
@@ -60,12 +56,16 @@ layout(binding = 13) buffer SceneVerticesBuffer {
     AlignedVertex scene_vertices[];
 };
 
+layout(binding = 90) uniform FrameDataBuffer {
+    FrameData frame_data;
+};
+
 void main()
 {
     // read displacement of normal from noise texture
     vec3 normal = normalize(frag_normal + texture(noise_tex_sampler, vec3(frag_tex, 0)).rgb - 0.5);
 
-    if (pc.tex_view)
+    if (frame_data.tex_view)
     {
         out_color = vec4(frag_tex, 1.0, 1.0);
         out_segment_uid = -1;
